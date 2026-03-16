@@ -1,0 +1,90 @@
+﻿BLITZR: The Campus Macro-Economy
+Executive Product Blueprint & Operational Strategy
+1. Introduction: The Vision
+BLITZR is not a social network; it is a live financial engine running on human ego and collective prediction. It transforms the intangible "social clout" of a college campus into a liquid, tradable asset class. By merging a Personal IPO Market (trading people) with a Prop Market (trading events), BLITZR creates a closed-circuit ecosystem that gamifies campus life.
+The platform operates on a dual-currency model: Creds (High-value social equity) and Chips (High-velocity predictive betting), ensuring a constant circular flow of wealth and engagement.
+2. The Dual-Currency Economy
+To maintain stability and long-term interest, the economy is split into two tiers.
+A. Creds (The "Dollar" Tier)
+* Purpose: Used exclusively for the Personal IPO Market.
+* Value: Represents long-term status and "Wealth."
+* The Exchange:   .
+* Psychology: Investing in a person’s stock is a high-stakes move. It signals belief in their social trajectory.
+B. Chips (The "Cent" Tier)
+   * Purpose: Used for the Prop (Event) Market.
+   * Value: High-velocity currency for daily interactions.
+   * The Exchange:   .
+   * Psychology: Chips are "fun money." They allow users to engage with the app 10–20 times a day without the fear of losing their entire "Net Worth."
+3. The Personal IPO Market (The "Wall Street" Tab)
+This is the heart of the app’s viral engine. Every student who opts in has a ticker symbol (e.g., $RAHUL).
+The Bonding Curve Mechanics
+There is no "Order Book." The price is determined by a mathematical curve:   .
+      * Instant Liquidity: You can always buy or sell. The app acts as the counterparty.
+      * FOMO Engine: As soon as one person buys, the price for the next person increases. This creates "Pump and Dump" squads where groups coordinate to push a friend (or themselves) onto the "Top Gainers" list.
+The Creator Economy (Dividends)
+To prevent this from being a "bullying simulator," the platform empowers the "Asset."
+      * The House Cut: Every time a share of $PRIYA is traded, Priya herself receives a 5% dividend in Creds.
+      * Alignment of Interests: Instead of being "traded like an object," the popular student becomes a business mogul profiting from their own fame.
+4. The Prop Market (The "Arena" Tab)
+This is a predictive marketplace (similar to Kalshi) where users bet on campus outcomes using Chips.
+Platform-Curated Events (The Blue Chips)
+Admin-created markets with objective, verifiable results.
+      * Example: "Will the canteen serve Biryani this Friday?"
+      * Example: "Will the College Fest be postponed due to rain?"
+      * Example: "Will the Computer Science department's average GPA drop this semester?"
+User-Generated Markets (The Micro-Bets)
+Users can pay a Listing Fee in Chips to create their own hyper-local markets.
+      * Example: "Will the Hostel 4 lift be repaired by 6 PM?"
+      * Example: "Will the 'Coding Club' meeting last more than 2 hours?"
+      * Verification: These require a "Referee" (a designated neutral user) or a community vote to resolve.
+5. The User Experience: Tab-by-Tab Breakdown
+Tab 1: The Trading Floor (Dashboard)
+The first thing a user sees. It looks like a high-end fintech app (Robinhood/Binance style).
+      * The Ticker Tape: A scrolling marquee at the top showing real-time price changes (e.g., $ANJALI +14%, $PROP_EVENT_3 -5%).
+      * Top Gainers & Losers: A leaderboard of the most volatile personal stocks in the last hour.
+      * Trending Volume: Which students are currently being "attacked" or "pumped" by the market.
+Tab 2: The Arena (Predictive Markets)
+A list of active "Prop" bets categorized by "Campus Life," "Sports," and "Academics."
+      * Live Odds: Visual bars showing the "Yes/No" split of the campus.
+      * The Betting Slip: A simple interface to place Chips on an outcome.
+Tab 3: The Rumor Feed (The Engine Room)
+An anonymous, YikYak-style feed that drives the market.
+      * Ticker Tagging: Users can tag a stock ticker in their post (e.g., "Just saw $VIVEK walking into the Dean's office with a serious face... SELL SELL SELL").
+      * Information Monetization: This feed turns gossip into "Market Research." Users read the feed to decide which Prop Bets to take or which IPOs to dump.
+      * Safety Filter: AI-moderation for slurs, threats, and self-harm keywords.
+Tab 4: The Portfolio (The Vault)
+A detailed view of the user’s net worth.
+      * Asset Allocation: A pie chart showing the split between Creds and Chips.
+      * Inventory: A list of all shares owned in classmates and all active bets in the Prop Market.
+      * History: A ledger of past "Wins" and "Losses."
+Tab 5: Settings & The Panic Button
+      * IPO Management: Toggle your "Listing" on or off.
+      * The "Delist" Button: A prominent red button. If a student feels targeted, they can Delist. Their stock freezes, all current shareholders are refunded the last price, and the student disappears from the market for 72 hours.
+6. Managing the Economy: The "Coin Sinks"
+To prevent hyperinflation (where millions of fake points become meaningless), the app must constantly destroy currency.
+      1. Transaction Tax: A 3% fee on every IPO trade and a 5% fee on every Prop Bet. These coins are "burned" (removed from the database).
+      2. Listing Fees: Users pay Chips to create Prop Markets.
+      3. Utility Spending: * "Shoutout": Spend 500 Chips to pin a message to the top of the Rumor Feed for 10 minutes.
+      * "Golden Border": Spend 1,000 Creds to give your stock ticker a glowing gold border for a week (pure status).
+      * "Nuke": Spend 2,000 Chips to "Freeze" a specific Prop Market for 1 hour, preventing any new bets.
+7. Use Cases: A Day in the Life of a BLITZR User
+Scenario A: The Gossip Trader
+A student sees a post on the Rumor Feed: "The Cultural Secretary just resigned." They immediately go to the Trading Floor, search for the Cultural Secretary's ticker, and hit SELL before the news spreads. They avoid a 40% crash in their portfolio.
+Scenario B: The "Introvert" Whale
+A quiet student who isn't interested in personal fame spends their time in The Arena. They have deep knowledge of campus sports. They bet 100 Chips that the Underdog Hostel will win the Volleyball match. The Underdog wins, they get 500 Chips, which they convert into Creds to buy "Blue Chip" stocks of the most popular seniors.
+Scenario C: The Popular "House"
+A popular student IPOs themselves. Because they are active on campus, people trade their stock constantly. Even if their price stays flat, the 5% Dividend earns them 50 Creds a day just for existing. They use these Creds to buy "Shoutouts" for their upcoming room party.
+8. Addressing The "Atomic Race Condition" (Technical Requirement)
+While this is a non-technical document, the operational logic requires that Transactions must be Sequential.
+      * If 100 people buy a stock at once, the system must process them as 100 individual events on the bonding curve.
+      * This prevents the "Price Glitch" where everyone gets the "cheap" starting price, which would bankrupt the platform's liquidity.
+9. Launch Strategy: The "Wolf of Wall Street" Dorm Culture
+      1. The Seed: Select 50 "Alpha" users (Club heads, sports captains, hostel influencers) to IPO early.
+      2. The Scarcity: Open the app to the rest of the campus via invite-only codes.
+      3. The Event: Launch the first "Official Prop Market" on a high-stakes campus event (e.g., the results of a student election).
+      4. The Screenshots: Encourage users to share their "Portfolio Gains" on WhatsApp/Instagram, creating a massive FOMO loop for those not yet on the app.
+10. Summary of Competitive Advantages
+      * Retention: The Prop Market (Chips) provides daily utility that lasts 4 years, even if the "Personal IPO" drama fades.
+      * Safety: Opt-in only and Delist buttons make this safer than any existing anonymous gossip app (like Jodel or YikYak).
+      * Monetization Potential: While the points are currently fake, this "Financial Engine" could eventually be used to trade real-world campus perks (e.g., tickets to fests, canteen vouchers) through partnerships with the college.
+BLITZR is more than an app; it is a mirror held up to the social hierarchy of a campus, providing a safe, gamified way to navigate the complexities of college life.

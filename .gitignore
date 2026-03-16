@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build
+dist/
+build/
+*.js.map
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+coverage/
+
+# React Native
+apps/mobile/android/.gradle
+apps/mobile/android/app/build
+apps/mobile/ios/Pods
+apps/mobile/ios/build
+
+# Logs
+*.log
+npm-debug.log*

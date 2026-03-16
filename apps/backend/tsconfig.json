@@ -1,0 +1,30 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "baseUrl": "./",
+        "paths": {
+            "@blitzr/shared": [
+                "../../packages/shared/src"
+            ],
+            "@blitzr/shared/*": [
+                "../../packages/shared/src/*"
+            ],
+            "@/*": [
+                "src/*"
+            ]
+        },
+        "strictPropertyInitialization": false,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false
+    },
+    "include": [
+        "src/**/*",
+        "../../packages/shared/src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "test"
+    ]
+}

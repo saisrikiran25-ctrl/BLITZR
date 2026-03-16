@@ -1,0 +1,93 @@
+﻿BLITZR: Design & Appearance Specification
+Internal Project Name: BLITZR-VISUAL-PRIME
+Design Language: "Obsidian Industrial"
+Target Aesthetic: Palantir Foundry meets Tesla Interface
+1. Visual Identity & Design Language
+1.1 The "Obsidian Industrial" Philosophy
+BLITZR’s visual identity is built on three pillars: Authority, Density, and Precision. The interface should feel monolithic, utilizing high-contrast elements, sharp edges, and data-rich visualizations. It avoids rounded "bubbly" buttons in favor of slight corner radii (2px to 4px) and utilizes depth through subtle layering rather than drop shadows.
+1.2 Color Palette (The Tactical Spectrum)
+We move away from traditional "social" blues. The palette is strictly neutral with high-kinetic accents.
+* Obsidian Base (#0A0A0B): The primary background color. A deep, true black that creates a sense of infinite depth on OLED screens.
+* Titanium Gray (#1C1C1E): The secondary surface color. Used for cards, panels, and input fields to create structural hierarchy.
+* Slate Neutral (#8E8E93): Used for secondary text and borders.
+* Kinetic Green (#00FF41): The "Bull" color. A vivid, neon-tinted green used for gains, "Buy" actions, and active IPO statuses. Inspired by vintage terminal phosphors.
+* Thermal Red (#FF3B30): The "Bear" color. A sharp, aggressive red used for losses, "Sell" actions, and the "Nuke" button.
+* Active Gold (#FFD60A): Reserved exclusively for "Blue Chip" status, premium IPOs, and high-value Prop Events.
+1.3 Typography: The "Authority" Grid
+The typography must feel engineered.
+* Primary Typeface: Inter or SF Pro Display. Used for headers and primary UI elements. It provides a clean, neutral, and professional appearance.
+* Data Typeface: JetBrains Mono or Roboto Mono. Used for all numerical values, stock tickers, and prices. Monospaced fonts are mandatory to prevent "layout jumping" when prices fluctuate in real-time.
+* Sizing: Strict adherence to a 4px grid. Smallest legible text (data labels) at 10px; Body at 14px; Headers at 18px-24px.
+2. Global UI Components
+2.1 The Glassmorphism Layering
+Instead of traditional shadows, BLITZR uses "Material Backdrops." Panels have a 20% opacity white tint with a heavy (30px) background blur. This creates a "heads-up display" (HUD) effect, making the UI feel like it is floating over the data stream.
+2.2 The Kinetic Ticker Tape
+At the very top of every screen (except the Vault) is a 24px high marquee.
+* Appearance: Monospaced white text on an Obsidian background.
+* Behavior: Seamlessly scrolls real-time price changes of the top 10 most volatile IPOs and Chip-weighted Prop Events.
+* Interaction: Tapping a ticker symbol instantly navigates the user to that entity's Dossier.
+3. Tab-by-Tab Breakdown: The Interface Architecture
+3.1 Tab 1: The Trading Floor (The Command Center)
+The dashboard is designed for high data density. It is the "Bloomberg Terminal" for students.
+* Header Section: A "Global Market Cap" counter that shows the total Creds in circulation, rendered in a large, glowing monospaced font.
+* The Heatmap: A grid of 2x2 or 3x3 squares representing different campus hostel wings or departments. The squares glow green or red based on the aggregate movement of the IPOs within that category.
+* Ticker Cards: * Layout: Horizontal cards with a "Sparkline" (a simplified, 24h line chart without axes) on the right side.
+   * Visuals: The ticker name ($RAHUL) in bold white, current price in the Kinetic Green or Thermal Red, and a "Volume" bar at the bottom of the card showing activity.
+* The "Pulse" Indicator: A subtle, 1px thick animated line at the bottom of the screen that "blips" whenever a trade is executed globally, providing a psychological sense of a living market.
+3.2 Tab 2: The Arena (Prop Markets)
+This tab is designed like a tactical mission board. Each event is a "Case."
+* The Mission List: Vertical cards with high-contrast binary choices.
+* The Sentiment Slider: Instead of just percentages, a dual-colored bar (Yes: Kinetic Green vs. No: Thermal Red) shows the current "Chip" weight. The slider is thick (8px) and rounded, filling up as more volume enters the market.
+* The Odds Display: Displayed in a "Multiplier" format (e.g., 2.4x) to appeal to the high-stakes trading psychology.
+* The Countdown Timer: A ticking clock in the top right of each card, rendered in a red monospaced font, indicating when the market settles.
+3.3 Tab 3: The Rumor Feed (Intelligence Stream)
+This is not a "Facebook Wall." It is a raw data feed.
+* Micro-Post Design: Minimalist blocks of text. No profile pictures are shown (Anonymity Protocol). Instead, a "Ghost ID" icon (a geometric, procedurally generated shape) is used.
+* The "Ticker Integration": Ticker symbols mentioned in posts are highlighted with a subtle glow. Tapping them reveals a "Mini-Terminal" (a bottom-sheet) with a 1-minute chart and quick "Buy/Sell" buttons.
+* Data Overlays: If a post is causing a market move, a "Market Impact" badge appears, indicating the correlation (e.g., "$PRIYA -8% since this post").
+* The Input Bar: Floating at the bottom, styled like a terminal command line. > Enter Intel...
+3.4 Tab 4: The Dossier (Personal IPO / Profile)
+When a user clicks a ticker, they enter the "Dossier." This is the Palantir-inspired entity view.
+* The Profile Visualization: Instead of a circular avatar, a large, high-resolution portrait is used, potentially with a technical "scan-line" overlay.
+* The Master Chart: A full-width, interactive TradingView-style chart. Users can toggle between "Line" and "Candlestick" views.
+* Stats Grid: A 2x2 grid showing:
+   * Market Cap: Total Cred value of all shares.
+   * Liquidity: Number of Chips available for trade.
+   * Holders: Total unique students owning this stock.
+   * Dividend Yield: Total Creds earned by the owner.
+* The Order Block: Two massive, industrial-strength buttons at the bottom: [ BUY ] in Kinetic Green and [ SELL ] in Thermal Red.
+3.5 Tab 5: The Vault (Portfolio & Assets)
+This is where the user manages their wealth. It should feel like a high-end banking app (like the Tesla app's energy or car stats).
+* Net Worth Breakdown: A large donut chart centered on the screen. The outer ring is Creds; the inner ring is Chips.
+* Asset List: A clean, searchable list of all active "Holdings." Each row shows the purchase price vs. current price with a clear "Profit/Loss" (P/L) indicator.
+* The Transaction Ledger: A secondary view that looks like a printed receipt, showing every historical action with a timestamp.
+4. Interaction Design & Motion
+4.1 Haptic Feedback (Mechanical Precision)
+BLITZR uses "Taptic" feedback to simulate physical machinery.
+* The "Click": A sharp, medium-impact haptic when a trade is confirmed.
+* The "Scroll": Light haptic ticks when scrolling through the Ticker Tape.
+* The "Alert": A double-pulse haptic when a stock the user owns crashes by more than 10%.
+4.2 Transitions & Animation
+Motion is used to convey "live data," not decoration.
+* Price Updates: When a price changes, the number doesn't just swap; it "rolls" like a digital odometer.
+* Chart Wiggling: The line charts have a constant, tiny 1px jitter to indicate the "Market Maker" is active and the data is fresh.
+* Screen Transitions: Screens slide horizontally with a "Motion Blur" effect (200ms duration) to feel fast and lightweight.
+5. Specialized UI Features
+5.1 The "Nuke" UI (The Emergency Fee)
+When a user "Nukes" a market (freezing it), the entire screen briefly flashes a subtle red overlay, and a "Market Frozen" status bar appears with a countdown. The UI should feel heavy and consequential.
+5.2 The "Delist" Procedure
+This is a high-security action. When the "Delist My IPO" button is pressed, the user must hold the button for 3 seconds (a circular progress bar fills around the button). This prevents accidental exits and adds a sense of "Manual Override" to the action.
+5.3 Dark Mode & Lighting
+BLITZR is "Dark Mode First." There is no Light Mode.
+* OLED Optimization: The use of pure black (#000000) for the background ensures the Kinetic Green and Thermal Red "pop" with incredible intensity, mimicking a dark cockpit or a mission control room.
+6. Iconography: The "Industrial" Set
+Icons are strictly 1.5px line-weight, non-filled, and geometric.
+* Home: A stylized "Command" icon.
+* Arena: A target or crosshair icon.
+* Feed: A signal-wave or "Data Stream" icon.
+* Vault: A geometric shield or vault-door icon.
+* Dossier: A profile-outline within a bracket [ ].
+7. Performance Requirements for Design
+* Frame Rate: All animations and chart wiggles must maintain a steady 60fps.
+* Latency: The "Buy" button must respond visually (button state change) within 16ms of a touch event, even if the backend transaction takes longer.
+BLITZR represents the intersection of social dynamics and financial warfare. Every pixel is designed to reinforce the idea that information is the ultimate campus currency.

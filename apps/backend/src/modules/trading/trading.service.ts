@@ -1,0 +1,398 @@
+import {
+    Injectable,
+    BadRequestException,
+    NotFoundException,
+    ForbiddenException,
+} from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
+import { TransactionEntity } from './entities/transaction.entity';
+import { BondingCurveService } from '../ipo/bonding-curve.service';
+import { IPO_BURN_RATE, IPO_DIVIDEND_RATE, applyIpoFees } from '@blitzr/shared';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
+
+/**
+ * TradingService
+ * 
+ * Implements ATOMIC trade execution using PostgreSQL row-level locks.
+ * This is the "Priya Slap" prevention layer.
+ * 
+ * Transaction sequence:
+ * 1. BEGIN
+ * 2. SELECT ... FOR UPDATE on tickers row (locks supply)
+ * 3. SELECT ... FOR UPDATE on users row (locks balance)
+ * 4. Calculate cost via bonding curve integral
+ * 5. Validate sufficient balance
+ * 6. UPDATE supply, balance, holdings
+ * 7. INSERT transaction record
+ * 8. Pay dividend to creator
+ * 9. COMMIT
+ */
+@Injectable()
+export class TradingService {
+    constructor(
+        @InjectRepository(TransactionEntity)
+        private readonly txRepo: Repository<TransactionEntity>,
+        private readonly bondingCurve: BondingCurveService,
+        private readonly dataSource: DataSource,
+        private readonly realtimeGateway: RealtimeGateway,
+    ) { }
+
+    /**
+     * Preview a BUY trade (no mutation — shows price impact).
+     */
+    async previewBuy(collegeDomain: string, tickerId: string, sharesToBuy: number) {
+        const ticker = await this.dataSource.query(
+            `SELECT current_supply, scaling_constant, status FROM tickers WHERE ticker_id = $1 AND college_domain = $2`,
+            [tickerId, collegeDomain],
+        );
+
+        if (!ticker.length) throw new NotFoundException(`Ticker ${tickerId} not found`);
+        if (ticker[0].status !== 'ACTIVE') throw new ForbiddenException('Ticker is not active');
+
+        const supply = Number(ticker[0].current_supply);
+        const grossCost = this.bondingCurve.getBuyCost(supply, sharesToBuy);
+        const { netAmount, burnAmount, dividendAmount } = applyIpoFees(grossCost);
+
+        return {
+            ticker_id: tickerId,
+            shares: sharesToBuy,
+            direction: 'BUY' as const,
+            gross_cost: grossCost,
+            burn_fee: burnAmount,
+            dividend_fee: dividendAmount,
+            net_cost: grossCost, // User pays full gross; fees come from the system side
+            price_before: this.bondingCurve.getPrice(supply),
+            price_after: this.bondingCurve.getPriceAfterBuy(supply, sharesToBuy),
+            supply_before: supply,
+            supply_after: supply + sharesToBuy,
+        };
+    }
+
+    /**
+     * Compute NYSE-style session % change: (current - price_open) / price_open * 100
+     * price_open is the session-open price reset every 24h by the daily Cron.
+     */
+    private calculateChangePct(openPrice: number, currentPrice: number): number {
+        if (!openPrice || openPrice === currentPrice) return 0;
+        const pct = ((currentPrice - openPrice) / openPrice) * 100;
+        return Number(pct.toFixed(2));
+    }
+
+    /**
+     * ATOMIC BUY — The heart of the exchange.
+     * Uses SELECT ... FOR UPDATE to prevent race conditions.
+     */
+    async executeBuy(userId: string, collegeDomain: string, tickerId: string, sharesToBuy: number) {
+        if (sharesToBuy <= 0) throw new BadRequestException('Must buy at least 1 share');
+
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            // Step 1: Lock the ticker row
+            const [ticker] = await queryRunner.query(
+                `SELECT current_supply, scaling_constant, owner_id, status, price_open, college_domain 
+         FROM tickers 
+         WHERE ticker_id = $1 AND college_domain = $2
+         FOR UPDATE`,
+                [tickerId, collegeDomain],
+            );
+
+            if (!ticker) throw new NotFoundException(`Ticker ${tickerId} not found`);
+            if (ticker.status !== 'ACTIVE') throw new ForbiddenException('Ticker is frozen or delisted');
+
+            const supply = Number(ticker.current_supply);
+
+            // Step 2: Calculate cost
+            const grossCost = this.bondingCurve.getBuyCost(supply, sharesToBuy);
+            const { burnAmount, dividendAmount } = applyIpoFees(grossCost);
+
+            // Step 3: Lock and check user balance
+            const [user] = await queryRunner.query(
+                `SELECT cred_balance FROM users WHERE user_id = $1 FOR UPDATE`,
+                [userId],
+            );
+
+            if (!user) throw new NotFoundException('User not found');
+
+            const balance = Number(user.cred_balance);
+            if (balance < grossCost) {
+                throw new BadRequestException(
+                    `Insufficient Creds: need ${grossCost.toFixed(4)}, have ${balance.toFixed(4)}`,
+                );
+            }
+
+            // Step 4: Update ticker supply
+            await queryRunner.query(
+                `UPDATE tickers 
+         SET current_supply = current_supply + $1, 
+             total_volume = total_volume + $2,
+             total_trades = total_trades + 1,
+             human_trades_1h = human_trades_1h + 1,
+             updated_at = NOW()
+         WHERE ticker_id = $3`,
+                [sharesToBuy, grossCost, tickerId],
+            );
+
+            // Step 5: Deduct Creds from buyer
+            await queryRunner.query(
+                `UPDATE users SET cred_balance = cred_balance - $1, updated_at = NOW() WHERE user_id = $2`,
+                [grossCost, userId],
+            );
+
+            // Step 6: UPSERT holding
+            await queryRunner.query(
+                `INSERT INTO holdings (user_id, ticker_id, shares_held, avg_buy_price)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (user_id, ticker_id)
+         DO UPDATE SET 
+           shares_held = holdings.shares_held + $3,
+           avg_buy_price = (
+             (holdings.avg_buy_price * holdings.shares_held) + ($4 * $3)
+           ) / (holdings.shares_held + $3),
+           updated_at = NOW()`,
+                [userId, tickerId, sharesToBuy, grossCost / sharesToBuy],
+            );
+
+            // Step 7: Insert transaction record
+            const newSupply = supply + sharesToBuy;
+            await queryRunner.query(
+                `INSERT INTO transactions 
+         (user_id, ticker_id, tx_type, shares_quantity, amount, 
+          price_at_execution, supply_at_execution, 
+          burn_amount, dividend_amount, currency)
+         VALUES ($1, $2, 'BUY', $3, $4, $5, $6, $7, $8, 'CRED')`,
+                [userId, tickerId, sharesToBuy, grossCost,
+                    this.bondingCurve.getPrice(supply), supply,
+                    burnAmount, dividendAmount],
+            );
+
+            // Step 8: Pay 5% dividend to creator
+            await queryRunner.query(
+                `UPDATE users 
+         SET cred_balance = cred_balance + $1, 
+             dividend_earned = dividend_earned + $1,
+             updated_at = NOW()
+         WHERE user_id = $2`,
+                [dividendAmount, ticker.owner_id],
+            );
+
+            // Step 9: Burn 3% (update platform wallet)
+            await queryRunner.query(
+                `UPDATE platform_wallet 
+         SET total_burned_creds = total_burned_creds + $1, updated_at = NOW()
+         WHERE id = 1`,
+                [burnAmount],
+            );
+
+            // COMMIT
+            await queryRunner.commitTransaction();
+
+            // STEP 10: Broadcast updates
+            const finalPrice = this.bondingCurve.getPrice(newSupply);
+            const changePct = this.calculateChangePct(Number(ticker.price_open), finalPrice);
+            const [updatedTicker] = await this.dataSource.query(
+                `SELECT total_volume FROM tickers WHERE ticker_id = $1`, [tickerId]
+            );
+            const newVolume = updatedTicker ? Number(updatedTicker.total_volume) : 0;
+            this.realtimeGateway.broadcastPriceUpdate(ticker.college_domain, tickerId, finalPrice, newSupply, changePct, newVolume);
+            this.realtimeGateway.broadcastPulse(ticker.college_domain, tickerId, 'BUY');
+
+            return {
+                tx_type: 'BUY',
+                ticker_id: tickerId,
+                shares: sharesToBuy,
+                total_cost: grossCost,
+                burn_fee: burnAmount,
+                dividend_paid: dividendAmount,
+                new_price: this.bondingCurve.getPrice(newSupply),
+                new_supply: newSupply,
+                new_balance: balance - grossCost,
+            };
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            throw error;
+        } finally {
+            await queryRunner.release();
+        }
+    }
+
+    /**
+     * ATOMIC SELL — Mirror of executeBuy with reversed logic.
+     */
+    async executeSell(userId: string, collegeDomain: string, tickerId: string, sharesToSell: number) {
+        if (sharesToSell <= 0) throw new BadRequestException('Must sell at least 1 share');
+
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            // Lock ticker
+            const [ticker] = await queryRunner.query(
+                `SELECT current_supply, owner_id, status, price_open, college_domain FROM tickers WHERE ticker_id = $1 AND college_domain = $2 FOR UPDATE`,
+                [tickerId, collegeDomain],
+            );
+
+            if (!ticker) throw new NotFoundException(`Ticker ${tickerId} not found`);
+            if (ticker.status !== 'ACTIVE') throw new ForbiddenException('Ticker is frozen or delisted');
+
+            const supply = Number(ticker.current_supply);
+
+            // Lock user's holding
+            const [holding] = await queryRunner.query(
+                `SELECT shares_held FROM holdings WHERE user_id = $1 AND ticker_id = $2 FOR UPDATE`,
+                [userId, tickerId],
+            );
+
+            if (!holding || Number(holding.shares_held) < sharesToSell) {
+                throw new BadRequestException('Insufficient shares to sell');
+            }
+
+            // Calculate sell value
+            const grossValue = this.bondingCurve.getSellValue(supply, sharesToSell);
+            const { burnAmount, dividendAmount } = applyIpoFees(grossValue);
+            const netValue = grossValue - burnAmount - dividendAmount;
+
+            // Update ticker supply
+            await queryRunner.query(
+                `UPDATE tickers 
+         SET current_supply = current_supply - $1, 
+             total_volume = total_volume + $2,
+             total_trades = total_trades + 1,
+             human_trades_1h = human_trades_1h + 1,
+             updated_at = NOW()
+         WHERE ticker_id = $3`,
+                [sharesToSell, grossValue, tickerId],
+            );
+
+            // Credit Creds to seller (net of fees)
+            await queryRunner.query(
+                `UPDATE users SET cred_balance = cred_balance + $1, updated_at = NOW() WHERE user_id = $2`,
+                [netValue, userId],
+            );
+
+            // Update holding
+            const newSharesHeld = Number(holding.shares_held) - sharesToSell;
+            if (newSharesHeld === 0) {
+                await queryRunner.query(
+                    `DELETE FROM holdings WHERE user_id = $1 AND ticker_id = $2`,
+                    [userId, tickerId],
+                );
+            } else {
+                await queryRunner.query(
+                    `UPDATE holdings SET shares_held = $1, updated_at = NOW() WHERE user_id = $2 AND ticker_id = $3`,
+                    [newSharesHeld, userId, tickerId],
+                );
+            }
+
+            // Insert transaction
+            const newSupply = supply - sharesToSell;
+            await queryRunner.query(
+                `INSERT INTO transactions 
+         (user_id, ticker_id, tx_type, shares_quantity, amount, 
+          price_at_execution, supply_at_execution, 
+          burn_amount, dividend_amount, currency)
+         VALUES ($1, $2, 'SELL', $3, $4, $5, $6, $7, $8, 'CRED')`,
+                [userId, tickerId, sharesToSell, grossValue,
+                    this.bondingCurve.getPrice(supply), supply,
+                    burnAmount, dividendAmount],
+            );
+
+            // Pay dividend to creator
+            await queryRunner.query(
+                `UPDATE users 
+         SET cred_balance = cred_balance + $1, 
+             dividend_earned = dividend_earned + $1,
+             updated_at = NOW()
+         WHERE user_id = $2`,
+                [dividendAmount, ticker.owner_id],
+            );
+
+            // Burn
+            await queryRunner.query(
+                `UPDATE platform_wallet 
+         SET total_burned_creds = total_burned_creds + $1, updated_at = NOW()
+         WHERE id = 1`,
+                [burnAmount],
+            );
+
+            await queryRunner.commitTransaction();
+
+            // STEP 10: Broadcast updates
+            const finalPrice = this.bondingCurve.getPrice(newSupply);
+            const changePct = this.calculateChangePct(Number(ticker.price_open), finalPrice);
+            const [updatedTickerSell] = await this.dataSource.query(
+                `SELECT total_volume FROM tickers WHERE ticker_id = $1`, [tickerId]
+            );
+            const newVolumeSell = updatedTickerSell ? Number(updatedTickerSell.total_volume) : 0;
+            this.realtimeGateway.broadcastPriceUpdate(ticker.college_domain, tickerId, finalPrice, newSupply, changePct, newVolumeSell);
+            this.realtimeGateway.broadcastPulse(ticker.college_domain, tickerId, 'SELL');
+
+            return {
+                tx_type: 'SELL',
+                ticker_id: tickerId,
+                shares: sharesToSell,
+                gross_value: grossValue,
+                net_received: netValue,
+                burn_fee: burnAmount,
+                dividend_paid: dividendAmount,
+                new_price: this.bondingCurve.getPrice(newSupply),
+                new_supply: newSupply,
+            };
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            throw error;
+        } finally {
+            await queryRunner.release();
+        }
+    }
+
+    /**
+     * CRON JOB: Broadcast live price + accurate % change every minute.
+     * % change = (currentPrice - lastTxPrice) / lastTxPrice * 100
+     * Includes supply so frontend can recompute Global Market Cap.
+     */
+    @Cron(CronExpression.EVERY_MINUTE)
+    async broadcastMarketUpdates() {
+        // Fetch current supply AND the session open price for each active ticker
+        const tickers = await this.dataSource.query(
+            `SELECT t.ticker_id, t.current_supply, t.total_volume, t.price_open, t.college_domain
+             FROM tickers t
+             WHERE t.status = 'ACTIVE'`
+        );
+
+        if (!tickers.length) return;
+
+        const domainMap = new Map<string, any[]>();
+
+        for (const t of tickers) {
+            const supply = Number(t.current_supply);
+            const currentPrice = this.bondingCurve.getPrice(supply);
+            const openPrice = Number(t.price_open);
+            // Session change: (current - open) / open
+            const changePct = this.calculateChangePct(openPrice, currentPrice);
+
+            const update = {
+                ticker_id: t.ticker_id,
+                price: currentPrice,
+                supply,
+                volume: Number(t.total_volume),
+                change_pct: changePct,
+            };
+
+            const domain = t.college_domain || 'iift.edu';
+            if (!domainMap.has(domain)) {
+                domainMap.set(domain, []);
+            }
+            domainMap.get(domain)!.push(update);
+        }
+
+        for (const [domain, domainTickers] of domainMap.entries()) {
+            this.realtimeGateway.broadcastTickerTape(domain, domainTickers);
+        }
+    }
+}

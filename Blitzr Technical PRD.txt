@@ -1,0 +1,141 @@
+﻿Technical Product Requirements Document (PRD): BLITZR
+Version: 1.0
+Project Code: BLITZR-PRIME
+Status: Final Draft
+Target: Engineering, DevOps, and Product Teams
+1. Executive Summary
+BLITZR is a high-concurrency campus social-equity exchange. It operates as a dual-market system: a Personal IPO Market (Equity) and a Prop Market (Derivatives). The system must handle high-velocity trading, real-time price updates, and anonymous social interactions while ensuring strict data integrity and preventing race conditions in a shared liquidity environment.
+2. System Architecture & Tech Stack
+2.1 Backend Architecture
+* Primary Language: Node.js (TypeScript) or Go (for high-performance concurrency).
+* Framework: NestJS (if Node) for modularity or Gin (if Go).
+* Database: PostgreSQL (Relational integrity is non-negotiable for financial transactions).
+* Caching/Real-time: Redis for Pub/Sub (Price updates) and caching high-frequency ticker data.
+* WebSockets: Socket.io or Gorilla WebSockets for real-time chart wiggling and ticker tapes.
+2.2 Frontend Architecture
+* Framework: React Native (iOS/Android) for a unified codebase with native performance.
+* State Management: Redux Toolkit or Zustand (optimized for high-frequency state updates).
+* Charting: Highcharts or Lightweight Charts (TradingView) for performant line charts on mobile.
+2.3 Infrastructure
+* Cloud: AWS or GCP.
+* Serverless: AWS Lambda for scheduled "Market Maker" bot scripts.
+* Security: Cloudflare for DDoS protection and WAF.
+3. The Economic Engine: Mathematical Modeling
+3.1 Personal IPO Bonding Curve
+Unlike a traditional order book, BLITZR uses a Linear/Exponential Bonding Curve to provide instant liquidity.
+* Price Formula:   
+   *    = Current Price in Creds.
+   *    = Current circulating supply of the specific student ticker.
+   *    = The "Scaling Constant."
+   * Recommended k: For a campus of 5,000,    should be set such that at 100 shares, the price is ~50 Creds. This ensures early volatility but prevents "Unreachable" prices too soon.
+      * Purchase Cost (  ): When buying    shares:
+  
+      * Sell Value (  ):   
+3.2 Dual-Currency Liquidity & Exchange
+         * Base Units: Creds (  ) and Chips (  ).
+         * Exchange Logic: *   
+            * The backend must support fractional Creds (up to 4 decimal places) to allow for seamless conversion from Chips.
+            * Taxation & Coin Sinks:
+            * Burn Rate: 3% of every IPO transaction is deleted from the global supply.
+            * Dividend: 5% of every IPO transaction is credited to the creator_wallet_id.
+            * Platform Fee: 5% of Prop Bet volume is moved to the platform_reserve_wallet.
+4. Functional Requirements & Feature Sets
+4.1 Personal IPO Market (The "Wall Street" Tab)
+            * User IPO Opt-in: A POST request that initializes a ticker_id, sets initial supply to 1 (held by creator), and calculates the starting price.
+            * Real-time Ticker: A WebSocket stream delivering the current    and 24h % change.
+            * Trade Execution: Atomic "Buy" and "Sell" operations.
+            * Portfolio Tracking: Real-time calculation of Net Worth:   .
+4.2 Prop Market (The "Arena" Tab)
+               * Event Lifecycle: 1. Creation: Admin or User (with fee) defines event_name, options (Yes/No), and expiry_timestamp.
+2. Active Trading: Users place Chips on options.
+3. Resolution: An oracle (Admin or Referee) triggers the settlement.
+               * Payout Logic: Pari-mutuel betting or Fixed-odds (Bonding curve based). Pari-mutuel is recommended for simplicity: Payout = (Total Pool - House Cut) * (User Bet / Winning Side Total Pool).
+4.3 The Rumor Feed (Social Layer)
+                  * Anonymity Layer: Every post generates a temporary ghost_id to prevent tracking.
+                  * Ticker Tagging: Regex parser to identify $TICKER symbols and create deep-links to the Trading Floor.
+                  * Moderation Engine: Integration with an NLP service (e.g., Perspective API or custom LLM) to block prohibited content before it hits the DB.
+5. Database Schema & Data Integrity
+5.1 Critical Tables
+users
+                  * user_id (UUID, PK)
+                  * cred_balance (Decimal)
+                  * chip_balance (Decimal)
+                  * is_ipo_active (Boolean)
+                  * dividend_earned (Decimal)
+tickers
+                  * ticker_id (String, PK - e.g., "$RAHUL")
+                  * owner_id (FK -> users)
+                  * current_supply (BigInt)
+                  * total_volume (Decimal)
+transactions
+                  * tx_id (UUID, PK)
+                  * user_id (FK)
+                  * asset_id (FK - Ticker or PropEvent)
+                  * amount (Decimal)
+                  * price_at_execution (Decimal)
+                  * tx_type (Enum: BUY, SELL, BET)
+prop_events
+                  * event_id (UUID, PK)
+                  * title (String)
+                  * status (Enum: OPEN, CLOSED, SETTLED)
+                  * yes_pool (Decimal)
+                  * no_pool (Decimal)
+5.2 The "Atomic Race Condition" Fix
+To prevent the "Priya Slap" scenario where 150 people buy at once:
+                  * Database Transaction Isolation: Use SERIALIZABLE isolation level or SELECT ... FOR UPDATE on the tickers row.
+                  * Sequence Logic:
+BEGIN;
+-- Lock the ticker row so no other tx can read/write the supply
+SELECT current_supply FROM tickers WHERE ticker_id = '$PRIYA' FOR UPDATE;
+-- Calculate new price based on supply
+-- Update supply
+UPDATE tickers SET current_supply = current_supply + 1 WHERE ticker_id = '$PRIYA';
+-- Deduct Creds from user
+UPDATE users SET cred_balance = cred_balance - calculated_cost WHERE user_id = 'user_abc';
+COMMIT;
+
+6. Real-time Engine & Bot Logic
+6.1 Market Maker Bot (Ghost Town Defense)
+                     * Trigger: Cron job every 120 seconds.
+                     * Logic: 1. Select 10 random active tickers with low volume.
+2. Execute a random Buy or Sell of 1-3 shares.
+3. This wiggles the line charts, creating visual "activity" and psychological incentive for users to investigate the ticker.
+                     * Sunset Policy: Once a ticker hits 50 actual human trades per hour, the bot disengages.
+6.2 Chart Data Aggregation
+                        * OHLC Data: The system must aggregate trades into 1m, 5m, 1h, and 1d buckets for candle/line chart rendering.
+                        * Optimization: Store historical ticks in a time-series optimized table (e.g., TimescaleDB) to prevent slow reads as the DB grows.
+7. Security & Risk Management
+7.1 The "Panic Button" Logic (Delisting)
+                        1. User triggers POST /api/v1/ipo/delist.
+                        2. System sets ticker.status = 'FROZEN'.
+                        3. Refund Phase: A background worker iterates through all holdings for that ticker.
+                        4. Total Creds equal to the current_price * shares_held are credited back to shareholders.
+                        5. Ticker record is soft-deleted.
+7.2 Anti-Fraud & Sybil Attacks
+                        * Verification: Users must verify via a college-issued email (.edu or specific domain).
+                        * Rate Limiting: Maximum 5 trades per minute per user to prevent high-frequency botting from exhausting the liquidity curve.
+                        * Withdrawal/Transfer Lock: Since coins are fake, there is no withdrawal, but "Cred Transfers" between users must be logged to detect "Real Money" black market trading.
+8. UI/UX Technical Specifications
+8.1 Visual Performance
+                        * Skeleton Screens: Used for the Trading Floor while WebSocket connections initialize.
+                        * Haptic Feedback: Native vibration on trade success or "Nuke" activation.
+                        * Color Palette:
+                        * Bullish: #00C805 (Neon Green)
+                        * Bearish: #FF3B30 (Alert Red)
+                        * Background: #0A0A0A (OLED Black for depth)
+8.2 Component Hierarchy
+                        * MarketProvider: Global context for real-time prices.
+                        * TradingTerminal: Modal for executing Buy/Sell orders with a "Review" step to show the impact of the bonding curve.
+                        * EventCard: Dynamic component for the Arena that shows a countdown timer and live odds shifting.
+9. Scalability & Deployment
+9.1 Horizontal Scaling
+                        * The API layer must be stateless to allow auto-scaling behind a Load Balancer.
+                        * WebSocket connections must be handled by a dedicated service (e.g., AWS AppSync or a managed Redis Pub/Sub cluster) to maintain state across multiple server instances.
+9.2 CI/CD Pipeline
+                        * Staging Environment: A "Beta" college environment for testing new bonding curve constants.
+                        * Automated Testing: Unit tests for the bonding curve math (Floating point precision check) and integration tests for atomic transactions.
+10. Success Metrics (KPIs)
+                        * T+0 Liquidity: Time taken for a trade to reflect in the global supply (<100ms).
+                        * D1 Retention: Percentage of users who return to check their "Prop Bets" or "Dividend" earnings.
+                        * Coin Velocity: Total volume of Chips traded vs. global Chip supply (measures economic health).
+END OF DOCUMENT
