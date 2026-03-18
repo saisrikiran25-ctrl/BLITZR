@@ -8,10 +8,10 @@ import {
 } from 'typeorm';
 import { UserEntity } from '../../users/entities/user.entity';
 
-@Entity('rumors')
+@Entity('rumor_posts')
 export class RumorEntity {
     @PrimaryGeneratedColumn('uuid')
-    rumor_id: string;
+    post_id: string;
 
     @Column({ type: 'uuid' })
     author_id: string;
@@ -23,23 +23,15 @@ export class RumorEntity {
     @Column({ type: 'varchar', length: 20 })
     ghost_id: string;
 
-    @Column({ type: 'text' })
-    content: string;
+    @Column({ type: 'text', name: 'content' })
+    text: string;
 
     // Array of $TICKER references parsed from content
     @Column({ type: 'varchar', array: true, default: '{}' })
     tagged_tickers: string[];
 
-    // Moderation
-    @Column({
-        type: 'enum',
-        enum: ['VISIBLE', 'PENDING_REVIEW', 'MODERATED', 'DELETED'],
-        default: 'VISIBLE',
-    })
-    status: 'VISIBLE' | 'PENDING_REVIEW' | 'MODERATED' | 'DELETED';
-
     // Snapshot of prices at time of broadcast
-    @Column({ type: 'jsonb', nullable: true })
+    @Column({ type: 'jsonb', default: {} })
     price_snapshot: Record<string, number>;
 
     // Group 2 Safety Enums
@@ -64,7 +56,18 @@ export class RumorEntity {
     market_impact_triggered: boolean;
 
     @Column({ type: 'varchar', length: 100, nullable: true })
-    moderation_flag: string;
+    moderation_flag: string | null;
+
+    @Column({ type: 'boolean', default: false })
+    credibility_rewarded: boolean;
+
+    // Moderation (legacy status column still present in base schema)
+    @Column({
+        type: 'enum',
+        enum: ['VISIBLE', 'PENDING_REVIEW', 'MODERATED', 'DELETED'],
+        default: 'VISIBLE',
+    })
+    status: 'VISIBLE' | 'PENDING_REVIEW' | 'MODERATED' | 'DELETED';
 
     @Column({ type: 'decimal', precision: 5, scale: 4, nullable: true })
     toxicity_score: number;

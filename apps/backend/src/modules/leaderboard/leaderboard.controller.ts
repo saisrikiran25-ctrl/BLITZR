@@ -2,7 +2,7 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { LeaderboardService } from './leaderboard.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('v1/leaderboard')
+@Controller('leaderboard')
 export class LeaderboardController {
     constructor(private readonly leaderboardService: LeaderboardService) {}
 

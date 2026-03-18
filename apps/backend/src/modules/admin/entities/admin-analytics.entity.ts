@@ -7,18 +7,27 @@ import {
 
 @Entity('admin_analytics')
 export class AdminAnalyticsEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+    @PrimaryGeneratedColumn('uuid')
+    snapshot_id: string;
 
-    @Column({ type: 'decimal', precision: 18, scale: 4, default: 0 })
-    total_clout: number;
+    @Column({ type: 'uuid', nullable: true })
+    institution_id: string;
 
-    @Column({ type: 'integer', default: 0 })
+    @Column({ type: 'jsonb', default: {} })
+    dept_sentiment: Record<string, number>;
+
+    @Column({ type: 'decimal', precision: 8, scale: 4, nullable: true })
+    avg_score_change: number;
+
+    @Column({ type: 'integer', nullable: true })
+    total_trades: number;
+
+    @Column({ type: 'integer', nullable: true })
     active_users: number;
 
-    @Column({ type: 'integer', default: 0 })
-    flagged_posts_count: number;
+    @Column({ type: 'integer', nullable: true })
+    flagged_posts: number;
 
     @CreateDateColumn({ type: 'timestamptz' })
-    recorded_at: Date;
+    computed_at: Date;
 }

@@ -17,22 +17,40 @@ export class CredibilityService {
     /**
      * Increment credibility by 5 points if a factual post survives 72 hours without hitting the dispute threshold.
      */
-    async onPostSurvived(userId: string): Promise<void> {
-        await this.adjustScore(userId, 5, 'Post Survived 72h');
+    async onPostSurvived(postId: string): Promise<void> {
+        const [post] = await this.dataSource.query(
+            `SELECT author_id FROM rumor_posts WHERE post_id = $1`,
+            [postId],
+        );
+        if (post?.author_id) {
+            await this.adjustScore(post.author_id, 5, 'Post Survived 72h');
+        }
     }
 
     /**
      * Increment credibility by 5 points when a flagged post is manually cleared by the Dean.
      */
-    async onPostCleared(userId: string): Promise<void> {
-        await this.adjustScore(userId, 5, 'Post Cleared By Moderator');
+    async onPostCleared(postId: string): Promise<void> {
+        const [post] = await this.dataSource.query(
+            `SELECT author_id FROM rumor_posts WHERE post_id = $1`,
+            [postId],
+        );
+        if (post?.author_id) {
+            await this.adjustScore(post.author_id, 5, 'Post Cleared By Moderator');
+        }
     }
 
     /**
      * Decrement credibility by 15 points if a post is manually removed by the Dean for policy violation.
      */
-    async onPostRemoved(userId: string): Promise<void> {
-        await this.adjustScore(userId, -15, 'Post Removed By Moderator');
+    async onPostRemoved(postId: string): Promise<void> {
+        const [post] = await this.dataSource.query(
+            `SELECT author_id FROM rumor_posts WHERE post_id = $1`,
+            [postId],
+        );
+        if (post?.author_id) {
+            await this.adjustScore(post.author_id, -15, 'Post Removed By Moderator');
+        }
     }
 
     /**

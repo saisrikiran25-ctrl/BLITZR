@@ -17,7 +17,7 @@ export enum VoteType {
 }
 
 @Entity('rumor_votes')
-@Unique(['user_id', 'rumor_id'])
+@Unique(['user_id', 'post_id'])
 export class RumorVoteEntity {
     @PrimaryGeneratedColumn('uuid')
     vote_id: string;
@@ -25,8 +25,8 @@ export class RumorVoteEntity {
     @Column({ type: 'uuid' })
     user_id: string;
 
-    @Column({ type: 'uuid' })
-    rumor_id: string;
+    @Column({ type: 'uuid', name: 'rumor_id' })
+    post_id: string;
 
     @Column({
         type: 'enum',

@@ -4,7 +4,7 @@
  * F6: FACTUAL_CLAIM posts show:
  *   - 1px amber left border
  *   - "⚠ Factual Claim — tap flag to dispute" in 10px #8E8E93
- *   - Flag icon tappable → calls POST /v1/rumor/:postId/dispute
+ *   - Flag icon tappable → calls POST /api/v1/rumor/:postId/dispute
  *   - After tap: icon turns grey, label changes to "Disputed"
  *
  * F7: Credibility gate:
@@ -37,9 +37,24 @@ import { useAuthStore } from '../store/auth.store';
 // NOTE: This list mirrors the backend's FACTUAL_CLAIM_KEYWORDS in rumor-feed/rumor.service.ts.
 // Keep in sync — backend is authoritative; this list only gates the UI lock icon.
 const FACTUAL_CLAIM_KEYWORDS = [
-  'will', 'is going to', 'confirmed', 'breaking', 'exclusive', 'leaked',
-  'officially', 'announced', 'fact:', 'source:', 'insider', 'report:',
-  'evidence', 'proof', 'verified',
+  'just saw',
+  'i heard',
+  'confirmed',
+  'sources say',
+  'apparently',
+  'walking into',
+  'coming out of',
+  'was at',
+  'got caught',
+  'failed',
+  'expelled',
+  'arrested',
+  'cheated',
+  'broke up',
+  'escorted',
+  'suspended',
+  'rumor is',
+  'word is',
 ];
 
 function detectsFactualClaim(text: string): boolean {
@@ -48,8 +63,8 @@ function detectsFactualClaim(text: string): boolean {
 }
 
 interface Rumor {
-  rumor_id: string;
-  content: string;
+  post_id: string;
+  text: string;
   ghost_id: string;
   post_type: 'FACTUAL_CLAIM' | 'OPINION' | 'NEUTRAL';
   risk_score: number;
@@ -104,11 +119,11 @@ export default function RumorFeedScreen() {
     }
   };
 
-  const handleDispute = async (rumorId: string) => {
-    if (disputedIds.has(rumorId)) return;
+  const handleDispute = async (postId: string) => {
+    if (disputedIds.has(postId)) return;
     try {
-      await rumorApi.dispute(rumorId);
-      setDisputedIds((prev) => new Set(prev).add(rumorId));
+      await rumorApi.dispute(postId);
+      setDisputedIds((prev) => new Set(prev).add(postId));
     } catch (e: any) {
       Alert.alert('Dispute Failed', e.message);
     }
@@ -118,7 +133,7 @@ export default function RumorFeedScreen() {
 
   const renderRumor = ({ item }: { item: Rumor }) => {
     const isFactual = item.post_type === 'FACTUAL_CLAIM';
-    const isDisputed = disputedIds.has(item.rumor_id);
+    const isDisputed = disputedIds.has(item.post_id);
 
     return (
       <View style={[styles.rumorCard, isFactual && styles.factualCard]}>
@@ -128,7 +143,7 @@ export default function RumorFeedScreen() {
             {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </View>
-        <Text style={styles.content}>{item.content}</Text>
+        <Text style={styles.content}>{item.text}</Text>
 
         {/* F6: Factual Claim badge */}
         {isFactual && (
@@ -137,7 +152,7 @@ export default function RumorFeedScreen() {
               {isDisputed ? Strings.disputed : Strings.factualClaimBadge}
             </Text>
             {!isDisputed && (
-              <TouchableOpacity onPress={() => handleDispute(item.rumor_id)}>
+              <TouchableOpacity onPress={() => handleDispute(item.post_id)}>
                 <Text style={styles.flagIcon}>🚩</Text>
               </TouchableOpacity>
             )}
@@ -147,10 +162,10 @@ export default function RumorFeedScreen() {
 
         {/* Votes */}
         <View style={styles.votesRow}>
-          <TouchableOpacity onPress={() => rumorApi.upvote(item.rumor_id)} style={styles.voteBtn}>
+          <TouchableOpacity onPress={() => rumorApi.upvote(item.post_id)} style={styles.voteBtn}>
             <Text style={styles.voteText}>▲ {item.upvotes}</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => rumorApi.downvote(item.rumor_id)} style={styles.voteBtn}>
+          <TouchableOpacity onPress={() => rumorApi.downvote(item.post_id)} style={styles.voteBtn}>
             <Text style={[styles.voteText, { color: Colors.thermalRed }]}>▼ {item.downvotes}</Text>
           </TouchableOpacity>
         </View>
@@ -172,7 +187,7 @@ export default function RumorFeedScreen() {
         ) : (
           <FlatList
             data={rumors}
-            keyExtractor={(item) => item.rumor_id}
+            keyExtractor={(item) => item.post_id}
             renderItem={renderRumor}
             contentContainerStyle={styles.listContent}
             refreshControl={

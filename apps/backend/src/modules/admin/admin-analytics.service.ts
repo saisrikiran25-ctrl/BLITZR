@@ -6,8 +6,8 @@ import { Cron } from '@nestjs/schedule';
 import { AdminAnalyticsEntity } from './entities/admin-analytics.entity';
 import { UserEntity } from '../users/entities/user.entity';
 import { TickerEntity } from '../ipo/entities/ticker.entity';
-import { RumorEntity } from '../rumor-feed/entities/rumor.entity';
 import { CredibilityService } from '../users/credibility.service';
+import { BondingCurveService } from '../ipo/bonding-curve.service';
 
 /** Safety gate text required to trigger campus market pause. */
 export const CAMPUS_PAUSE_CONFIRM_TEXT = 'CONFIRM PAUSE';
@@ -23,62 +23,94 @@ export class AdminAnalyticsService {
         private userRepo: Repository<UserEntity>,
         @InjectRepository(TickerEntity)
         private tickerRepo: Repository<TickerEntity>,
-        @InjectRepository(RumorEntity)
-        private rumorRepo: Repository<RumorEntity>,
         private readonly credibilityService: CredibilityService,
+        private readonly bondingCurve: BondingCurveService,
         private readonly dataSource: DataSource,
     ) { }
 
-    @Cron('*/15 * * * *')
-    async takeSnapshot() {
-        this.logger.log('Taking Admin Analytics Snapshot...');
+    @Cron('0 */15 * * * *')
+    async computeAdminAnalytics() {
+        this.logger.log('Computing Admin Analytics Snapshot...');
 
-        // 1. Total Clout (Sum of all ticker prices * supply)
-        const tickers = await this.tickerRepo.find({ where: { status: 'ACTIVE' } });
-        let totalClout = 0;
-        for (const t of tickers) {
-            const k = Number(t.scaling_constant);
-            const supply = Number(t.current_supply);
-            const price = k * Math.log(supply + 1);
-            totalClout += (price * supply);
+        const institutions = await this.dataSource.query(
+            `SELECT institution_id FROM institutions WHERE verified = true`,
+        );
+
+        const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+        for (const institution of institutions) {
+            const institutionId = institution.institution_id;
+
+            const [activeUsersRes] = await this.dataSource.query(
+                `SELECT COUNT(*)::int AS count
+                 FROM users
+                 WHERE institution_id = $1 AND last_active_at >= $2`,
+                [institutionId, fifteenMinAgo],
+            );
+
+            const [flaggedRes] = await this.dataSource.query(
+                `SELECT COUNT(*)::int AS count
+                 FROM moderation_queue mq
+                 LEFT JOIN rumor_posts rp ON mq.post_id = rp.post_id
+                 LEFT JOIN users u ON rp.author_id = u.user_id
+                 WHERE mq.status = 'PENDING' AND mq.created_at >= $2 AND u.institution_id = $1`,
+                [institutionId, fifteenMinAgo],
+            );
+
+            const [avgChangeRes] = await this.dataSource.query(
+                `SELECT AVG(t.price_at_execution)::numeric AS avg
+                 FROM transactions t
+                 JOIN users u ON t.user_id = u.user_id
+                 WHERE t.created_at >= $2 AND u.institution_id = $1`,
+                [institutionId, fifteenMinAgo],
+            );
+
+            const [tradeCountRes] = await this.dataSource.query(
+                `SELECT COUNT(*)::int AS count
+                 FROM transactions t
+                 JOIN users u ON t.user_id = u.user_id
+                 WHERE t.created_at >= $2 AND u.institution_id = $1`,
+                [institutionId, fifteenMinAgo],
+            );
+
+            const tickers = await this.dataSource.query(
+                `SELECT t.current_supply, t.category
+                 FROM tickers t
+                 JOIN users u ON t.owner_id = u.user_id
+                 WHERE u.institution_id = $1 AND t.status = 'ACTIVE'`,
+                [institutionId],
+            );
+
+            const deptSentiment: Record<string, number> = {};
+            for (const ticker of tickers) {
+                const dept = ticker.category || 'UNASSIGNED';
+                const price = this.bondingCurve.getPrice(Number(ticker.current_supply));
+                deptSentiment[dept] = (deptSentiment[dept] ?? 0) + price;
+            }
+
+            const snapshot = this.analyticsRepo.create({
+                institution_id: institutionId,
+                dept_sentiment: deptSentiment,
+                avg_score_change: Number(avgChangeRes?.avg ?? 0),
+                total_trades: Number(tradeCountRes?.count ?? 0),
+                active_users: Number(activeUsersRes?.count ?? 0),
+                flagged_posts: Number(flaggedRes?.count ?? 0),
+            });
+
+            await this.analyticsRepo.save(snapshot);
         }
-
-        // 2. Active Users count
-        const activeUsersCount = await this.userRepo.count();
-
-        // 3. Flagged Posts count
-        const flaggedPostsCount = await this.rumorRepo.count({
-            where: { status: 'PENDING_REVIEW' }
-        });
-
-        // Save
-        const snapshot = this.analyticsRepo.create({
-            total_clout: totalClout,
-            active_users: activeUsersCount,
-            flagged_posts_count: flaggedPostsCount
-        });
-
-        await this.analyticsRepo.save(snapshot);
-        this.logger.log('Admin Analytics Snapshot Saved.');
     }
 
-    async getHistory(limit: number = 24) {
+    async getAnalytics(limit: number = 672, institutionId?: string) {
         return this.analyticsRepo.find({
-            order: { recorded_at: 'DESC' },
-            take: limit
-        });
-    }
-
-    async getFlaggedRumors() {
-        return this.rumorRepo.find({
-            where: { status: 'PENDING_REVIEW' },
-            relations: ['author'],
-            order: { created_at: 'DESC' }
+            where: institutionId ? { institution_id: institutionId } : {},
+            order: { computed_at: 'DESC' },
+            take: limit,
         });
     }
 
     /**
-     * GET moderation_queue items (B13 — Dean's Dashboard Page 4).
+     * GET moderation_queue items (Dean's Dashboard Page 4).
      */
     async getModerationQueue(status: string = 'PENDING') {
         const rows = await this.dataSource.query(
@@ -114,15 +146,7 @@ export class AdminAnalyticsService {
                 `UPDATE rumor_posts SET visibility = 'PUBLIC' WHERE post_id = $1`,
                 [postId],
             );
-
-            // Fetch author_id for credibility reward
-            const post = await this.dataSource.query(
-                `SELECT author_id FROM rumor_posts WHERE post_id = $1`,
-                [postId],
-            );
-            if (post.length) {
-                await this.credibilityService.onPostCleared(post[0].author_id);
-            }
+            await this.credibilityService.onPostCleared(postId);
         }
 
         return { success: true, action: 'CLEARED', queue_id: queueId };
@@ -150,59 +174,62 @@ export class AdminAnalyticsService {
                 `UPDATE rumor_posts SET visibility = 'REMOVED' WHERE post_id = $1`,
                 [postId],
             );
-
-            const post = await this.dataSource.query(
-                `SELECT author_id FROM rumor_posts WHERE post_id = $1`,
-                [postId],
-            );
-            if (post.length) {
-                await this.credibilityService.onPostRemoved(post[0].author_id);
-            }
+            await this.credibilityService.onPostRemoved(postId);
         }
 
         return { success: true, action: 'REMOVED', queue_id: queueId };
-    }
-
-    async moderateRumor(rumorId: string, action: 'RESTORE' | 'DELETE') {
-        const rumor = await this.rumorRepo.findOne({ where: { rumor_id: rumorId } });
-        if (!rumor) throw new NotFoundException('Rumor not found');
-
-        rumor.status = action === 'RESTORE' ? 'VISIBLE' : 'DELETED';
-        rumor.visibility = action === 'RESTORE' ? 'PUBLIC' : 'REMOVED';
-
-        if (action === 'RESTORE') {
-            await this.credibilityService.onPostCleared(rumor.author_id);
-        } else if (action === 'DELETE') {
-            await this.credibilityService.onPostRemoved(rumor.author_id);
-        }
-
-        return this.rumorRepo.save(rumor);
     }
 
     /**
      * B4/Emergency: Pause all campus markets for up to 24 hours.
      * Requires confirmText === 'CONFIRM PAUSE' for safety gate.
      */
-    async pauseAllCampusMarkets(confirmText: string) {
+    async pauseAllCampusMarkets(confirmText: string, institutionId: string | null) {
         if (confirmText !== CAMPUS_PAUSE_CONFIRM_TEXT) {
             throw new BadRequestException(
                 `Safety gate: you must type exactly "${CAMPUS_PAUSE_CONFIRM_TEXT}" to proceed.`,
             );
         }
 
-        const tickers = await this.tickerRepo.find({ where: { status: 'ACTIVE' } });
         const resumeAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+        let tickers: Array<{ ticker_id: string }> = [];
 
-        for (const t of tickers) {
-            t.status = 'FROZEN';
-            t.frozen_until = resumeAt;
-            await this.tickerRepo.save(t);
+        if (institutionId) {
+            tickers = await this.dataSource.query(
+                `SELECT t.ticker_id
+                 FROM tickers t
+                 JOIN users u ON t.owner_id = u.user_id
+                 WHERE u.institution_id = $1 AND t.status = 'ACTIVE'`,
+                [institutionId],
+            );
+
+            await this.dataSource.query(
+                `UPDATE tickers
+                 SET status = 'MANUAL_FROZEN', frozen_until = $2
+                 WHERE ticker_id IN (
+                     SELECT t.ticker_id FROM tickers t
+                     JOIN users u ON t.owner_id = u.user_id
+                     WHERE u.institution_id = $1 AND t.status = 'ACTIVE'
+                 )`,
+                [institutionId, resumeAt],
+            );
+
+            await this.dataSource.query(
+                `UPDATE prop_events SET status = 'PAUSED' WHERE status = 'OPEN' AND institution_id = $1`,
+                [institutionId],
+            );
+        } else {
+            tickers = await this.dataSource.query(
+                `SELECT ticker_id FROM tickers WHERE status = 'ACTIVE'`,
+            );
+            await this.dataSource.query(
+                `UPDATE tickers SET status = 'MANUAL_FROZEN', frozen_until = $1 WHERE status = 'ACTIVE'`,
+                [resumeAt],
+            );
+            await this.dataSource.query(
+                `UPDATE prop_events SET status = 'PAUSED' WHERE status = 'OPEN'`,
+            );
         }
-
-        // Also pause all open prop_events for campus
-        await this.dataSource.query(
-            `UPDATE prop_events SET status = 'CLOSED' WHERE status = 'OPEN'`,
-        );
 
         return {
             message: `All campus markets paused. Auto-resumes at ${resumeAt.toISOString()}.`,
@@ -210,8 +237,36 @@ export class AdminAnalyticsService {
         };
     }
 
+    @Cron('0 */10 * * * *')
+    async resumePausedMarkets() {
+        const now = new Date();
+        const institutionsToResume = await this.dataSource.query(
+            `SELECT DISTINCT u.institution_id
+             FROM tickers t
+             JOIN users u ON t.owner_id = u.user_id
+             WHERE t.status = 'MANUAL_FROZEN' AND t.frozen_until <= $1`,
+            [now],
+        );
+
+        await this.dataSource.query(
+            `UPDATE tickers
+             SET status = 'ACTIVE', frozen_until = NULL
+             WHERE status = 'MANUAL_FROZEN' AND frozen_until <= $1`,
+            [now],
+        );
+
+        for (const row of institutionsToResume) {
+            if (!row.institution_id) continue;
+            await this.dataSource.query(
+                `UPDATE prop_events SET status = 'OPEN'
+                 WHERE status = 'PAUSED' AND institution_id = $1`,
+                [row.institution_id],
+            );
+        }
+    }
+
     async freezeAllMarkets() {
-        return this.pauseAllCampusMarkets(CAMPUS_PAUSE_CONFIRM_TEXT);
+        return this.pauseAllCampusMarkets(CAMPUS_PAUSE_CONFIRM_TEXT, null);
     }
 
     async delistTicker(tickerId: string) {

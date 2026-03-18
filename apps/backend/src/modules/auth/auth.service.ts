@@ -87,7 +87,15 @@ export class AuthService {
         }
 
         const token = this.generateToken(user.user_id, shortCode);
-        return { user: { user_id: user.user_id, username: user.username, tos_accepted: user.tos_accepted }, token };
+        return {
+            user: {
+                user_id: user.user_id,
+                username: user.username,
+                tos_accepted: user.tos_accepted,
+                credibility_score: user.credibility_score,
+            },
+            token,
+        };
     }
 
     async acceptTos(userId: string) {

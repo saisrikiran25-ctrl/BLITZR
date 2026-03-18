@@ -209,14 +209,14 @@ export class IpoDelistService {
 
             // Ensure rumor exists and belongs to the user's domain
             const [rumor] = await queryRunner.query(
-                `SELECT rumor_id FROM rumors WHERE rumor_id = $1 AND college_domain = $2 FOR UPDATE`,
+                `SELECT post_id FROM rumor_posts WHERE post_id = $1 AND college_domain = $2 FOR UPDATE`,
                 [rumorId, collegeDomain],
             );
             if (!rumor) throw new NotFoundException('Rumor not found');
 
             const pinnedUntil = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
             await queryRunner.query(
-                `UPDATE rumors SET is_pinned = true, pinned_until = $1 WHERE rumor_id = $2`,
+                `UPDATE rumor_posts SET is_pinned = true, pinned_until = $1 WHERE post_id = $2`,
                 [pinnedUntil, rumorId],
             );
 
@@ -227,7 +227,7 @@ export class IpoDelistService {
 
             await queryRunner.commitTransaction();
 
-            return { rumor_id: rumorId, pinned_until: pinnedUntil };
+            return { post_id: rumorId, pinned_until: pinnedUntil };
         } catch (error) {
             await queryRunner.rollbackTransaction();
             throw error;

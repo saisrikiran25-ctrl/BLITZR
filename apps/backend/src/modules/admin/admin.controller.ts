@@ -1,22 +1,22 @@
-import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Param, Body, Query, UseGuards, Request } from '@nestjs/common';
 import { AdminAnalyticsService } from './admin-analytics.service';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { AdminJwtGuard } from './guards/admin-jwt.guard';
+import { PropMarketService } from '../prop-market/prop-market.service';
 
 @ApiTags('Admin Dashboard - Telegraph Telemetry')
+@UseGuards(AdminJwtGuard)
 @Controller('admin')
 export class AdminController {
-    constructor(private readonly adminService: AdminAnalyticsService) { }
+    constructor(
+        private readonly adminService: AdminAnalyticsService,
+        private readonly propMarketService: PropMarketService,
+    ) { }
 
-    @Get('sentiment')
-    @ApiOperation({ summary: 'Get historical sentiment analytics' })
-    getSentimentHistory() {
-        return this.adminService.getHistory(48);
-    }
-
-    @Get('flagged-rumors')
-    @ApiOperation({ summary: 'Get all rumors marked PENDING_REVIEW automatically by correlation limiter.' })
-    getFlaggedRumors() {
-        return this.adminService.getFlaggedRumors();
+    @Get('analytics')
+    @ApiOperation({ summary: 'Get historical admin analytics snapshots' })
+    getAnalytics(@Request() req: any, @Query('limit') limit: number = 672) {
+        return this.adminService.getAnalytics(Number(limit), req.user.institutionId ?? undefined);
     }
 
     /**
@@ -46,26 +46,14 @@ export class AdminController {
         return this.adminService.removeModerationItem(queueId);
     }
 
-    @Post('rumors/:id/moderate')
-    @ApiOperation({ summary: 'Restore or Delete a flagged rumor' })
-    moderateRumor(
-        @Param('id') rumorId: string,
-        @Body() payload: { action: 'RESTORE' | 'DELETE' }
-    ) {
-        if (payload.action !== 'RESTORE' && payload.action !== 'DELETE') {
-            throw new UnauthorizedException('Action must be RESTORE or DELETE');
-        }
-        return this.adminService.moderateRumor(rumorId, payload.action);
-    }
-
     /**
      * POST /admin/campus/pause — pauses all markets for 24 hours.
      * Requires confirmText === 'CONFIRM PAUSE' in the request body.
      */
     @Post('campus/pause')
     @ApiOperation({ summary: 'Pause all campus markets for 24 hours (requires CONFIRM PAUSE text)' })
-    pauseAllCampusMarkets(@Body() body: { confirm_text: string }) {
-        return this.adminService.pauseAllCampusMarkets(body.confirm_text ?? '');
+    pauseAllCampusMarkets(@Request() req: any, @Body() body: { confirm_text: string }) {
+        return this.adminService.pauseAllCampusMarkets(body.confirm_text ?? '', req.user.institutionId ?? null);
     }
 
     @Post('emergency/freeze-all')
@@ -87,5 +75,39 @@ export class AdminController {
     @ApiOperation({ summary: 'Delist a student ticker by their college email' })
     delistByEmail(@Body() body: { email: string }) {
         return this.adminService.delistTickerByEmail(body.email);
+    }
+
+    /**
+     * B4: Admin endpoint to create a national/regional prop market.
+     * Protected by AdminJwtGuard.
+     */
+    @Post('markets/create')
+    @ApiOperation({ summary: 'Create a new prop market (admin)' })
+    createMarket(
+        @Request() req: any,
+        @Body() body: {
+            title: string;
+            description?: string;
+            category?: string;
+            expiry_timestamp: string;
+            scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL';
+            institution_id?: string;
+            options?: string[];
+            featured?: boolean;
+        },
+    ) {
+        const isAdmin = ['ADMIN', 'INSTITUTION_ADMIN'].includes(req.user.role);
+        return this.propMarketService.createAdminMarket(
+            req.user.adminId,
+            isAdmin,
+            body.title,
+            body.description,
+            body.category,
+            new Date(body.expiry_timestamp),
+            body.scope,
+            body.institution_id ?? req.user.institutionId,
+            body.options,
+            body.featured ?? false,
+        );
     }
 }

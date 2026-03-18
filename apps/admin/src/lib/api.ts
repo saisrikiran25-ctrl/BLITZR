@@ -1,75 +1,73 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const TOKEN_KEY = 'blitzr_admin_token';
+
+const getToken = () => (typeof window === 'undefined' ? null : localStorage.getItem(TOKEN_KEY));
+
+export const setAdminToken = (token: string) => {
+    if (typeof window !== 'undefined') {
+        localStorage.setItem(TOKEN_KEY, token);
+    }
+};
+
+export const clearAdminToken = () => {
+    if (typeof window !== 'undefined') {
+        localStorage.removeItem(TOKEN_KEY);
+    }
+};
+
+const adminFetch = async (path: string, options: RequestInit = {}) => {
+    const token = getToken();
+    const headers: Record<string, string> = {
+        ...(options.headers as Record<string, string>),
+        'Content-Type': 'application/json',
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
+
+    const res = await fetch(`${BASE_URL}${path}`, { ...options, headers });
+    if (!res.ok) {
+        const payload = await res.json().catch(() => ({}));
+        throw new Error(payload.message || 'Request failed');
+    }
+    return res.json();
+};
 
 export const adminApi = {
-    async getSentimentHistory() {
-        const res = await fetch(`${BASE_URL}/admin/sentiment`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to fetch sentiment history');
-        return res.json();
-    },
-
-    async getFlaggedRumors() {
-        const res = await fetch(`${BASE_URL}/admin/flagged-rumors`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to fetch flagged rumors');
-        return res.json();
-    },
-
-    async getModerationQueue(status = 'PENDING') {
-        const res = await fetch(`${BASE_URL}/admin/moderation-queue?status=${status}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error('Failed to fetch moderation queue');
-        return res.json();
-    },
-
-    async clearModerationItem(queueId: string) {
-        const res = await fetch(`${BASE_URL}/admin/moderation/${queueId}/clear`, { method: 'PATCH' });
-        if (!res.ok) throw new Error('Failed to clear moderation item');
-        return res.json();
-    },
-
-    async removeModerationItem(queueId: string) {
-        const res = await fetch(`${BASE_URL}/admin/moderation/${queueId}/remove`, { method: 'PATCH' });
-        if (!res.ok) throw new Error('Failed to remove moderation item');
-        return res.json();
-    },
-
-    async moderateRumor(rumorId: string, action: 'RESTORE' | 'DELETE') {
-        const res = await fetch(`${BASE_URL}/admin/rumors/${rumorId}/moderate`, {
+    login: (email: string, password: string) =>
+        adminFetch('/admin/login', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action })
-        });
-        if (!res.ok) throw new Error('Failed to moderate rumor');
-        return res.json();
-    },
+            body: JSON.stringify({ email, password }),
+        }),
 
-    async pauseAllCampusMarkets(confirmText: string) {
-        const res = await fetch(`${BASE_URL}/admin/campus/pause`, {
+    getAnalytics: (limit = 672) =>
+        adminFetch(`/admin/analytics?limit=${limit}`, { cache: 'no-store' as RequestCache }),
+
+    getModerationQueue: (status = 'PENDING') =>
+        adminFetch(`/admin/moderation-queue?status=${status}`, { cache: 'no-store' as RequestCache }),
+
+    getMarkets: (scope = 'LOCAL') =>
+        adminFetch(`/markets?scope=${scope}`, { cache: 'no-store' as RequestCache }),
+
+    clearModerationItem: (queueId: string) =>
+        adminFetch(`/admin/moderation/${queueId}/clear`, { method: 'PATCH' }),
+
+    removeModerationItem: (queueId: string) =>
+        adminFetch(`/admin/moderation/${queueId}/remove`, { method: 'PATCH' }),
+
+    pauseAllCampusMarkets: (confirmText: string) =>
+        adminFetch('/admin/campus/pause', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ confirm_text: confirmText })
-        });
-        if (!res.ok) throw new Error('Failed to pause campus markets');
-        return res.json();
-    },
+            body: JSON.stringify({ confirm_text: confirmText }),
+        }),
 
-    async freezeAllMarkets() {
-        const res = await fetch(`${BASE_URL}/admin/emergency/freeze-all`, { method: 'POST' });
-        if (!res.ok) throw new Error('Failed to freeze markets');
-        return res.json();
-    },
+    freezeAllMarkets: () =>
+        adminFetch('/admin/emergency/freeze-all', { method: 'POST' }),
 
-    async delistTicker(tickerId: string) {
-        const res = await fetch(`${BASE_URL}/admin/emergency/delist/${tickerId}`, { method: 'POST' });
-        if (!res.ok) throw new Error('Failed to delist ticker');
-        return res.json();
-    },
+    delistTicker: (tickerId: string) =>
+        adminFetch(`/admin/emergency/delist/${tickerId}`, { method: 'POST' }),
 
-    async delistByEmail(email: string) {
-        const res = await fetch(`${BASE_URL}/admin/emergency/delist-by-email`, {
+    delistByEmail: (email: string) =>
+        adminFetch('/admin/emergency/delist-by-email', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        if (!res.ok) throw new Error('Failed to delist by email');
-        return res.json();
-    }
+            body: JSON.stringify({ email }),
+        }),
 };

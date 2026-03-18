@@ -1,7 +1,20 @@
+"use client";
+
 import Link from 'next/link';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
+    const router = useRouter();
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const token = localStorage.getItem('blitzr_admin_token');
+        if (!token) {
+            router.replace('/login');
+        }
+    }, [router]);
+
     return (
         <div className="flex h-screen bg-obsidian text-white overflow-hidden">
             {/* Sidebar */}
