@@ -28,7 +28,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Colors, Spacing } from '../constants/theme';
 import { Strings } from '../constants/strings';
 import { rumorApi } from '../services/api';
@@ -58,6 +58,15 @@ const FACTUAL_CLAIM_KEYWORDS = [
   'word is',
 ];
 
+const CREDIBILITY_THRESHOLD = 50;
+
+type RootTabParamList = {
+  CloutExchange: undefined;
+  Arena: undefined;
+  RumorFeed: undefined;
+  Profile: undefined;
+};
+
 function detectsFactualClaim(text: string): boolean {
   const lower = text.toLowerCase();
   return FACTUAL_CLAIM_KEYWORDS.some((kw) => lower.includes(kw));
@@ -84,7 +93,7 @@ export default function RumorFeedScreen() {
   const [showCredGate, setShowCredGate] = useState(false);
 
   const { credibilityScore } = useAuthStore();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation<NavigationProp<RootTabParamList>>();
 
   const fetchFeed = useCallback(async () => {
     try {
@@ -104,7 +113,7 @@ export default function RumorFeedScreen() {
     if (!postText.trim()) return;
 
     // F7: Gate check
-    if (detectsFactualClaim(postText) && credibilityScore < 50) {
+    if (detectsFactualClaim(postText) && credibilityScore < CREDIBILITY_THRESHOLD) {
       setShowCredGate(true);
       return;
     }
@@ -211,7 +220,7 @@ export default function RumorFeedScreen() {
           />
           <View style={styles.sendArea}>
             {/* F7: Lock icon shown when credibility score < 50 */}
-            {credibilityScore < 50 && <Text style={styles.lockBadge}>🔒</Text>}
+            {credibilityScore < CREDIBILITY_THRESHOLD && <Text style={styles.lockBadge}>🔒</Text>}
             <TouchableOpacity
               style={styles.sendBtn}
               onPress={handlePost}
@@ -306,8 +315,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  sendArea: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
-  lockBadge: { fontSize: 14, color: Colors.textSecondary },
+  sendArea: { flexDirection: 'row', alignItems: 'center' },
+  lockBadge: { fontSize: 14, color: Colors.textSecondary, marginRight: Spacing.xs },
   sendBtn: {
     width: 40,
     height: 40,
