@@ -36,6 +36,12 @@ export class PropMarketService {
         listingFee: number = 0,
         initialLiquidity: number = 0,
     ) {
+        const [creator] = await this.dataSource.query(
+            `SELECT institution_id FROM users WHERE user_id = $1`,
+            [creatorId],
+        );
+        const institutionId = creator?.institution_id ?? null;
+
         const totalCost = listingFee + (initialLiquidity * 2); // Liquidity must seed BOTH sides 50/50
 
         // Deduct listing fee + initial liquidity if user-created
@@ -64,6 +70,9 @@ export class PropMarketService {
             yes_pool: initialLiquidity,
             no_pool: initialLiquidity,
             college_domain: collegeDomain,
+            scope: 'LOCAL',
+            institution_id: institutionId,
+            options: ['YES', 'NO'],
         });
 
         return this.eventRepo.save(event);
@@ -81,11 +90,19 @@ export class PropMarketService {
         await queryRunner.startTransaction();
 
         try {
+            const [userInstitution] = await queryRunner.query(
+                `SELECT institution_id FROM users WHERE user_id = $1`,
+                [userId],
+            );
+            const institutionId = userInstitution?.institution_id ?? null;
+
             // Lock the event
             const [event] = await queryRunner.query(
                 `SELECT event_id, status, yes_pool, no_pool, platform_fee_rate, creator_id 
-                 FROM prop_events WHERE event_id = $1 AND college_domain = $2 FOR UPDATE`,
-                [eventId, collegeDomain],
+                 FROM prop_events
+                 WHERE event_id = $1 AND (institution_id = $2 OR institution_id IS NULL)
+                 FOR UPDATE`,
+                [eventId, institutionId],
             );
 
             if (!event) throw new NotFoundException('Event not found');
@@ -165,9 +182,17 @@ export class PropMarketService {
         await queryRunner.startTransaction();
 
         try {
+            const [userInstitution] = await queryRunner.query(
+                `SELECT institution_id FROM users WHERE user_id = $1`,
+                [settledBy],
+            );
+            const institutionId = userInstitution?.institution_id ?? null;
+
             const [event] = await queryRunner.query(
-                `SELECT * FROM prop_events WHERE event_id = $1 AND college_domain = $2 FOR UPDATE`,
-                [eventId, collegeDomain],
+                `SELECT * FROM prop_events
+                 WHERE event_id = $1 AND (institution_id = $2 OR institution_id IS NULL)
+                 FOR UPDATE`,
+                [eventId, institutionId],
             );
 
             if (!event) throw new NotFoundException('Event not found');
@@ -245,30 +270,49 @@ export class PropMarketService {
     /**
      * Get active prop events with live odds.
      */
-    async getActiveEvents(collegeDomain: string, scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL' | 'ALL' = 'LOCAL') {
+    async getActiveEvents(userId: string, scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL' | 'ALL' = 'LOCAL') {
+        let events: PropEventEntity[];
+
+        const [user] = await this.dataSource.query(
+            `SELECT institution_id FROM users WHERE user_id = $1`,
+            [userId],
+        );
+        const institutionId = user?.institution_id ?? null;
+
+        return this.getActiveEventsForInstitution(institutionId, scope);
+    }
+
+    async getActiveEventsForInstitution(
+        institutionId: string | null,
+        scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL' | 'ALL' = 'LOCAL',
+    ) {
         let events: PropEventEntity[];
 
         if (scope === 'LOCAL') {
-            events = await this.eventRepo.find({
-                where: { status: 'OPEN' as any, college_domain: collegeDomain },
-                order: { expiry_timestamp: 'ASC' },
-            });
-        } else if (scope === 'NATIONAL') {
-            // National events have no institution/domain constraint
             events = await this.dataSource.query(
-                `SELECT * FROM prop_events WHERE status = 'OPEN' AND scope = $1 ORDER BY expiry_timestamp ASC`,
-                ['NATIONAL'],
+                `SELECT * FROM prop_events
+                 WHERE status = 'OPEN' AND institution_id = $1
+                 ORDER BY expiry_timestamp ASC`,
+                [institutionId],
+            );
+        } else if (scope === 'NATIONAL') {
+            events = await this.dataSource.query(
+                `SELECT * FROM prop_events
+                 WHERE status = 'OPEN' AND institution_id IS NULL
+                 ORDER BY expiry_timestamp ASC`,
             );
         } else if (scope === 'REGIONAL') {
             events = await this.dataSource.query(
-                `SELECT * FROM prop_events WHERE status = 'OPEN' AND scope = $1 ORDER BY expiry_timestamp ASC`,
-                ['REGIONAL'],
+                `SELECT * FROM prop_events
+                 WHERE status = 'OPEN' AND scope = 'REGIONAL'
+                 ORDER BY expiry_timestamp ASC`,
             );
         } else {
-            // ALL: campus + national
             events = await this.dataSource.query(
-                `SELECT * FROM prop_events WHERE status = 'OPEN' AND (college_domain = $1 OR scope = 'NATIONAL' OR institution_id IS NULL) ORDER BY expiry_timestamp ASC`,
-                [collegeDomain],
+                `SELECT * FROM prop_events
+                 WHERE status = 'OPEN' AND (institution_id = $1 OR institution_id IS NULL)
+                 ORDER BY expiry_timestamp ASC`,
+                [institutionId],
             );
         }
 
@@ -301,6 +345,7 @@ export class PropMarketService {
         expiryTimestamp: Date,
         scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL',
         institutionId: string | undefined,
+        options: string[] | undefined,
         featured: boolean = false,
     ) {
         // Enforce scope server-side — never trust frontend
@@ -318,6 +363,7 @@ export class PropMarketService {
             featured,
             yes_pool: 0,
             no_pool: 0,
+            options: options ?? ['YES', 'NO'],
         } as any);
 
         return this.eventRepo.save(event);

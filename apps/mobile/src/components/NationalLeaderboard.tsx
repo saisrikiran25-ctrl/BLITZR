@@ -33,6 +33,7 @@ interface LeaderboardEntry {
   owner_display_name: string;
   snapshot_price: number;
   snapshot_volume: number;
+  change_pct: number;
   campus_rank: number;
   national_rank: number;
   featured: boolean;
@@ -67,19 +68,16 @@ export default function NationalLeaderboard() {
   const renderCard = ({ item }: { item: LeaderboardEntry }) => {
     const price = Number(item.snapshot_price);
     const priceStr = price > 0 ? price.toFixed(2) : '—';
-    const volume = Number(item.snapshot_volume);
-    const volumeStr = volume >= 1000
-      ? `${(volume / 1000).toFixed(1)}k`
-      : volume.toFixed(0);
+    const change = Number(item.change_pct ?? 0);
+    const changeColor = change >= 0 ? Colors.kineticGreen : Colors.thermalRed;
+    const changeStr = `${change >= 0 ? '+' : ''}${change.toFixed(1)}%`;
 
     return (
       <TouchableOpacity style={styles.card} onPress={() => setSelected(item)} activeOpacity={0.85}>
         <Text style={styles.ticker}>${item.ticker_id}</Text>
         <Text style={styles.college}>{item.institution_short_code ?? '—'}</Text>
         <Text style={styles.price}>{priceStr}</Text>
-        <Text style={styles.volume}>
-          Vol: {volumeStr}
-        </Text>
+        <Text style={[styles.change, { color: changeColor }]}>{changeStr}</Text>
       </TouchableOpacity>
     );
   };

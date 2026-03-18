@@ -46,6 +46,9 @@ export class UserEntity {
     @Column({ type: 'uuid', nullable: true })
     institution_id: string;
 
+    @Column({ type: 'varchar', length: 30, default: 'USER' })
+    role: 'USER' | 'ADMIN' | 'INSTITUTION_ADMIN';
+
     @Column({ type: 'int', default: 0 })
     credibility_score: number;
 
@@ -60,6 +63,9 @@ export class UserEntity {
 
     @Column({ type: 'text', nullable: true })
     avatar_url: string;
+
+    @Column({ type: 'timestamptz', nullable: true })
+    last_active_at: Date;
 
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date;

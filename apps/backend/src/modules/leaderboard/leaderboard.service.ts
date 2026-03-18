@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 import { NationalLeaderboardEntity } from './entities/national-leaderboard.entity';
+import { BondingCurveService } from '../ipo/bonding-curve.service';
 
 @Injectable()
 export class LeaderboardService {
@@ -12,6 +13,7 @@ export class LeaderboardService {
         @InjectRepository(NationalLeaderboardEntity)
         private readonly leaderboardRepo: Repository<NationalLeaderboardEntity>,
         private readonly dataSource: DataSource,
+        private readonly bondingCurve: BondingCurveService,
     ) {}
 
     /**
@@ -45,10 +47,8 @@ export class LeaderboardService {
 
             for (let i = 0; i < topTickers.length; i++) {
                 const ticker = topTickers[i];
-                const k = Number(ticker.scaling_constant);
                 const supply = Number(ticker.current_supply);
-                // Logarithmic bonding curve: price = k * ln(supply + 1)
-                const snapshotPrice = supply > 0 ? k * Math.log(supply + 1) : 0;
+                const snapshotPrice = this.bondingCurve.getPrice(supply);
 
                 const entry = this.leaderboardRepo.create({
                     ticker_id: ticker.ticker_id,
@@ -73,7 +73,11 @@ export class LeaderboardService {
     async getNationalLeaderboard(limit: number = 50) {
         const rows = await this.dataSource.query(
             `SELECT nl.*, t.ticker_id, i.short_code AS institution_short_code, i.name AS institution_name,
-                    u.display_name AS owner_display_name
+                    u.display_name AS owner_display_name,
+                    CASE
+                        WHEN t.price_open IS NULL OR t.price_open = 0 THEN 0
+                        ELSE ((nl.snapshot_price - t.price_open) / t.price_open) * 100
+                    END AS change_pct
              FROM national_leaderboard nl
              LEFT JOIN tickers t ON nl.ticker_id = t.ticker_id
              LEFT JOIN institutions i ON nl.institution_id = i.institution_id

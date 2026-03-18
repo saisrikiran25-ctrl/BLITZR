@@ -2,14 +2,14 @@ import { Controller, Post, Get, Body, Query, UseGuards, Request, Param } from '@
 import { RumorFeedService } from './rumor-feed.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
-@Controller('rumors')
+@Controller('rumor')
 export class RumorFeedController {
     constructor(private readonly rumorFeedService: RumorFeedService) { }
 
     @UseGuards(JwtAuthGuard)
     @Post()
-    async createRumor(@Request() req: any, @Body() body: { content: string }) {
-        return this.rumorFeedService.createRumor(req.user.userId, req.user.collegeDomain, body.content);
+    async createPost(@Request() req: any, @Body() body: { text: string }) {
+        return this.rumorFeedService.createPost(req.user.userId, req.user.collegeDomain, body.text);
     }
 
     @UseGuards(JwtAuthGuard)
@@ -33,6 +33,6 @@ export class RumorFeedController {
     @UseGuards(JwtAuthGuard)
     @Post(':id/dispute')
     async dispute(@Param('id') id: string, @Request() req: any) {
-        return this.rumorFeedService.disputeRumor(req.user.userId, id);
+        return this.rumorFeedService.disputePost(req.user.userId, id);
     }
 }

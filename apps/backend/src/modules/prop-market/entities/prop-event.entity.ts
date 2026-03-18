@@ -33,16 +33,19 @@ export class PropEventEntity {
     // Pool state
     @Column({
         type: 'enum',
-        enum: ['OPEN', 'CLOSED', 'SETTLED', 'CANCELLED'],
+        enum: ['OPEN', 'PAUSED', 'CLOSED', 'SETTLED', 'CANCELLED'],
         default: 'OPEN',
     })
-    status: string;
+    status: 'OPEN' | 'PAUSED' | 'CLOSED' | 'SETTLED' | 'CANCELLED';
 
     @Column({ type: 'decimal', precision: 18, scale: 4, default: 0.0 })
     yes_pool: number;
 
     @Column({ type: 'decimal', precision: 18, scale: 4, default: 0.0 })
     no_pool: number;
+
+    @Column({ type: 'jsonb', default: () => "'[]'" })
+    options: string[];
 
     // Resolution
     @Column({ type: 'enum', enum: ['YES', 'NO'], nullable: true })

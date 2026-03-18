@@ -91,7 +91,7 @@ export default function ModerationQueuePage() {
                                             QUEUE ID: {item.queue_id?.slice(0, 8)}...
                                         </span>
                                         <span className="text-xs text-amber-400 border border-amber-400/30 px-2 py-0.5">
-                                            {item.reason ?? 'No reason'}
+                                            {item.flag_type ?? 'UNSPECIFIED'}
                                         </span>
                                     </div>
                                     {item.post_preview ? (

@@ -31,11 +31,10 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     ) {}
 
     onModuleInit() {
-        const host = this.configService.get<string>('REDIS_HOST', 'localhost');
-        const port = this.configService.get<number>('REDIS_PORT', 6379);
+        const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
 
-        this.redisEnqueue = new Redis({ host, port });
-        this.redisWorker = new Redis({ host, port });
+        this.redisEnqueue = new Redis(redisUrl);
+        this.redisWorker = new Redis(redisUrl);
         this.logger.log('Trade Queue Service initialised');
     }
 
@@ -147,8 +146,9 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                 );
             }
         } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
             this.logger.error(
-                `Trade failed for ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}): ${err.message}`,
+                `Trade failed for ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}): ${message}`,
             );
         }
     }

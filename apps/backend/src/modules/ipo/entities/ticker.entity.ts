@@ -46,10 +46,10 @@ export class TickerEntity {
     // Status
     @Column({
         type: 'enum',
-        enum: ['ACTIVE', 'FROZEN', 'AUTO_FROZEN', 'PENDING', 'DELISTED'],
+        enum: ['ACTIVE', 'FROZEN', 'AUTO_FROZEN', 'MANUAL_FROZEN', 'PENDING', 'DELISTED'],
         default: 'ACTIVE',
     })
-    status: 'ACTIVE' | 'FROZEN' | 'AUTO_FROZEN' | 'PENDING' | 'DELISTED';
+    status: 'ACTIVE' | 'FROZEN' | 'AUTO_FROZEN' | 'MANUAL_FROZEN' | 'PENDING' | 'DELISTED';
 
     @Column({ type: 'timestamptz', nullable: true })
     frozen_until: Date;

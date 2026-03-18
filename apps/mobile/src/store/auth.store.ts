@@ -7,7 +7,7 @@ interface AuthState {
   username: string | null;
   tosAccepted: boolean;
   credibilityScore: number;
-  login: (token: string, userId: string, username: string, tosAccepted: boolean) => void;
+  login: (token: string, userId: string, username: string, tosAccepted: boolean, credibilityScore: number) => void;
   setTosAccepted: () => void;
   setCredibilityScore: (score: number) => void;
   logout: () => void;
@@ -20,9 +20,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   tosAccepted: false,
   credibilityScore: 0,
 
-  login: (token, userId, username, tosAccepted) => {
+  login: (token, userId, username, tosAccepted, credibilityScore) => {
     setAuthToken(token);
-    set({ token, userId, username, tosAccepted });
+    set({ token, userId, username, tosAccepted, credibilityScore });
   },
 
   setTosAccepted: () => {

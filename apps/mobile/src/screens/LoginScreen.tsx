@@ -35,11 +35,11 @@ export default function LoginScreen() {
     try {
       if (mode === 'LOGIN') {
         const res = await authApi.login(email, password);
-        login(res.token, res.user.user_id, res.user.username, res.user.tos_accepted);
+        login(res.token, res.user.user_id, res.user.username, res.user.tos_accepted, res.user.credibility_score ?? 0);
       } else {
         if (!username) { Alert.alert('Error', 'Username is required.'); return; }
         const res = await authApi.register(email, username, password);
-        login(res.token, res.user.user_id, res.user.username, false);
+        login(res.token, res.user.user_id, res.user.username, false, 50);
       }
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Something went wrong.');
