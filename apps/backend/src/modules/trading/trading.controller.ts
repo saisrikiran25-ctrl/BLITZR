@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { TradingService } from './trading.service';
+import { TradeQueueService } from './trade-queue.service';
 import { OhlcAggregationService } from './ohlc-aggregation.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -7,6 +8,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class TradingController {
     constructor(
         private readonly tradingService: TradingService,
+        private readonly tradeQueue: TradeQueueService,
         private readonly ohlcService: OhlcAggregationService,
     ) { }
 
@@ -16,22 +18,40 @@ export class TradingController {
         return this.tradingService.previewBuy(req.user.collegeDomain, body.ticker_id, body.shares);
     }
 
+    /**
+     * B12: Buy via Redis trade queue — returns immediately with QUEUED status.
+     */
     @UseGuards(JwtAuthGuard)
     @Post('buy')
     async executeBuy(
         @Request() req: any,
         @Body() body: { ticker_id: string; shares: number },
     ) {
-        return this.tradingService.executeBuy(req.user.userId, req.user.collegeDomain, body.ticker_id, body.shares);
+        return this.tradeQueue.enqueueTrade(
+            req.user.userId,
+            req.user.collegeDomain,
+            body.ticker_id,
+            'BUY',
+            body.shares,
+        );
     }
 
+    /**
+     * B12: Sell via Redis trade queue — returns immediately with QUEUED status.
+     */
     @UseGuards(JwtAuthGuard)
     @Post('sell')
     async executeSell(
         @Request() req: any,
         @Body() body: { ticker_id: string; shares: number },
     ) {
-        return this.tradingService.executeSell(req.user.userId, req.user.collegeDomain, body.ticker_id, body.shares);
+        return this.tradeQueue.enqueueTrade(
+            req.user.userId,
+            req.user.collegeDomain,
+            body.ticker_id,
+            'SELL',
+            body.shares,
+        );
     }
 
     /**
@@ -45,8 +65,6 @@ export class TradingController {
         @Query('interval') interval: string = '1h',
         @Query('limit') limit: number = 100,
     ) {
-        // Enforce the user has access to the ticker via the OhlcService or implicitly assuming
-        // Since OHLC aggregate is read-only, we pass collegeDomain down to safely query.
         return this.ohlcService.getCandles(req.user.collegeDomain, tickerId, interval, limit);
     }
 }

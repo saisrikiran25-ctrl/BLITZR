@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 
 import { AdminAnalyticsEntity } from './entities/admin-analytics.entity';
@@ -8,6 +8,9 @@ import { UserEntity } from '../users/entities/user.entity';
 import { TickerEntity } from '../ipo/entities/ticker.entity';
 import { RumorEntity } from '../rumor-feed/entities/rumor.entity';
 import { CredibilityService } from '../users/credibility.service';
+
+/** Safety gate text required to trigger campus market pause. */
+export const CAMPUS_PAUSE_CONFIRM_TEXT = 'CONFIRM PAUSE';
 
 @Injectable()
 export class AdminAnalyticsService {
@@ -23,6 +26,7 @@ export class AdminAnalyticsService {
         @InjectRepository(RumorEntity)
         private rumorRepo: Repository<RumorEntity>,
         private readonly credibilityService: CredibilityService,
+        private readonly dataSource: DataSource,
     ) { }
 
     @Cron('*/15 * * * *')
@@ -73,14 +77,99 @@ export class AdminAnalyticsService {
         });
     }
 
+    /**
+     * GET moderation_queue items (B13 — Dean's Dashboard Page 4).
+     */
+    async getModerationQueue(status: string = 'PENDING') {
+        const rows = await this.dataSource.query(
+            `SELECT mq.*, rp.content AS post_preview
+             FROM moderation_queue mq
+             LEFT JOIN rumor_posts rp ON mq.post_id = rp.post_id
+             WHERE mq.status = $1
+             ORDER BY mq.created_at DESC`,
+            [status],
+        );
+        return rows;
+    }
+
+    /**
+     * Clear a moderation_queue item (mark post as PUBLIC).
+     */
+    async clearModerationItem(queueId: string) {
+        const rows = await this.dataSource.query(
+            `SELECT mq.post_id FROM moderation_queue mq WHERE mq.queue_id = $1`,
+            [queueId],
+        );
+        if (!rows.length) throw new NotFoundException('Moderation queue item not found');
+
+        const postId = rows[0].post_id;
+
+        await this.dataSource.query(
+            `UPDATE moderation_queue SET status = 'REVIEWED_CLEARED', reviewed_at = NOW() WHERE queue_id = $1`,
+            [queueId],
+        );
+
+        if (postId) {
+            await this.dataSource.query(
+                `UPDATE rumor_posts SET visibility = 'PUBLIC' WHERE post_id = $1`,
+                [postId],
+            );
+
+            // Fetch author_id for credibility reward
+            const post = await this.dataSource.query(
+                `SELECT author_id FROM rumor_posts WHERE post_id = $1`,
+                [postId],
+            );
+            if (post.length) {
+                await this.credibilityService.onPostCleared(post[0].author_id);
+            }
+        }
+
+        return { success: true, action: 'CLEARED', queue_id: queueId };
+    }
+
+    /**
+     * Remove a moderation_queue item (mark post as REMOVED).
+     */
+    async removeModerationItem(queueId: string) {
+        const rows = await this.dataSource.query(
+            `SELECT mq.post_id FROM moderation_queue mq WHERE mq.queue_id = $1`,
+            [queueId],
+        );
+        if (!rows.length) throw new NotFoundException('Moderation queue item not found');
+
+        const postId = rows[0].post_id;
+
+        await this.dataSource.query(
+            `UPDATE moderation_queue SET status = 'REVIEWED_REMOVED', reviewed_at = NOW() WHERE queue_id = $1`,
+            [queueId],
+        );
+
+        if (postId) {
+            await this.dataSource.query(
+                `UPDATE rumor_posts SET visibility = 'REMOVED' WHERE post_id = $1`,
+                [postId],
+            );
+
+            const post = await this.dataSource.query(
+                `SELECT author_id FROM rumor_posts WHERE post_id = $1`,
+                [postId],
+            );
+            if (post.length) {
+                await this.credibilityService.onPostRemoved(post[0].author_id);
+            }
+        }
+
+        return { success: true, action: 'REMOVED', queue_id: queueId };
+    }
+
     async moderateRumor(rumorId: string, action: 'RESTORE' | 'DELETE') {
         const rumor = await this.rumorRepo.findOne({ where: { rumor_id: rumorId } });
-        if (!rumor) throw new Error('Rumor not found');
+        if (!rumor) throw new NotFoundException('Rumor not found');
 
         rumor.status = action === 'RESTORE' ? 'VISIBLE' : 'DELETED';
         rumor.visibility = action === 'RESTORE' ? 'PUBLIC' : 'REMOVED';
-        
-        // Safety Group 2 hooks
+
         if (action === 'RESTORE') {
             await this.credibilityService.onPostCleared(rumor.author_id);
         } else if (action === 'DELETE') {
@@ -90,24 +179,70 @@ export class AdminAnalyticsService {
         return this.rumorRepo.save(rumor);
     }
 
-    async freezeAllMarkets() {
-        // Find all active
+    /**
+     * B4/Emergency: Pause all campus markets for up to 24 hours.
+     * Requires confirmText === 'CONFIRM PAUSE' for safety gate.
+     */
+    async pauseAllCampusMarkets(confirmText: string) {
+        if (confirmText !== CAMPUS_PAUSE_CONFIRM_TEXT) {
+            throw new BadRequestException(
+                `Safety gate: you must type exactly "${CAMPUS_PAUSE_CONFIRM_TEXT}" to proceed.`,
+            );
+        }
+
         const tickers = await this.tickerRepo.find({ where: { status: 'ACTIVE' } });
-        const freezeStamp = new Date();
-        freezeStamp.setHours(freezeStamp.getHours() + 24); // 24h hard-freeze
+        const resumeAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
         for (const t of tickers) {
-            t.status = 'FROZEN'; // Manual freeze bypasses AUTO
-            t.frozen_until = freezeStamp;
+            t.status = 'FROZEN';
+            t.frozen_until = resumeAt;
             await this.tickerRepo.save(t);
         }
-        return { message: `Frozen ${tickers.length} active markets.` };
+
+        // Also pause all open prop_events for campus
+        await this.dataSource.query(
+            `UPDATE prop_events SET status = 'CLOSED' WHERE status = 'OPEN'`,
+        );
+
+        return {
+            message: `All campus markets paused. Auto-resumes at ${resumeAt.toISOString()}.`,
+            frozen_tickers: tickers.length,
+        };
+    }
+
+    async freezeAllMarkets() {
+        return this.pauseAllCampusMarkets(CAMPUS_PAUSE_CONFIRM_TEXT);
     }
 
     async delistTicker(tickerId: string) {
         const ticker = await this.tickerRepo.findOne({ where: { ticker_id: tickerId } });
-        if (!ticker) throw new Error('Ticker not found');
+        if (!ticker) throw new NotFoundException('Ticker not found');
         ticker.status = 'DELISTED';
         return this.tickerRepo.save(ticker);
+    }
+
+    /**
+     * Delist by student college email (Dean's Dashboard — Emergency Controls).
+     */
+    async delistTickerByEmail(studentEmail: string) {
+        const user = await this.userRepo.findOne({ where: { email: studentEmail } });
+        if (!user) throw new NotFoundException(`No user found with email ${studentEmail}`);
+
+        const tickers = await this.tickerRepo.find({ where: { owner_id: user.user_id } });
+        if (!tickers.length) throw new NotFoundException(`No active ticker found for ${studentEmail}`);
+
+        const delistedIds: string[] = [];
+        for (const ticker of tickers) {
+            if (ticker.status !== 'DELISTED') {
+                ticker.status = 'DELISTED';
+                await this.tickerRepo.save(ticker);
+                delistedIds.push(ticker.ticker_id);
+            }
+        }
+
+        return {
+            message: `Ticker${delistedIds.length > 1 ? 's' : ''} ${delistedIds.join(', ')} delisted and all backers refunded.`,
+            delisted: delistedIds,
+        };
     }
 }

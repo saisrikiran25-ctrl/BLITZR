@@ -12,6 +12,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
                         <Link href="/" className="hover:text-pulse-blue transition-colors">[/] SENTIMENT HUD</Link>
                         <Link href="/markets" className="hover:text-pulse-blue transition-colors">[/] PROP MARKETS</Link>
                         <Link href="/safety" className="hover:text-pulse-blue transition-colors">[/] CONTENT SAFETY</Link>
+                        <Link href="/moderation" className="hover:text-pulse-blue transition-colors">[/] MODERATION QUEUE</Link>
                         <Link href="/controls" className="hover:thermal-red text-thermal-red transition-colors mt-8">[/] EMERGENCY</Link>
                     </nav>
                 </div>

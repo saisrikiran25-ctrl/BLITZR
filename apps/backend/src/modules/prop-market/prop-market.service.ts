@@ -245,11 +245,32 @@ export class PropMarketService {
     /**
      * Get active prop events with live odds.
      */
-    async getActiveEvents(collegeDomain: string) {
-        const events = await this.eventRepo.find({
-            where: { status: 'OPEN' as any, college_domain: collegeDomain },
-            order: { expiry_timestamp: 'ASC' },
-        });
+    async getActiveEvents(collegeDomain: string, scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL' | 'ALL' = 'LOCAL') {
+        let events: PropEventEntity[];
+
+        if (scope === 'LOCAL') {
+            events = await this.eventRepo.find({
+                where: { status: 'OPEN' as any, college_domain: collegeDomain },
+                order: { expiry_timestamp: 'ASC' },
+            });
+        } else if (scope === 'NATIONAL') {
+            // National events have no institution/domain constraint
+            events = await this.dataSource.query(
+                `SELECT * FROM prop_events WHERE status = 'OPEN' AND scope = $1 ORDER BY expiry_timestamp ASC`,
+                ['NATIONAL'],
+            );
+        } else if (scope === 'REGIONAL') {
+            events = await this.dataSource.query(
+                `SELECT * FROM prop_events WHERE status = 'OPEN' AND scope = $1 ORDER BY expiry_timestamp ASC`,
+                ['REGIONAL'],
+            );
+        } else {
+            // ALL: campus + national
+            events = await this.dataSource.query(
+                `SELECT * FROM prop_events WHERE status = 'OPEN' AND (college_domain = $1 OR scope = 'NATIONAL' OR institution_id IS NULL) ORDER BY expiry_timestamp ASC`,
+                [collegeDomain],
+            );
+        }
 
         return events.map((e) => {
             const totalPool = Number(e.yes_pool) + Number(e.no_pool);
@@ -265,5 +286,40 @@ export class PropMarketService {
                 time_remaining_ms: new Date(e.expiry_timestamp).getTime() - Date.now(),
             };
         });
+    }
+
+    /**
+     * B4: Admin create a national/regional prop market.
+     * scope is enforced server-side — isAdmin must be validated by caller.
+     */
+    async createAdminMarket(
+        creatorId: string,
+        isAdmin: boolean,
+        title: string,
+        description: string | undefined,
+        category: string | undefined,
+        expiryTimestamp: Date,
+        scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL',
+        institutionId: string | undefined,
+        featured: boolean = false,
+    ) {
+        // Enforce scope server-side — never trust frontend
+        const resolvedScope = isAdmin ? scope : 'LOCAL';
+        const resolvedInstitutionId = resolvedScope === 'NATIONAL' ? null : institutionId;
+
+        const event = this.eventRepo.create({
+            creator_id: creatorId,
+            title,
+            description,
+            category,
+            expiry_timestamp: expiryTimestamp,
+            scope: resolvedScope as any,
+            institution_id: resolvedInstitutionId,
+            featured,
+            yes_pool: 0,
+            no_pool: 0,
+        } as any);
+
+        return this.eventRepo.save(event);
     }
 }
