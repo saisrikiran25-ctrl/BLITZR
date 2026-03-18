@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { RumorEntity } from './entities/rumor.entity';
 import { RumorVoteEntity, VoteType } from './entities/rumor-vote.entity';
+import { ClassifierService } from './classifier.service';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -13,6 +14,7 @@ export class RumorFeedService {
         @InjectRepository(RumorVoteEntity)
         private readonly voteRepo: Repository<RumorVoteEntity>,
         private readonly dataSource: DataSource,
+        private readonly classifierService: ClassifierService,
     ) { }
 
     /**
@@ -21,16 +23,100 @@ export class RumorFeedService {
     async createRumor(authorId: string, collegeDomain: string, content: string) {
         const ghostId = this.generateGhostId();
         const taggedTickers = this.parseTickerTags(content);
+        
+        const price_snapshot: Record<string, number> = {};
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        
+        try {
+            if (taggedTickers.length > 0) {
+                for (const tickerTag of taggedTickers) {
+                    const tickerId = tickerTag.replace('$', '');
+                    const ticker = await queryRunner.manager.query(
+                        `SELECT current_supply, scaling_constant FROM tickers WHERE ticker_id = $1`,
+                        [tickerId]
+                    );
+                    
+                    if (ticker && ticker.length > 0) {
+                        const t = ticker[0];
+                        const k = Number(t.scaling_constant);
+                        const supply = Number(t.current_supply);
+                        const currentPrice = k * Math.log(supply + 1);
+                        price_snapshot[tickerId] = currentPrice;
+                    }
+                }
+            }
 
-        const rumor = this.rumorRepo.create({
-            author_id: authorId,
-            ghost_id: ghostId,
-            content,
-            tagged_tickers: taggedTickers,
-            college_domain: collegeDomain,
-        });
+            // SECURITY GATE: Classify post
+            const classification = await this.classifierService.classify(content);
+            
+            // Fetch user credibility
+            const userRes = await queryRunner.manager.query(
+                `SELECT credibility_score FROM users WHERE user_id = $1`,
+                [authorId]
+            );
+            const credScore = userRes[0]?.credibility_score || 0;
 
-        return this.rumorRepo.save(rumor);
+            // Enforce Credibility Gate
+            if (classification.post_type === 'FACTUAL_CLAIM' && credScore < 50) {
+                throw new BadRequestException('Your Credibility Score is too low to post factual claims. Participate in the Arena to raise it.');
+            }
+
+            let visibility = 'PUBLIC';
+            let status = 'VISIBLE';
+            
+            // Route to moderation if risk is very high and it's a factual claim
+            if (classification.post_type === 'FACTUAL_CLAIM' && classification.risk_score >= 0.7) {
+                visibility = 'PENDING';
+                status = 'HIDDEN'; // Hide from feed until approved
+            }
+
+            const rumor = this.rumorRepo.create({
+                author_id: authorId,
+                ghost_id: ghostId,
+                content,
+                tagged_tickers: taggedTickers.map(t => t.replace('$', '')),
+                college_domain: collegeDomain,
+                price_snapshot: price_snapshot,
+                post_type: classification.post_type,
+                risk_score: classification.risk_score,
+                visibility: visibility as any,
+                status: status as any,
+            });
+
+            const savedRumor = await queryRunner.manager.save(rumor);
+
+            // Log to moderation queue if pending
+            if (visibility === 'PENDING') {
+                await queryRunner.manager.query(
+                    `INSERT INTO moderation_queue (item_id, item_type, reason, reporter_id) VALUES ($1, $2, $3, $4)`,
+                    [savedRumor.rumor_id, 'RUMOR', `High-Risk AI Classification: ${classification.risk_score}`, 'SYSTEM']
+                );
+            }
+
+            // If public and has tickers, ping Redis stream for Market Impact Monitor
+            if (visibility === 'PUBLIC' && taggedTickers.length > 0) {
+                // Quick broadcast via a Redis list
+                const redisClient = (this.classifierService as any).redisClient; 
+                if (redisClient) {
+                    await redisClient.lpush('market_impact_queue', JSON.stringify({
+                        post_id: savedRumor.rumor_id,
+                        tickers: savedRumor.tagged_tickers,
+                        timestamp: new Date().toISOString()
+                    }));
+                }
+            }
+
+            await queryRunner.commitTransaction();
+            return savedRumor;
+
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            throw error;
+        } finally {
+            await queryRunner.release();
+        }
     }
 
     /**
@@ -140,6 +226,73 @@ export class RumorFeedService {
 
     private generateGhostId(): string {
         return `ghost_${crypto.randomBytes(4).toString('hex')}`;
+    }
+
+    /**
+     * Community Dispute System (Task B10)
+     */
+    async disputeRumor(userId: string, rumorId: string) {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+
+        try {
+            // Insert dispute (ignoring if already disputed by this user)
+            const insertRes = await queryRunner.manager.query(
+                `INSERT INTO post_disputes (post_id, user_id) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING dispute_id`,
+                [rumorId, userId]
+            );
+
+            if (insertRes.length === 0) {
+                // User already disputed this post
+                return { success: false, message: 'Already disputed this post.' };
+            }
+
+            // Count disputes within last 72 hours
+            const countRes = await queryRunner.manager.query(
+                `SELECT COUNT(*) as count FROM post_disputes 
+                 WHERE post_id = $1 AND created_at >= NOW() - INTERVAL '72 hours'`,
+                [rumorId]
+            );
+            
+            const count = parseInt(countRes[0].count, 10);
+
+            // If threshold reached, lock the post
+            if (count >= 30) {
+                const rumor = await queryRunner.manager.findOne(RumorEntity, {
+                    where: { rumor_id: rumorId }
+                });
+
+                if (rumor && rumor.visibility !== 'HIDDEN' && rumor.status !== 'DELETED') {
+                    // Update visibility
+                    rumor.visibility = 'HIDDEN';
+                    rumor.status = 'PENDING_REVIEW';
+                    await queryRunner.manager.save(rumor);
+
+                    // Add to moderation queue
+                    await queryRunner.manager.query(
+                        `INSERT INTO moderation_queue (item_id, item_type, reason, reporter_id) VALUES ($1, $2, $3, $4)`,
+                        [rumorId, 'RUMOR', `Community Dispute Threshold Exceeded (${count} disputes)`, 'SYSTEM']
+                    );
+
+                    // Decrement author credibility
+                    await queryRunner.manager.query(
+                        `UPDATE users SET credibility_score = GREATEST(0, credibility_score - 10) WHERE user_id = $1`,
+                        [rumor.author_id]
+                    );
+                    
+                    // Note: In real production, trigger a push notification to author_id here
+                }
+            }
+
+            await queryRunner.commitTransaction();
+            return { success: true, total_disputes: count };
+        } catch (error) {
+            await queryRunner.rollbackTransaction();
+            throw error;
+        } finally {
+            await queryRunner.release();
+        }
     }
 }
 

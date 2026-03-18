@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f1115;
+  --foreground: #ffffff;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-obsidian: #0f1115;
+  --color-kinetic-green: #00ff66;
+  --color-thermal-red: #ff3333;
+  --color-pulse-blue: #00eeff;
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-text-secondary: #8e8e93;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}

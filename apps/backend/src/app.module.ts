@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
+import { APP_GUARD } from '@nestjs/core';
+import { TosGuard } from './common/guards/tos.guard';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -13,6 +15,8 @@ import { RumorFeedModule } from './modules/rumor-feed/rumor-feed.module';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { RealtimeModule } from './modules/realtime/realtime.module';
 import { MarketMakerModule } from './modules/market-maker/market-maker.module';
+import { SafetyModule } from './modules/safety/safety.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 // Database config
 import { getDatabaseConfig } from './config/database.config';
@@ -45,6 +49,14 @@ import { getDatabaseConfig } from './config/database.config';
         WalletModule,
         RealtimeModule,
         MarketMakerModule,
+        SafetyModule,
+        AdminModule,
     ],
+    providers: [
+        {
+            provide: APP_GUARD,
+            useClass: TosGuard,
+        },
+    ]
 })
 export class AppModule { }

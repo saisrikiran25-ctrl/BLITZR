@@ -1,0 +1,84 @@
+﻿Problem 1: Full Architecture for Institutional Safety
+Layer 1: Reframe the Language
+This is purely a front-end text change. Tell your coding agent:
+"Audit every string, label, button, and notification in the entire codebase. Replace all instances of 'Buy/Sell stock,' 'trading people,' 'your stock price,' or 'shareholders' with the following approved language:"
+❌ Old Language
+	✅ New Language
+	"Buy $RAHUL's stock"
+	"Boost $RAHUL's Clout Index"
+	"You have 5 shareholders"
+	"5 people are backing you"
+	"Your stock crashed 40%"
+	"Your Clout Score dropped 40%"
+	"Sell before it dumps"
+	"Reduce your position"
+	"IPO yourself"
+	"List your Campus Profile"
+	
+
+	
+
+	
+
+This change costs zero engineering effort. It changes how journalists, deans, and parents perceive the app if they ever see it. The mechanics are identical underneath.
+  
+
+Layer 2: The Dean's Dashboard
+Tell your coding agent to build a completely separate web portal (not part of the student app). Here are the exact instructions:
+  
+
+What to Build
+A separate Next.js web app at admin.blitzr.app (or similar), protected by a unique login given only to the college's Student Affairs office or Dean.
+Screen 1: Campus Sentiment Overview
+* A line chart showing the average Clout Score movement across all listed students over the past 7 days
+* A department-wise heatmap — same as the Trading Floor heatmap in the student app, but labeled "Dept. Sentiment Index"
+* Zero individual names shown — everything is aggregated. The Dean sees "CS Dept sentiment is down 18%" not "$RAHUL is down 40%"
+* Label this: "Campus Pulse Report"
+Screen 2: Prop Market Predictions Panel
+* A read-only list of all active Prop Markets on campus
+* Shows the live Yes/No split as a percentage bar
+* Example: "Will the Annual Fest be postponed? → Campus says 73% YES"
+* Add a label: "Student Prediction Intelligence — Powered by BLITZR"
+* This gives the administration genuinely useful data. Fest organizers can see student sentiment before making decisions
+Screen 3: Content Safety Report
+* A table of all posts that were auto-flagged by the moderation engine (from Layer 3 / Problem 3)
+* Columns: Timestamp | Flagged Reason | Status (Reviewed/Pending) | Action Taken
+* No post content is shown by default — the Dean clicks "Request Review" and a notification goes to your moderation team
+* This gives the administration proof that you are actively moderating, without giving them direct surveillance power over students
+Screen 4: Emergency Controls
+* A single large button: "Pause All Markets" — freezes the entire campus economy for up to 24 hours
+* A field to input a student's college email and manually trigger a Delist if the admin receives a complaint
+* These controls exist so that if a Dean calls you, you can say "You have full override capability" — this makes them a partner, not an adversary
+Database Requirements
+Tell your coding agent:
+"All data fed to the Dean's Dashboard must be read from aggregated, pre-computed views — never raw user tables. Create a scheduled job that runs every 15 minutes and writes summarized statistics to a separate admin_analytics table. The admin portal only has read access to admin_analytics. It cannot query users, transactions, or rumor_posts directly."
+This is critical — it protects student privacy legally and prevents the admin portal from becoming a surveillance tool.
+  
+
+Layer 3: Hard-Coded Safety Architecture
+Give your coding agent these three specific features as separate engineering tickets:
+  
+
+Safety Feature A: Auto-Freeze on Crash (24hr Crash Protection)
+Tell your coding agent:
+"Add a background worker that runs every 5 minutes. For every active ticker, it calculates the price change over the last 24 hours. If any ticker has dropped more than 25% in 24 hours, the system must:
+  
+
+Safety Feature B: Rumor-to-Market Correlation Limiter
+Tell your coding agent:
+"When a new post is published on the Rumor Feed, record its post_id and timestamp. Start a background monitor for each new post:
+  
+
+Safety Feature C: Zero Real-Money Disclaimer Layer
+Tell your coding agent:
+"Add a persistent, non-dismissible banner at the bottom of every transaction screen — Buy, Sell, and Bet confirmation screens. The text must read exactly: 'BLITZR operates exclusively with virtual credits. No real monetary value. Not a financial product.' Style it in #8E8E93 (Slate Neutral from the design spec) at 10px font so it is visible but unobtrusive. This text must also appear in the onboarding flow on screen 3, and in the app's Terms of Service which every user must accept before their account is activated."
+Additionally:
+"On the user registration flow, add a mandatory checkbox — not pre-checked — that says: 'I understand that Creds and Chips are virtual game currency with no real-world monetary value and cannot be exchanged for real money.' Store tos_accepted: true and timestamp in the users table. No account can be created without this."
+  
+
+The Single Most Important Instruction to Give Your Coding Agent
+Package all of the above as three separate tasks in this priority order:
+1. First: The language reframe (1 day of work, zero risk)
+2. Second: The three Safety Features A, B, C (3–5 days, protects you before launch)
+3. Third: The Dean's Dashboard (1–2 weeks, build after your first campus launch when you have real data to show)
+Do not launch without completing items 1 and 2. Item 3 is what you bring to your second campus as a sales tool.

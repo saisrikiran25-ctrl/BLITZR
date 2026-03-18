@@ -17,10 +17,10 @@ const dataSource = new DataSource({
 async function run() {
     try {
         await dataSource.initialize();
-        const sqlPath = path.join(__dirname, 'migrations', '002_rumor_votes.sql');
+        const sqlPath = path.join(__dirname, 'migrations', '006_master_doc_migrations.sql');
         const sql = fs.readFileSync(sqlPath, 'utf8');
         await dataSource.query(sql);
-        console.log('Migration 002 applied successfully.');
+        console.log('Migration 006 applied successfully.');
     } catch (err) {
         console.error('Migration failed', err);
         process.exit(1);

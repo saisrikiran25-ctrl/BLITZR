@@ -43,6 +43,18 @@ export class UserEntity {
     @Column({ type: 'varchar', length: 100, nullable: true })
     college_domain: string;
 
+    @Column({ type: 'uuid', nullable: true })
+    institution_id: string;
+
+    @Column({ type: 'int', default: 0 })
+    credibility_score: number;
+
+    @Column({ type: 'boolean', default: false })
+    tos_accepted: boolean;
+
+    @Column({ type: 'timestamptz', nullable: true })
+    tos_accepted_at: Date;
+
     @Column({ type: 'boolean', default: false })
     email_verified: boolean;
 

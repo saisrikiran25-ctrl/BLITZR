@@ -29,4 +29,10 @@ export class RumorFeedController {
     async downvote(@Param('id') id: string, @Request() req: any) {
         return this.rumorFeedService.downvote(req.user.userId, req.user.collegeDomain, id);
     }
+
+    @UseGuards(JwtAuthGuard)
+    @Post(':id/dispute')
+    async dispute(@Param('id') id: string, @Request() req: any) {
+        return this.rumorFeedService.disputeRumor(req.user.userId, id);
+    }
 }
