@@ -17,6 +17,7 @@ import { RealtimeModule } from './modules/realtime/realtime.module';
 import { MarketMakerModule } from './modules/market-maker/market-maker.module';
 import { SafetyModule } from './modules/safety/safety.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { LeaderboardModule } from './modules/leaderboard/leaderboard.module';
 
 // Database config
 import { getDatabaseConfig } from './config/database.config';
@@ -51,6 +52,7 @@ import { getDatabaseConfig } from './config/database.config';
         MarketMakerModule,
         SafetyModule,
         AdminModule,
+        LeaderboardModule,
     ],
     providers: [
         {

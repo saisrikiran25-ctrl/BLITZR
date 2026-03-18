@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Body, Param, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { PropMarketService } from './prop-market.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -59,7 +59,42 @@ export class PropMarketController {
 
     @UseGuards(JwtAuthGuard)
     @Get('events')
-    async getActiveEvents(@Request() req: any) {
-        return this.propMarketService.getActiveEvents(req.user.collegeDomain);
+    async getActiveEvents(
+        @Request() req: any,
+        @Query('scope') scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL' | 'ALL' = 'LOCAL',
+    ) {
+        return this.propMarketService.getActiveEvents(req.user.collegeDomain, scope);
+    }
+
+    /**
+     * B4: Admin endpoint to create a national/regional prop market.
+     * Protected by ADMIN_SECRET header.
+     */
+    @UseGuards(JwtAuthGuard)
+    @Post('admin/create')
+    async adminCreateMarket(
+        @Request() req: any,
+        @Body() body: {
+            title: string;
+            description?: string;
+            category?: string;
+            expiry_timestamp: string;
+            scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL';
+            institution_id?: string;
+            featured?: boolean;
+        },
+    ) {
+        const isAdmin = req.headers?.['x-admin-secret'] === process.env.ADMIN_SECRET;
+        return this.propMarketService.createAdminMarket(
+            req.user.userId,
+            isAdmin,
+            body.title,
+            body.description,
+            body.category,
+            new Date(body.expiry_timestamp),
+            body.scope,
+            body.institution_id,
+            body.featured ?? false,
+        );
     }
 }

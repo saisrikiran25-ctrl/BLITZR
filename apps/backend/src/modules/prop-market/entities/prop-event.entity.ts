@@ -72,6 +72,20 @@ export class PropEventEntity {
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date;
 
+    // Multi-campus scope (added in migration 006)
+    @Column({
+        type: 'enum',
+        enum: ['LOCAL', 'REGIONAL', 'NATIONAL'],
+        default: 'LOCAL',
+    })
+    scope: 'LOCAL' | 'REGIONAL' | 'NATIONAL';
+
+    @Column({ type: 'uuid', nullable: true })
+    institution_id: string;
+
+    @Column({ type: 'boolean', default: false })
+    featured: boolean;
+
     // RLMT Domain Partition
     @Column({ type: 'varchar', length: 100, default: 'iift.edu' })
     college_domain: string;
