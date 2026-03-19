@@ -13,13 +13,17 @@ import { TradingService } from './trading.service';
  *
  * Architecture:
  *  - One LPUSH per incoming trade (O(1), returns immediately to client)
- *  - One worker per active ticker pops trades with BLPOP (blocking pop)
+ *  - One worker per active ticker pops trades with BRPOPLPUSH (blocking pop)
+ *  - Each worker acknowledges the trade after processing to avoid loss on crash
+ *  - Idle workers shut down after 5 minutes of inactivity
  *  - Each worker calls TradingService.executeBuy/Sell which still uses
  *    a PG transaction as a secondary safety net
  */
 @Injectable()
 export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(TradeQueueService.name);
+    private readonly idleShutdownMs = 5 * 60 * 1000;
+    private readonly popTimeoutSeconds = 2;
     private redisEnqueue: Redis;
     private redisWorker: Redis;
     private activeWorkers = new Set<string>();
@@ -84,31 +88,50 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
 
         setImmediate(async () => {
             const queueKey = `queue:trade:${tickerId}`;
+            const processingKey = `${queueKey}:processing`;
+            let lastActivityAt = Date.now();
+
+            await this.requeueProcessing(queueKey, processingKey);
 
             while (!this.shuttingDown) {
                 try {
-                    // BRPOP with 2-second timeout (unblocks to check shuttingDown)
-                    const result = await this.redisWorker.brpop(queueKey, 2);
+                    // BRPOPLPUSH with timeout (unblocks to check shuttingDown)
+                    const raw = await this.redisWorker.brpoplpush(
+                        queueKey,
+                        processingKey,
+                        this.popTimeoutSeconds,
+                    );
 
-                    if (!result) {
-                        // Timeout — check if queue is empty and stop worker
-                        const queueLength = await this.redisWorker.llen(queueKey);
-                        if (queueLength === 0) {
-                            break;
+                    if (!raw) {
+                        const idleForMs = Date.now() - lastActivityAt;
+                        if (idleForMs >= this.idleShutdownMs) {
+                            const [queueLength, processingLength] = await Promise.all([
+                                this.redisWorker.llen(queueKey),
+                                this.redisWorker.llen(processingKey),
+                            ]);
+                            if (queueLength === 0 && processingLength === 0) {
+                                break;
+                            }
                         }
                         continue;
                     }
 
-                    const [, raw] = result;
-                    const trade = JSON.parse(raw) as {
-                        user_id: string;
-                        college_domain: string;
-                        ticker_id: string;
-                        action: 'BUY' | 'SELL';
-                        quantity: number;
-                    };
+                    lastActivityAt = Date.now();
+                    try {
+                        const trade = JSON.parse(raw) as {
+                            user_id: string;
+                            college_domain: string;
+                            ticker_id: string;
+                            action: 'BUY' | 'SELL';
+                            quantity: number;
+                        };
 
-                    await this.processTrade(trade);
+                        await this.processTrade(trade);
+                    } catch (err) {
+                        this.logger.error(`Worker error for ${tickerId}:`, err);
+                    } finally {
+                        await this.redisWorker.lrem(processingKey, 1, raw);
+                    }
                 } catch (err) {
                     this.logger.error(`Worker error for ${tickerId}:`, err);
                 }
@@ -149,6 +172,24 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             const message = err instanceof Error ? err.message : String(err);
             this.logger.error(
                 `Trade failed for ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}): ${message}`,
+            );
+        }
+    }
+
+    private async requeueProcessing(queueKey: string, processingKey: string) {
+        let moved = 0;
+
+        while (!this.shuttingDown) {
+            const raw = await this.redisWorker.rpoplpush(processingKey, queueKey);
+            if (!raw) {
+                break;
+            }
+            moved += 1;
+        }
+
+        if (moved > 0) {
+            this.logger.warn(
+                `Requeued ${moved} in-flight trade(s) for ${queueKey} after worker restart.`,
             );
         }
     }
