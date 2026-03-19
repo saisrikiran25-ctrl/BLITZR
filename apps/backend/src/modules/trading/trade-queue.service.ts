@@ -9,6 +9,7 @@ type TradePayload = {
     ticker_id: string;
     action: 'BUY' | 'SELL';
     quantity: number;
+    // Retry counter stored with the queue payload to avoid lost trades.
     attempts: number;
 };
 
@@ -151,19 +152,37 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                 let trade: TradePayload;
 
                 try {
-                    const parsedTrade = JSON.parse(raw) as Partial<TradePayload> & {
-                        attempts?: number;
-                    };
+                    const parsedTrade = JSON.parse(raw) as Partial<TradePayload>;
+                    const validationErrors: string[] = [];
                     if (
                         !parsedTrade ||
-                        typeof parsedTrade.user_id !== 'string' ||
-                        typeof parsedTrade.college_domain !== 'string' ||
-                        typeof parsedTrade.ticker_id !== 'string' ||
-                        (parsedTrade.action !== 'BUY' && parsedTrade.action !== 'SELL') ||
+                        typeof parsedTrade.user_id !== 'string'
+                    ) {
+                        validationErrors.push('user_id');
+                    }
+                    if (!parsedTrade || typeof parsedTrade.college_domain !== 'string') {
+                        validationErrors.push('college_domain');
+                    }
+                    if (!parsedTrade || typeof parsedTrade.ticker_id !== 'string') {
+                        validationErrors.push('ticker_id');
+                    }
+                    if (
+                        !parsedTrade ||
+                        (parsedTrade.action !== 'BUY' && parsedTrade.action !== 'SELL')
+                    ) {
+                        validationErrors.push('action');
+                    }
+                    if (
+                        !parsedTrade ||
                         typeof parsedTrade.quantity !== 'number' ||
                         !Number.isFinite(parsedTrade.quantity)
                     ) {
-                        throw new Error('Invalid trade payload');
+                        validationErrors.push('quantity');
+                    }
+                    if (validationErrors.length > 0) {
+                        throw new Error(
+                            `Invalid trade payload: ${validationErrors.join(', ')}`,
+                        );
                     }
                     trade = {
                         ...(parsedTrade as TradePayload),
