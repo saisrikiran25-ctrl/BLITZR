@@ -1,5 +1,5 @@
 -- ============================================================
--- Migration: 007_admin_roles_activity
+-- Migration: 008_admin_roles_activity
 -- Adds admin role, last active tracking, and rumor survival flag
 -- ============================================================
 
