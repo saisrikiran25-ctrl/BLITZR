@@ -1,4 +1,4 @@
-// apps/backend/migrations/006_admin_analytics.sql
+-- apps/backend/migrations/006_admin_analytics.sql
 
 CREATE TABLE IF NOT EXISTS admin_analytics (
     id SERIAL PRIMARY KEY,
