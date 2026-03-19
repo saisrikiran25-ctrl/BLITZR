@@ -24,6 +24,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(TradeQueueService.name);
     private readonly idleShutdownMs = 5 * 60 * 1000;
     private readonly popTimeoutSeconds = 2;
+    private readonly maxRetryAttempts = 3;
     private redisEnqueue: Redis;
     private redisWorker: Redis;
     private activeWorkers = new Set<string>();
@@ -65,6 +66,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             ticker_id: tickerId,
             action,
             quantity,
+            attempts: 0,
             enqueued_at: Date.now(),
         });
 
@@ -94,46 +96,64 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             await this.requeueProcessing(queueKey, processingKey);
 
             while (!this.shuttingDown) {
+                let raw: string | null = null;
+
                 try {
                     // BRPOPLPUSH with timeout (unblocks to check shuttingDown)
-                    const raw = await this.redisWorker.brpoplpush(
+                    raw = await this.redisWorker.brpoplpush(
                         queueKey,
                         processingKey,
                         this.popTimeoutSeconds,
                     );
-
-                    if (!raw) {
-                        const idleForMs = Date.now() - lastActivityAt;
-                        if (idleForMs >= this.idleShutdownMs) {
-                            const [queueLength, processingLength] = await Promise.all([
-                                this.redisWorker.llen(queueKey),
-                                this.redisWorker.llen(processingKey),
-                            ]);
-                            if (queueLength === 0 && processingLength === 0) {
-                                break;
-                            }
-                        }
-                        continue;
-                    }
-
-                    lastActivityAt = Date.now();
-                    try {
-                        const trade = JSON.parse(raw) as {
-                            user_id: string;
-                            college_domain: string;
-                            ticker_id: string;
-                            action: 'BUY' | 'SELL';
-                            quantity: number;
-                        };
-
-                        await this.processTrade(trade);
-                    } catch (err) {
-                        this.logger.error(`Worker error for ${tickerId}:`, err);
-                    } finally {
-                        await this.redisWorker.lrem(processingKey, 1, raw);
-                    }
                 } catch (err) {
                     this.logger.error(`Worker error for ${tickerId}:`, err);
+                    continue;
+                }
+
+                if (!raw) {
+                    const idleForMs = Date.now() - lastActivityAt;
+                    if (idleForMs >= this.idleShutdownMs) {
+                        const [queueLength, processingLength] = await Promise.all([
+                            this.redisWorker.llen(queueKey),
+                            this.redisWorker.llen(processingKey),
+                        ]);
+                        if (queueLength === 0 && processingLength === 0) {
+                            break;
+                        }
+                    }
+                    continue;
+                }
+
+                lastActivityAt = Date.now();
+                let trade: {
+                    user_id: string;
+                    college_domain: string;
+                    ticker_id: string;
+                    action: 'BUY' | 'SELL';
+                    quantity: number;
+                    attempts?: number;
+                };
+
+                try {
+                    trade = JSON.parse(raw) as {
+                        user_id: string;
+                        college_domain: string;
+                        ticker_id: string;
+                        action: 'BUY' | 'SELL';
+                        quantity: number;
+                        attempts?: number;
+                    };
+                } catch (err) {
+                    this.logger.error(`Worker error for ${tickerId}:`, err);
+                    await this.redisWorker.lrem(processingKey, 1, raw);
+                    continue;
+                }
+
+                try {
+                    await this.processTrade(trade);
+                    await this.redisWorker.lrem(processingKey, 1, raw);
+                } catch (err) {
+                    await this.handleTradeFailure(trade, raw, queueKey, processingKey, err);
                 }
             }
 
@@ -151,29 +171,64 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         ticker_id: string;
         action: 'BUY' | 'SELL';
         quantity: number;
+        attempts?: number;
     }) {
-        try {
-            if (trade.action === 'BUY') {
-                await this.tradingService.executeBuy(
-                    trade.user_id,
-                    trade.college_domain,
-                    trade.ticker_id,
-                    trade.quantity,
-                );
-            } else {
-                await this.tradingService.executeSell(
-                    trade.user_id,
-                    trade.college_domain,
-                    trade.ticker_id,
-                    trade.quantity,
-                );
-            }
-        } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            this.logger.error(
-                `Trade failed for ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}): ${message}`,
+        if (trade.action === 'BUY') {
+            await this.tradingService.executeBuy(
+                trade.user_id,
+                trade.college_domain,
+                trade.ticker_id,
+                trade.quantity,
+            );
+        } else {
+            await this.tradingService.executeSell(
+                trade.user_id,
+                trade.college_domain,
+                trade.ticker_id,
+                trade.quantity,
             );
         }
+    }
+
+    private async handleTradeFailure(
+        trade: {
+            user_id: string;
+            college_domain: string;
+            ticker_id: string;
+            action: 'BUY' | 'SELL';
+            quantity: number;
+            attempts?: number;
+        },
+        raw: string,
+        queueKey: string,
+        processingKey: string,
+        err: unknown,
+    ) {
+        const attempts = trade.attempts ?? 0;
+        const nextAttempts = attempts + 1;
+        const message = err instanceof Error ? err.message : String(err);
+
+        this.logger.error(
+            `Trade failed for ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}): ${message}`,
+        );
+
+        if (nextAttempts <= this.maxRetryAttempts) {
+            const retryPayload = JSON.stringify({
+                ...trade,
+                attempts: nextAttempts,
+            });
+
+            await this.redisWorker.lpush(queueKey, retryPayload);
+            this.logger.warn(
+                `Requeued trade ${trade.ticker_id} after failure (attempt ${nextAttempts}/${this.maxRetryAttempts}).`,
+            );
+        } else {
+            this.logger.error(
+                `Trade ${trade.ticker_id} failed after ${attempts} attempt(s); dropping from queue.`,
+            );
+        }
+
+        await this.redisWorker.lrem(processingKey, 1, raw);
     }
 
     private async requeueProcessing(queueKey: string, processingKey: string) {
