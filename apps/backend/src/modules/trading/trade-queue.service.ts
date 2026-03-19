@@ -35,7 +35,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     // Keep idle workers around briefly to absorb bursty trade traffic.
     private idleShutdownSeconds = 5 * 60;
     private popTimeoutSeconds = 2;
-    private maxRetryAttempts = 3;
+    private maxAttemptCount = 3;
     private redisEnqueue: Redis;
     private redisWorker: Redis;
     private activeWorkers = new Set<string>();
@@ -56,9 +56,9 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             'TRADE_QUEUE_POP_TIMEOUT_SECONDS',
             this.popTimeoutSeconds,
         );
-        this.maxRetryAttempts = this.configService.get<number>(
+        this.maxAttemptCount = this.configService.get<number>(
             'TRADE_QUEUE_MAX_RETRY_ATTEMPTS',
-            this.maxRetryAttempts,
+            this.maxAttemptCount,
         );
 
         this.redisEnqueue = new Redis(redisUrl);
@@ -154,30 +154,27 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                 try {
                     const parsedTrade = JSON.parse(raw) as Partial<TradePayload>;
                     const validationErrors: string[] = [];
-                    if (
-                        !parsedTrade ||
-                        typeof parsedTrade.user_id !== 'string'
-                    ) {
-                        validationErrors.push('user_id');
-                    }
-                    if (!parsedTrade || typeof parsedTrade.college_domain !== 'string') {
-                        validationErrors.push('college_domain');
-                    }
-                    if (!parsedTrade || typeof parsedTrade.ticker_id !== 'string') {
-                        validationErrors.push('ticker_id');
-                    }
-                    if (
-                        !parsedTrade ||
-                        (parsedTrade.action !== 'BUY' && parsedTrade.action !== 'SELL')
-                    ) {
-                        validationErrors.push('action');
-                    }
-                    if (
-                        !parsedTrade ||
-                        typeof parsedTrade.quantity !== 'number' ||
-                        !Number.isFinite(parsedTrade.quantity)
-                    ) {
-                        validationErrors.push('quantity');
+                    if (!parsedTrade) {
+                        validationErrors.push('payload');
+                    } else {
+                        if (typeof parsedTrade.user_id !== 'string') {
+                            validationErrors.push('user_id');
+                        }
+                        if (typeof parsedTrade.college_domain !== 'string') {
+                            validationErrors.push('college_domain');
+                        }
+                        if (typeof parsedTrade.ticker_id !== 'string') {
+                            validationErrors.push('ticker_id');
+                        }
+                        if (parsedTrade.action !== 'BUY' && parsedTrade.action !== 'SELL') {
+                            validationErrors.push('action');
+                        }
+                        if (
+                            typeof parsedTrade.quantity !== 'number' ||
+                            !Number.isFinite(parsedTrade.quantity)
+                        ) {
+                            validationErrors.push('quantity');
+                        }
                     }
                     if (validationErrors.length > 0) {
                         throw new Error(
@@ -242,7 +239,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             `Trade failed for ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}): ${message}`,
         );
 
-        if (nextAttempts <= this.maxRetryAttempts) {
+        if (nextAttempts <= this.maxAttemptCount) {
             const retryPayload = JSON.stringify({
                 ...trade,
                 attempts: nextAttempts,
@@ -251,11 +248,11 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             // LPUSH keeps FIFO ordering because workers pop from the right.
             await this.redisWorker.lpush(queueKey, retryPayload);
             this.logger.warn(
-                `Requeued trade ${trade.ticker_id} after failure (attempt ${nextAttempts}/${this.maxRetryAttempts}).`,
+                `Requeued trade ${trade.ticker_id} after failure (attempt ${nextAttempts}/${this.maxAttemptCount}).`,
             );
         } else {
             this.logger.error(
-                `Trade ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}) failed after ${this.maxRetryAttempts} attempt(s); dropping from queue.`,
+                `Trade ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}) failed after ${this.maxAttemptCount} attempt(s); dropping from queue.`,
             );
         }
 
