@@ -224,7 +224,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             );
         } else {
             this.logger.error(
-                `Trade ${trade.ticker_id} failed after ${attempts} attempt(s); dropping from queue.`,
+                `Trade ${trade.ticker_id} failed after ${this.maxRetryAttempts} attempt(s); dropping from queue.`,
             );
         }
 
