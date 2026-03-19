@@ -258,7 +258,7 @@ export class PropMarketService {
             await queryRunner.commitTransaction();
 
             if (winningUserIds.size > 0) {
-                await Promise.all(
+                await Promise.allSettled(
                     Array.from(winningUserIds).map((userId) => this.credibilityService.onPropBetWon(userId)),
                 );
             }
