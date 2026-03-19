@@ -10,6 +10,7 @@ import { PropEventEntity } from './entities/prop-event.entity';
 import { PropBetEntity } from './entities/prop-bet.entity';
 import { applyPropFees, calculatePariMutuelPayout, PROP_PLATFORM_FEE_RATE } from '@blitzr/shared';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { CredibilityService } from '../users/credibility.service';
 
 @Injectable()
 export class PropMarketService {
@@ -20,6 +21,7 @@ export class PropMarketService {
         private readonly betRepo: Repository<PropBetEntity>,
         private readonly dataSource: DataSource,
         private readonly realtimeGateway: RealtimeGateway,
+        private readonly credibilityService: CredibilityService,
     ) { }
 
     /**
@@ -214,9 +216,11 @@ export class PropMarketService {
          WHERE event_id = $1 AND outcome_choice = $2 AND is_settled = false`,
                 [eventId, winningOutcome],
             );
+            const winningUserIds = new Set<string>();
 
             // Calculate and distribute payouts
             for (const bet of winningBets) {
+                winningUserIds.add(bet.user_id);
                 const { netBetAmount } = applyPropFees(Number(bet.chip_amount));
                 const payout = calculatePariMutuelPayout(
                     totalPool,
@@ -252,6 +256,12 @@ export class PropMarketService {
             );
 
             await queryRunner.commitTransaction();
+
+            if (winningUserIds.size > 0) {
+                await Promise.all(
+                    Array.from(winningUserIds).map((userId) => this.credibilityService.onPropBetWon(userId)),
+                );
+            }
 
             return {
                 event_id: eventId,
