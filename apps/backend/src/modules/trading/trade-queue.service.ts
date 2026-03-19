@@ -31,6 +31,7 @@ type TradePayload = {
 @Injectable()
 export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(TradeQueueService.name);
+    // Keep idle workers around briefly to absorb bursty trade traffic.
     private readonly idleShutdownMs = 5 * 60 * 1000;
     private readonly popTimeoutSeconds = 2;
     private readonly maxRetryAttempts = 3;
@@ -140,9 +141,13 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                     const parsedTrade = JSON.parse(raw) as Omit<TradePayload, 'attempts'> & {
                         attempts?: number;
                     };
+                    const attempts =
+                        parsedTrade.attempts && parsedTrade.attempts > 0
+                            ? parsedTrade.attempts
+                            : 1;
                     trade = {
                         ...parsedTrade,
-                        attempts: Math.max(parsedTrade.attempts ?? 1, 1),
+                        attempts,
                     };
                 } catch (err) {
                     this.logger.error(`Worker error for ${tickerId}:`, err);
@@ -191,8 +196,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         processingKey: string,
         err: unknown,
     ) {
-        const attempts = trade.attempts;
-        const nextAttempts = attempts + 1;
+        const nextAttempts = trade.attempts + 1;
         const message = err instanceof Error ? err.message : String(err);
 
         this.logger.error(
