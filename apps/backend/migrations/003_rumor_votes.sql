@@ -1,6 +1,6 @@
 -- ============================================================
 -- BLITZR-PRIME: PostgreSQL Schema Expansion
--- Migration: 002_rumor_votes
+-- Migration: 003_rumor_votes
 -- ============================================================
 
 -- Create Enum for vote types

@@ -1,4 +1,4 @@
-// apps/backend/migrations/004_safety_features_a_b.sql
+-- apps/backend/migrations/005_safety_features_a_b.sql
 
 ALTER TYPE ticker_status ADD VALUE IF NOT EXISTS 'AUTO_FROZEN';
 ALTER TYPE ticker_status ADD VALUE IF NOT EXISTS 'PENDING';
