@@ -3,6 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { TradingService } from './trading.service';
 
+type TradePayload = {
+    user_id: string;
+    college_domain: string;
+    ticker_id: string;
+    action: 'BUY' | 'SELL';
+    quantity: number;
+    attempts: number;
+};
+
 /**
  * B12: TradeQueueService
  *
@@ -66,7 +75,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             ticker_id: tickerId,
             action,
             quantity,
-            attempts: 0,
+            attempts: 1,
             enqueued_at: Date.now(),
         });
 
@@ -125,23 +134,15 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                 }
 
                 lastActivityAt = Date.now();
-                let trade: {
-                    user_id: string;
-                    college_domain: string;
-                    ticker_id: string;
-                    action: 'BUY' | 'SELL';
-                    quantity: number;
-                    attempts?: number;
-                };
+                let trade: TradePayload;
 
                 try {
-                    trade = JSON.parse(raw) as {
-                        user_id: string;
-                        college_domain: string;
-                        ticker_id: string;
-                        action: 'BUY' | 'SELL';
-                        quantity: number;
+                    const parsedTrade = JSON.parse(raw) as Omit<TradePayload, 'attempts'> & {
                         attempts?: number;
+                    };
+                    trade = {
+                        ...parsedTrade,
+                        attempts: Math.max(parsedTrade.attempts ?? 1, 1),
                     };
                 } catch (err) {
                     this.logger.error(`Worker error for ${tickerId}:`, err);
@@ -165,14 +166,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     /**
      * Process a single trade by delegating to TradingService.
      */
-    private async processTrade(trade: {
-        user_id: string;
-        college_domain: string;
-        ticker_id: string;
-        action: 'BUY' | 'SELL';
-        quantity: number;
-        attempts?: number;
-    }) {
+    private async processTrade(trade: TradePayload) {
         if (trade.action === 'BUY') {
             await this.tradingService.executeBuy(
                 trade.user_id,
@@ -191,20 +185,13 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     }
 
     private async handleTradeFailure(
-        trade: {
-            user_id: string;
-            college_domain: string;
-            ticker_id: string;
-            action: 'BUY' | 'SELL';
-            quantity: number;
-            attempts?: number;
-        },
+        trade: TradePayload,
         raw: string,
         queueKey: string,
         processingKey: string,
         err: unknown,
     ) {
-        const attempts = trade.attempts ?? 0;
+        const attempts = trade.attempts;
         const nextAttempts = attempts + 1;
         const message = err instanceof Error ? err.message : String(err);
 
