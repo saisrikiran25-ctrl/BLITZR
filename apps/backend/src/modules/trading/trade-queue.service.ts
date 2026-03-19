@@ -103,6 +103,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             const processingKey = `${queueKey}:processing`;
             let lastActivityAt = Date.now();
 
+            // Only requeue when starting a fresh worker for this ticker.
             await this.requeueProcessing(queueKey, processingKey);
 
             while (!this.shuttingDown) {
@@ -141,10 +142,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                     const parsedTrade = JSON.parse(raw) as Omit<TradePayload, 'attempts'> & {
                         attempts?: number;
                     };
-                    const attempts =
-                        parsedTrade.attempts && parsedTrade.attempts > 0
-                            ? parsedTrade.attempts
-                            : 1;
+                    const attempts = parsedTrade.attempts ?? 1;
                     trade = {
                         ...parsedTrade,
                         attempts,
@@ -215,7 +213,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             );
         } else {
             this.logger.error(
-                `Trade ${trade.ticker_id} failed after ${this.maxRetryAttempts} attempt(s); dropping from queue.`,
+                `Trade ${trade.ticker_id} (${trade.action} x${trade.quantity} by ${trade.user_id}) failed after ${this.maxRetryAttempts} attempt(s); dropping from queue.`,
             );
         }
 

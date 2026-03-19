@@ -18,6 +18,7 @@ describe('TradeQueueService', () => {
             .mockResolvedValueOnce('trade-1')
             .mockResolvedValueOnce('trade-2')
             .mockResolvedValueOnce(null);
+        const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation();
 
         (service as any).redisWorker = { rpoplpush };
         (service as any).shuttingDown = false;
@@ -42,6 +43,9 @@ describe('TradeQueueService', () => {
             3,
             'queue:trade:PRIYA:processing',
             'queue:trade:PRIYA',
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+            'Requeued 2 in-flight trade(s) for queue:trade:PRIYA after worker restart.',
         );
     });
 });
