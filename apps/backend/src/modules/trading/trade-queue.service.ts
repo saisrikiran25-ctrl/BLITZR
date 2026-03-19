@@ -151,19 +151,33 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                 let trade: TradePayload;
 
                 try {
-                    const parsedTrade = JSON.parse(raw) as Omit<TradePayload, 'attempts'> & {
+                    const parsedTrade = JSON.parse(raw) as Partial<TradePayload> & {
                         attempts?: number;
                     };
-                    trade = { ...parsedTrade, attempts: parsedTrade.attempts ?? 1 };
+                    if (
+                        !parsedTrade ||
+                        typeof parsedTrade.user_id !== 'string' ||
+                        typeof parsedTrade.college_domain !== 'string' ||
+                        typeof parsedTrade.ticker_id !== 'string' ||
+                        (parsedTrade.action !== 'BUY' && parsedTrade.action !== 'SELL') ||
+                        typeof parsedTrade.quantity !== 'number' ||
+                        !Number.isFinite(parsedTrade.quantity)
+                    ) {
+                        throw new Error('Invalid trade payload');
+                    }
+                    trade = {
+                        ...(parsedTrade as TradePayload),
+                        attempts: parsedTrade.attempts ?? 1,
+                    };
                 } catch (err) {
                     this.logger.error(`Worker error for ${tickerId}:`, err);
-                    await this.redisWorker.lrem(processingKey, 1, raw);
+                    await this.acknowledgeTrade(processingKey, raw);
                     continue;
                 }
 
                 try {
                     await this.processTrade(trade);
-                    await this.redisWorker.lrem(processingKey, 1, raw);
+                    await this.acknowledgeTrade(processingKey, raw);
                 } catch (err) {
                     await this.handleTradeFailure(trade, raw, queueKey, processingKey, err);
                 }
@@ -215,6 +229,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                 attempts: nextAttempts,
             });
 
+            // LPUSH keeps FIFO ordering because workers pop from the right.
             await this.redisWorker.lpush(queueKey, retryPayload);
             this.logger.warn(
                 `Requeued trade ${trade.ticker_id} after failure (attempt ${nextAttempts}/${this.maxRetryAttempts}).`,
@@ -225,7 +240,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             );
         }
 
-        await this.redisWorker.lrem(processingKey, 1, raw);
+        await this.acknowledgeTrade(processingKey, raw);
     }
 
     private async requeueProcessing(queueKey: string, processingKey: string) {
@@ -244,5 +259,9 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                 `Requeued ${moved} in-flight trade(s) for ${queueKey} after worker restart.`,
             );
         }
+    }
+
+    private async acknowledgeTrade(processingKey: string, raw: string) {
+        await this.redisWorker.lrem(processingKey, 1, raw);
     }
 }
