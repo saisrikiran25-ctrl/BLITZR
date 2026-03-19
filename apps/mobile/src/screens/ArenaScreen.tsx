@@ -15,6 +15,9 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  TextInput,
+  Alert,
 } from 'react-native';
 import { Colors, Spacing } from '../constants/theme';
 import { Strings } from '../constants/strings';
@@ -45,6 +48,10 @@ export default function ArenaScreen() {
   const [events, setEvents] = useState<PropEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<PropEvent | null>(null);
+  const [betOutcome, setBetOutcome] = useState<'YES' | 'NO'>('YES');
+  const [chipAmount, setChipAmount] = useState('10');
+  const [betting, setBetting] = useState(false);
 
   const fetchEvents = useCallback(async (scope: ScopeTab) => {
     try {
@@ -66,6 +73,32 @@ export default function ArenaScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     fetchEvents(activeScope);
+  };
+
+  const openBetModal = (event: PropEvent) => {
+    setSelectedEvent(event);
+    setBetOutcome('YES');
+    setChipAmount('10');
+  };
+
+  const handlePlaceBet = async () => {
+    if (!selectedEvent) return;
+    const amount = Number(chipAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      Alert.alert('Invalid Bet', 'Enter a valid chip amount.');
+      return;
+    }
+    setBetting(true);
+    try {
+      await propMarketApi.placeBet(selectedEvent.event_id, betOutcome, amount);
+      Alert.alert('Bet Placed', `Your ${betOutcome} bet has been submitted.`);
+      setSelectedEvent(null);
+      fetchEvents(activeScope);
+    } catch (e: any) {
+      Alert.alert('Bet Failed', e.message);
+    } finally {
+      setBetting(false);
+    }
   };
 
   const renderEvent = ({ item }: { item: PropEvent }) => {
@@ -96,6 +129,9 @@ export default function ArenaScreen() {
         <Text style={styles.poolTotal}>
           Pool: {totalPool.toFixed(2)} Chips
         </Text>
+        <TouchableOpacity style={styles.betButton} onPress={() => openBetModal(item)} activeOpacity={0.8}>
+          <Text style={styles.betButtonText}>Place Bet</Text>
+        </TouchableOpacity>
       </View>
     );
   };
@@ -138,6 +174,62 @@ export default function ArenaScreen() {
           }
         />
       )}
+
+      {/* F3: Prop Bet confirmation modal with disclaimer */}
+      <Modal visible={!!selectedEvent} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {selectedEvent && (
+              <>
+                <Text style={styles.modalTitle}>{selectedEvent.title}</Text>
+                <View style={styles.outcomeRow}>
+                  {(['YES', 'NO'] as const).map((outcome) => (
+                    <TouchableOpacity
+                      key={outcome}
+                      style={[styles.outcomeBtn, betOutcome === outcome && styles.outcomeBtnActive]}
+                      onPress={() => setBetOutcome(outcome)}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.outcomeText, betOutcome === outcome && styles.outcomeTextActive]}>
+                        {outcome}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.inputLabel}>Chip Amount</Text>
+                <TextInput
+                  style={styles.amountInput}
+                  value={chipAmount}
+                  onChangeText={setChipAmount}
+                  keyboardType="numeric"
+                  placeholder="10"
+                  placeholderTextColor={Colors.textSecondary}
+                />
+
+                <TouchableOpacity
+                  style={[styles.confirmBtn, betting && styles.confirmBtnDisabled]}
+                  onPress={handlePlaceBet}
+                  disabled={betting}
+                  activeOpacity={0.8}
+                >
+                  {betting ? (
+                    <ActivityIndicator color={Colors.obsidian} />
+                  ) : (
+                    <Text style={styles.confirmBtnText}>Confirm Bet</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => setSelectedEvent(null)}>
+                  <Text style={styles.cancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <DisclaimerBanner />
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -208,6 +300,54 @@ const styles = StyleSheet.create({
   },
   poolLabel: { fontSize: 11, fontWeight: '600' },
   poolTotal: { fontSize: 11, color: Colors.textSecondary },
+  betButton: {
+    marginTop: Spacing.sm,
+    backgroundColor: Colors.kineticGreen,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  betButtonText: { color: Colors.obsidian, fontSize: 12, fontWeight: '700' },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl },
   emptyText: { color: Colors.textSecondary, fontSize: 14 },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: Spacing.lg,
+    paddingBottom: 40,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.textPrimary, marginBottom: Spacing.sm },
+  outcomeRow: { flexDirection: 'row', gap: 8, marginBottom: Spacing.md },
+  outcomeBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 6,
+    backgroundColor: Colors.surfaceElevated,
+    alignItems: 'center',
+  },
+  outcomeBtnActive: { backgroundColor: Colors.kineticGreen },
+  outcomeText: { color: Colors.textSecondary, fontWeight: '600', fontSize: 12 },
+  outcomeTextActive: { color: Colors.obsidian },
+  inputLabel: { fontSize: 12, color: Colors.textSecondary, marginBottom: 6 },
+  amountInput: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Colors.textPrimary,
+    marginBottom: Spacing.md,
+  },
+  confirmBtn: {
+    backgroundColor: Colors.kineticGreen,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  confirmBtnDisabled: { opacity: 0.6 },
+  confirmBtnText: { fontSize: 16, fontWeight: '700', color: Colors.obsidian },
+  cancelText: { textAlign: 'center', color: Colors.textSecondary, fontSize: 14, paddingVertical: 8 },
 });

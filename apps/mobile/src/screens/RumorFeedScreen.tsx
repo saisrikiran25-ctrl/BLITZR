@@ -12,7 +12,7 @@
  *     Show bottom sheet with "Unlock Factual Claims" message
  *   - If >= 50: normal posting flow
  */
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { Colors, Spacing } from '../constants/theme';
 import { Strings } from '../constants/strings';
 import { rumorApi } from '../services/api';
@@ -57,6 +58,15 @@ const FACTUAL_CLAIM_KEYWORDS = [
   'word is',
 ];
 
+const CREDIBILITY_THRESHOLD = 50;
+
+type RootTabParamList = {
+  CloutExchange: undefined;
+  Arena: undefined;
+  RumorFeed: undefined;
+  Profile: undefined;
+};
+
 function detectsFactualClaim(text: string): boolean {
   const lower = text.toLowerCase();
   return FACTUAL_CLAIM_KEYWORDS.some((kw) => lower.includes(kw));
@@ -83,6 +93,7 @@ export default function RumorFeedScreen() {
   const [showCredGate, setShowCredGate] = useState(false);
 
   const { credibilityScore } = useAuthStore();
+  const navigation = useNavigation<NavigationProp<RootTabParamList>>();
 
   const fetchFeed = useCallback(async () => {
     try {
@@ -102,7 +113,7 @@ export default function RumorFeedScreen() {
     if (!postText.trim()) return;
 
     // F7: Gate check
-    if (detectsFactualClaim(postText) && credibilityScore < 50) {
+    if (detectsFactualClaim(postText) && credibilityScore < CREDIBILITY_THRESHOLD) {
       setShowCredGate(true);
       return;
     }
@@ -207,21 +218,22 @@ export default function RumorFeedScreen() {
             multiline
             maxLength={280}
           />
-          <TouchableOpacity
-            style={styles.sendBtn}
-            onPress={handlePost}
-            disabled={posting || !postText.trim()}
-            activeOpacity={0.8}
-          >
-            {/* F7: Lock icon if credibility too low and factual claim detected */}
-            {isFactualClaim && credibilityScore < 50 ? (
-              <Text style={styles.lockIcon}>🔒</Text>
-            ) : posting ? (
-              <ActivityIndicator color={Colors.obsidian} size="small" />
-            ) : (
-              <Text style={styles.sendIcon}>➤</Text>
-            )}
-          </TouchableOpacity>
+          <View style={styles.sendArea}>
+            {/* F7: Lock icon shown when credibility score < 50 */}
+            {credibilityScore < CREDIBILITY_THRESHOLD && <Text style={styles.lockBadge}>🔒</Text>}
+            <TouchableOpacity
+              style={styles.sendBtn}
+              onPress={handlePost}
+              disabled={posting || !postText.trim()}
+              activeOpacity={0.8}
+            >
+              {posting ? (
+                <ActivityIndicator color={Colors.obsidian} size="small" />
+              ) : (
+                <Text style={styles.sendIcon}>➤</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </KeyboardAvoidingView>
 
@@ -237,7 +249,7 @@ export default function RumorFeedScreen() {
               style={styles.gateCtaBtn}
               onPress={() => {
                 setShowCredGate(false);
-                // Navigation to Arena tab would happen here via navigator
+                navigation.navigate('Arena');
               }}
               activeOpacity={0.8}
             >
@@ -267,7 +279,7 @@ const styles = StyleSheet.create({
   },
   // F6: Amber left border for FACTUAL_CLAIM
   factualCard: {
-    borderLeftWidth: 2,
+    borderLeftWidth: 1,
     borderLeftColor: Colors.amber,
   },
   rumorRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
@@ -303,6 +315,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
+  sendArea: { flexDirection: 'row', alignItems: 'center' },
+  lockBadge: { fontSize: 14, color: Colors.textSecondary, marginRight: Spacing.xs },
   sendBtn: {
     width: 40,
     height: 40,
@@ -312,7 +326,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendIcon: { fontSize: 18, color: Colors.obsidian },
-  lockIcon: { fontSize: 18 },
   // Credibility gate
   gateOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
   gateSheet: {
