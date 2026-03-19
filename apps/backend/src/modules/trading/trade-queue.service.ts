@@ -32,7 +32,7 @@ type TradePayload = {
 export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(TradeQueueService.name);
     // Keep idle workers around briefly to absorb bursty trade traffic.
-    private readonly idleShutdownMs = 5 * 60 * 1000;
+    private readonly idleShutdownSeconds = 5 * 60;
     private readonly popTimeoutSeconds = 2;
     private readonly maxRetryAttempts = 3;
     private redisEnqueue: Redis;
@@ -123,7 +123,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
 
                 if (!raw) {
                     const idleForMs = Date.now() - lastActivityAt;
-                    if (idleForMs >= this.idleShutdownMs) {
+                    if (idleForMs >= this.idleShutdownSeconds * 1000) {
                         const [queueLength, processingLength] = await Promise.all([
                             this.redisWorker.llen(queueKey),
                             this.redisWorker.llen(processingKey),
@@ -142,11 +142,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                     const parsedTrade = JSON.parse(raw) as Omit<TradePayload, 'attempts'> & {
                         attempts?: number;
                     };
-                    const attempts = parsedTrade.attempts ?? 1;
-                    trade = {
-                        ...parsedTrade,
-                        attempts,
-                    };
+                    trade = { ...parsedTrade, attempts: parsedTrade.attempts ?? 1 };
                 } catch (err) {
                     this.logger.error(`Worker error for ${tickerId}:`, err);
                     await this.redisWorker.lrem(processingKey, 1, raw);

@@ -18,7 +18,9 @@ describe('TradeQueueService', () => {
             .mockResolvedValueOnce('trade-1')
             .mockResolvedValueOnce('trade-2')
             .mockResolvedValueOnce(null);
-        const warnSpy = jest.spyOn((service as any).logger, 'warn').mockImplementation();
+        const warnSpy = jest
+            .spyOn((service as any).logger, 'warn')
+            .mockImplementation(() => {});
 
         (service as any).redisWorker = { rpoplpush };
         (service as any).shuttingDown = false;
