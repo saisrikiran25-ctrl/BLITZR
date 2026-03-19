@@ -32,9 +32,9 @@ type TradePayload = {
 export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(TradeQueueService.name);
     // Keep idle workers around briefly to absorb bursty trade traffic.
-    private readonly idleShutdownSeconds = 5 * 60;
-    private readonly popTimeoutSeconds = 2;
-    private readonly maxRetryAttempts = 3;
+    private idleShutdownSeconds = 5 * 60;
+    private popTimeoutSeconds = 2;
+    private maxRetryAttempts = 3;
     private redisEnqueue: Redis;
     private redisWorker: Redis;
     private activeWorkers = new Set<string>();
@@ -47,6 +47,18 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
 
     onModuleInit() {
         const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
+        this.idleShutdownSeconds = this.configService.get<number>(
+            'TRADE_QUEUE_IDLE_SHUTDOWN_SECONDS',
+            this.idleShutdownSeconds,
+        );
+        this.popTimeoutSeconds = this.configService.get<number>(
+            'TRADE_QUEUE_POP_TIMEOUT_SECONDS',
+            this.popTimeoutSeconds,
+        );
+        this.maxRetryAttempts = this.configService.get<number>(
+            'TRADE_QUEUE_MAX_RETRY_ATTEMPTS',
+            this.maxRetryAttempts,
+        );
 
         this.redisEnqueue = new Redis(redisUrl);
         this.redisWorker = new Redis(redisUrl);
