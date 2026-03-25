@@ -1,0 +1,818 @@
+import React, { useState } from 'react';
+import {
+    View,
+    Text,
+    FlatList,
+    TouchableOpacity,
+    StyleSheet,
+    Modal,
+    TextInput,
+    Alert,
+    StatusBar,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GlassCard } from '../../components/common/GlassCard';
+import { Button } from '../../components/common/Button';
+import { TickerTape } from '../../components/common/TickerTape';
+import { Colors, Typography, Spacing, BorderRadius, Gradients } from '../../theme';
+import { useMarketStore } from '../../store/useMarketStore';
+import { usePropStore } from '../../store/usePropStore';
+import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { api } from '../../services/api';
+
+/**
+ * ArenaScreen — High-Fidelity Prop Market
+ * Aesthetic: Kinetic HUD / Industrial Glass
+ */
+export const ArenaScreen: React.FC = () => {
+    const { tickerTapeItems } = useMarketStore();
+    const { events, isLoading, fetchInitialData } = usePropStore();
+    const { chipBalance } = usePortfolioStore();
+    const [selectedTab, setSelectedTab] = useState<'ACTIVE' | 'SETTLED'>('ACTIVE');
+
+    // Betting Modal State
+    const [isBetModalVisible, setIsBetModalVisible] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState<any>(null);
+    const [selectedOutcome, setSelectedOutcome] = useState<'YES' | 'NO'>('YES');
+    const [betAmount, setBetAmount] = useState('10');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Create Modal State
+    const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+    const [newEventTitle, setNewEventTitle] = useState('');
+    const [newEventCategory, setNewEventCategory] = useState('CAMPUS');
+    const [customCategory, setCustomCategory] = useState('');
+    const [newEventExpiryHours, setNewEventExpiryHours] = useState('24');
+    const [newEventLiquidity, setNewEventLiquidity] = useState('50');
+    const [isCreating, setIsCreating] = useState(false);
+
+    const filteredEvents = events.filter(e =>
+        selectedTab === 'ACTIVE' ? e.status === 'OPEN' : e.status === 'SETTLED'
+    );
+
+    const formatTimeRemaining = (ms: number): string => {
+        if (ms <= 0) return 'EXPIRED';
+        const hours = Math.floor(ms / 3600000);
+        const minutes = Math.floor((ms % 3600000) / 60000);
+        if (hours > 0) return `${hours}h ${minutes}m`;
+        return `${minutes}m`;
+    };
+
+    const handleOpenBet = (event: any, outcome: 'YES' | 'NO') => {
+        setSelectedEvent(event);
+        setSelectedOutcome(outcome);
+        setIsBetModalVisible(true);
+    };
+
+    const handlePlaceBet = async () => {
+        const amount = parseInt(betAmount);
+        if (isNaN(amount) || amount <= 0) {
+            Alert.alert('Invalid Amount', 'Please enter a valid chip amount.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await api.placeBet(selectedEvent.event_id, selectedOutcome, amount);
+            Alert.alert('Bet Placed', `Successfully bet ${amount} Chips on ${selectedOutcome}`);
+            setIsBetModalVisible(false);
+            fetchInitialData(); // Refresh Props
+            usePortfolioStore.getState().fetchInitialData(); // Sync live Chip depletion
+        } catch (error: any) {
+            Alert.alert('Bet Failed', error.message);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleCreateEvent = async () => {
+        const hours = parseInt(newEventExpiryHours);
+        const liquidity = parseInt(newEventLiquidity);
+        const finalCategory = newEventCategory === 'OTHER' ? customCategory.trim().toUpperCase() : newEventCategory;
+
+        if (!newEventTitle || newEventTitle.length < 5) {
+            Alert.alert('Invalid Title', 'Please enter a clear proposition title.');
+            return;
+        }
+        if (newEventCategory === 'OTHER' && (!finalCategory || finalCategory.length < 3)) {
+            Alert.alert('Invalid Category', 'Please enter a valid custom category (min 3 chars).');
+            return;
+        }
+        if (isNaN(hours) || hours <= 0 || hours > 720) {
+            Alert.alert('Invalid Expiry', 'Expiry must be between 1 and 720 hours.');
+            return;
+        }
+        if (isNaN(liquidity) || liquidity < 10) {
+            Alert.alert('Invalid Liquidity', 'Minimum seed liquidity is 10 Chips per side (Total cost: 20 Chips).');
+            return;
+        }
+
+        setIsCreating(true);
+        try {
+            // Calculate absolute expiry timestamp
+            const expiryDate = new Date();
+            expiryDate.setHours(expiryDate.getHours() + hours);
+
+            await api.createPropEvent(
+                newEventTitle,
+                expiryDate.toISOString(),
+                'User Generated Context', // Optional description
+                finalCategory,
+                liquidity
+            );
+
+            Alert.alert('Market Deployed', `Event created successfully with ${liquidity}¢ initial pool parity.`);
+            setIsCreateModalVisible(false);
+            setNewEventTitle(''); // Reset
+            setCustomCategory(''); // Reset
+            fetchInitialData(); // Refresh global arena feed
+            usePortfolioStore.getState().fetchInitialData(); // Sync exact UI chip deduction (- liquidity * 2)
+        } catch (error: any) {
+            Alert.alert('Creation Failed', error.message);
+        } finally {
+            setIsCreating(false);
+        }
+    };
+
+    const renderPropCard = ({ item }: { item: any }) => {
+        const totalPool = item.yes_pool + item.no_pool || 1;
+        const yesPct = (item.yes_pool / totalPool) * 100;
+        const noPct = (item.no_pool / totalPool) * 100;
+        const isSettled = item.status === 'SETTLED';
+
+        return (
+            <GlassCard style={styles.propCard} variant="default" intensity={10}>
+                {/* Category Header */}
+                <View style={styles.cardHeader}>
+                    <View style={styles.categoryBadge}>
+                        <Text style={styles.categoryIcon}>🏛️</Text>
+                        <Text style={styles.propCategory}>{item.category || 'POLITICS'}</Text>
+                    </View>
+                </View>
+
+                {/* Title and Date */}
+                <Text style={styles.propTitle} numberOfLines={2}>
+                    {item.title}
+                </Text>
+                <Text style={styles.propDate}>
+                    {isSettled ? 'SETTLED' : `Ends in ${formatTimeRemaining(item.time_remaining_ms)}`}
+                </Text>
+
+                {/* Outcomes List */}
+                <View style={styles.outcomesContainer}>
+                    {/* YES Outcome */}
+                    <TouchableOpacity
+                        style={styles.outcomeRow}
+                        onPress={() => !isSettled && handleOpenBet(item, 'YES')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.outcomeInfo}>
+                            <Text style={styles.outcomeName}>YES</Text>
+                            <View style={styles.progressTrack}>
+                                <View style={[styles.progressBar, { width: `${yesPct}%`, backgroundColor: Colors.kineticGreen }]} />
+                            </View>
+                        </View>
+                        <View style={styles.outcomeStats}>
+                            <Text style={styles.outcomeOdds}>{Math.round(yesPct)}¢</Text>
+                        </View>
+                    </TouchableOpacity>
+
+                    {/* NO Outcome */}
+                    <TouchableOpacity
+                        style={styles.outcomeRow}
+                        onPress={() => !isSettled && handleOpenBet(item, 'NO')}
+                        activeOpacity={0.7}
+                    >
+                        <View style={styles.outcomeInfo}>
+                            <Text style={styles.outcomeName}>NO</Text>
+                            <View style={styles.progressTrack}>
+                                <View style={[styles.progressBar, { width: `${noPct}%`, backgroundColor: Colors.thermalRed }]} />
+                            </View>
+                        </View>
+                        <View style={styles.outcomeStats}>
+                            <Text style={styles.outcomeOdds}>{Math.round(noPct)}¢</Text>
+                        </View>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Footer Stats */}
+                <View style={styles.cardFooter}>
+                    <Text style={styles.volumeText}>{totalPool.toLocaleString(undefined, { maximumFractionDigits: 0 })}¢ vol</Text>
+                    <Text style={styles.marketCount}>LIVE</Text>
+                </View>
+            </GlassCard>
+        );
+    };
+
+    return (
+        <View style={styles.container}>
+            <StatusBar barStyle="light-content" />
+            <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill} />
+
+            <TickerTape items={tickerTapeItems} />
+
+            <View style={styles.tabBar}>
+                {['ACTIVE', 'SETTLED'].map((tab: any) => (
+                    <TouchableOpacity
+                        key={tab}
+                        style={[styles.tab, selectedTab === tab && styles.tabActive]}
+                        onPress={() => setSelectedTab(tab)}
+                    >
+                        <Text style={[styles.tabText, selectedTab === tab && styles.tabTextActive]}>
+                            {tab}
+                        </Text>
+                        {selectedTab === tab && <View style={styles.tabIndicator} />}
+                    </TouchableOpacity>
+                ))}
+            </View>
+
+            {isLoading ? (
+                <View style={styles.emptyState}><Text style={styles.emptyTitle}>SCANNING ARENA...</Text></View>
+            ) : filteredEvents.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <Text style={styles.emptyIcon}>∅</Text>
+                    <Text style={styles.emptyTitle}>NO ACTIVE PROPS</Text>
+                    <Text style={styles.emptySubtitle}>Initialize new events via the (+) controller.</Text>
+                </View>
+            ) : (
+                <FlatList
+                    data={filteredEvents}
+                    keyExtractor={(item) => item.event_id}
+                    renderItem={renderPropCard}
+                    numColumns={2}
+                    columnWrapperStyle={styles.columnWrapper}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
+                />
+            )}
+
+            {selectedTab === 'ACTIVE' && (
+                <TouchableOpacity
+                    style={styles.fab}
+                    activeOpacity={0.8}
+                    onPress={() => setIsCreateModalVisible(true)}
+                >
+                    <LinearGradient
+                        colors={Gradients.buttonBuy as any}
+                        style={styles.fabGradient}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <Text style={styles.fabText}>+</Text>
+                    </LinearGradient>
+                </TouchableOpacity>
+            )}
+
+            <Modal
+                visible={isBetModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setIsBetModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>BET_TERMINAL_V1</Text>
+                            <View style={styles.modalLine} />
+                        </View>
+
+                        <Text style={styles.modalEventTitle}>{selectedEvent?.title}</Text>
+
+                        <View style={styles.outcomePreview}>
+                            <View style={styles.outcomeBlock}>
+                                <Text style={styles.outcomeLabel}>POSITION</Text>
+                                <Text style={[styles.outcomeValue, selectedOutcome === 'YES' ? styles.green : styles.red]}>
+                                    {selectedOutcome}
+                                </Text>
+                            </View>
+                            <View style={styles.outcomeDivider} />
+                            <View style={styles.outcomeBlock}>
+                                <Text style={styles.outcomeLabel}>EST. RETURN</Text>
+                                <Text style={styles.outcomeValue}>
+                                    {(() => {
+                                        const amount = parseInt(betAmount) || 0;
+                                        if (amount <= 0 || !selectedEvent) return '0.00¢';
+
+                                        // Dynamic slippage calculation
+                                        const total = selectedEvent.yes_pool + selectedEvent.no_pool;
+                                        const pool = selectedOutcome === 'YES' ? selectedEvent.yes_pool : selectedEvent.no_pool;
+
+                                        // Formula: (Total Pool + Bet) * (Bet / (Pool + Bet))
+                                        // Minus 5% platform fee
+                                        const netBet = amount * 0.95;
+                                        const newTotal = total + netBet;
+                                        const newPool = pool + netBet;
+
+                                        const returnAmount = newTotal * (netBet / newPool);
+                                        return returnAmount.toFixed(2) + '¢';
+                                    })()}
+                                </Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>CHIP_ALLOCATION</Text>
+                            <TextInput
+                                style={styles.amountInput}
+                                value={betAmount}
+                                onChangeText={setBetAmount}
+                                keyboardType="numeric"
+                                placeholder="..."
+                                placeholderTextColor="rgba(255,255,255,0.2)"
+                            />
+                            <View style={styles.balanceTag}>
+                                <Text style={styles.balanceText}>BAL: {chipBalance}</Text>
+                            </View>
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <Button
+                                title="ABORT"
+                                variant="secondary"
+                                onPress={() => setIsBetModalVisible(false)}
+                                style={{ flex: 1, marginRight: 8 }}
+                            />
+                            <Button
+                                title="APPROVE"
+                                variant={selectedOutcome === 'YES' ? 'buy' : 'sell'}
+                                loading={isSubmitting}
+                                onPress={handlePlaceBet}
+                                style={{ flex: 2 }}
+                            />
+                        </View>
+                        <View style={styles.disclaimerContainer}>
+                            <Text style={styles.disclaimerText}>
+                                BLITZR operates exclusively with virtual credits. No real monetary value. Not a financial product.
+                            </Text>
+                        </View>
+                    </GlassCard>
+                </View>
+            </Modal>
+
+            {/* Event Creation Modal */}
+            <Modal
+                visible={isCreateModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setIsCreateModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>DEPLOY_MARKET</Text>
+                            <View style={styles.modalLine} />
+                        </View>
+
+                        <View style={styles.inputContainer}>
+                            <Text style={styles.inputLabel}>PROPOSITION_TITLE</Text>
+                            <TextInput
+                                style={styles.textInput}
+                                value={newEventTitle}
+                                onChangeText={setNewEventTitle}
+                                placeholder="e.g., Will it rain tomorrow?"
+                                placeholderTextColor="rgba(255,255,255,0.2)"
+                                maxLength={100}
+                                multiline
+                            />
+                        </View>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl }}>
+                            <View style={{ flex: 1, marginRight: Spacing.md }}>
+                                <Text style={styles.inputLabel}>CATEGORY</Text>
+                                <View style={styles.categoryPicker}>
+                                    {['CAMPUS', 'SPORTS', 'EVENTS', 'OPINION', 'OTHER'].map((cat) => (
+                                        <TouchableOpacity
+                                            key={cat}
+                                            style={[styles.catOption, newEventCategory === cat && styles.catOptionActive]}
+                                            onPress={() => setNewEventCategory(cat)}
+                                        >
+                                            <Text style={[styles.catOptionText, newEventCategory === cat && styles.catOptionTextActive]}>{cat}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                                {newEventCategory === 'OTHER' && (
+                                    <View style={{ marginTop: Spacing.md }}>
+                                        <TextInput
+                                            style={[styles.textInput, { minHeight: 40, paddingBottom: 4, fontSize: 12 }]}
+                                            value={customCategory}
+                                            onChangeText={setCustomCategory}
+                                            placeholder="ENTER CUSTOM CATEGORY..."
+                                            placeholderTextColor="rgba(255,255,255,0.2)"
+                                            maxLength={15}
+                                            autoCapitalize="characters"
+                                        />
+                                    </View>
+                                )}
+                            </View>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xxl }}>
+                            <View style={{ flex: 1, marginRight: Spacing.md }}>
+                                <Text style={styles.inputLabel}>TIMEFRAME (HOURS)</Text>
+                                <TextInput
+                                    style={styles.numericInput}
+                                    value={newEventExpiryHours}
+                                    onChangeText={setNewEventExpiryHours}
+                                    keyboardType="numeric"
+                                    placeholder="24"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                />
+                            </View>
+
+                            <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                                <Text style={styles.inputLabel}>SEED_LIQUIDITY (CHIPS)</Text>
+                                <TextInput
+                                    style={[styles.numericInput, { color: Colors.kineticGreen }]}
+                                    value={newEventLiquidity}
+                                    onChangeText={setNewEventLiquidity}
+                                    keyboardType="numeric"
+                                    placeholder="50"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                />
+                                <View style={{ position: 'absolute', bottom: -20, left: 0, right: 0, alignItems: 'center' }}>
+                                    <Text style={{ fontSize: 9, color: Colors.thermalRed, fontWeight: '700' }}>
+                                        COST: -{parseInt(newEventLiquidity || '0') * 2} BAL
+                                    </Text>
+                                </View>
+                            </View>
+                        </View>
+
+                        <View style={styles.modalButtons}>
+                            <Button
+                                title="CANCEL"
+                                variant="secondary"
+                                onPress={() => setIsCreateModalVisible(false)}
+                                style={{ flex: 1, marginRight: 8 }}
+                            />
+                            <Button
+                                title="DEPLOY"
+                                variant="buy"
+                                loading={isCreating}
+                                onPress={handleCreateEvent}
+                                style={{ flex: 2 }}
+                            />
+                        </View>
+                    </GlassCard>
+                </View>
+            </Modal>
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: Colors.obsidianBase,
+    },
+    // Tabs
+    tabBar: {
+        flexDirection: 'row',
+        paddingHorizontal: Spacing.lg,
+        paddingTop: Spacing.md,
+        paddingBottom: 2,
+    },
+    tab: {
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        marginRight: Spacing.md,
+        alignItems: 'center',
+    },
+    tabActive: {},
+    tabIndicator: {
+        position: 'absolute',
+        bottom: 0,
+        height: 2,
+        width: '100%',
+        backgroundColor: Colors.kineticGreen,
+        borderRadius: 2,
+    },
+    tabText: {
+        ...Typography.caption,
+        color: Colors.textTertiary,
+        letterSpacing: 3,
+        fontWeight: '700',
+    },
+    tabTextActive: {
+        color: Colors.textPrimary,
+    },
+    // List
+    listContent: {
+        paddingHorizontal: Spacing.sm,
+        paddingTop: Spacing.md,
+        paddingBottom: 100,
+    },
+    columnWrapper: {
+        justifyContent: 'space-between',
+        paddingHorizontal: Spacing.xs,
+        marginBottom: Spacing.sm,
+    },
+    // Prop Card
+    propCard: {
+        width: '48.5%',
+        padding: Spacing.md,
+        marginBottom: Spacing.sm,
+    },
+    cardHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: Spacing.sm,
+    },
+    categoryBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        paddingHorizontal: 6,
+        paddingVertical: 3,
+        borderRadius: 4,
+    },
+    categoryIcon: {
+        fontSize: 10,
+        marginRight: 4,
+    },
+    propCategory: {
+        ...Typography.dataLabel,
+        color: Colors.textSecondary,
+        fontSize: 9,
+        fontWeight: '700',
+        textTransform: 'uppercase',
+    },
+    propTitle: {
+        ...Typography.bodyMedium,
+        color: Colors.textPrimary,
+        fontSize: 14,
+        fontWeight: '700',
+        height: 40,
+        lineHeight: 20,
+        marginTop: 4,
+    },
+    propDate: {
+        ...Typography.dataLabel,
+        color: Colors.textTertiary,
+        fontSize: 10,
+        marginTop: 2,
+    },
+    outcomesContainer: {
+        marginTop: Spacing.md,
+        gap: 8,
+    },
+    outcomeRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    outcomeInfo: {
+        flex: 1,
+        marginRight: 12,
+    },
+    outcomeName: {
+        ...Typography.dataLabel,
+        color: Colors.textPrimary,
+        fontSize: 12,
+        fontWeight: '600',
+        marginBottom: 4,
+    },
+    progressTrack: {
+        height: 4,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderRadius: 2,
+        overflow: 'hidden',
+    },
+    progressBar: {
+        height: '100%',
+        borderRadius: 2,
+    },
+    outcomeStats: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        width: 85,
+        justifyContent: 'flex-end',
+    },
+    outcomeOdds: {
+        ...Typography.h3,
+        color: Colors.textPrimary,
+        fontWeight: '800',
+        marginRight: 8,
+    },
+    cardFooter: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: Spacing.lg,
+        paddingTop: Spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.03)',
+    },
+    volumeText: {
+        ...Typography.dataLabel,
+        color: Colors.textTertiary,
+        fontSize: 10,
+    },
+    marketCount: {
+        ...Typography.dataLabel,
+        color: Colors.textTertiary,
+        fontSize: 10,
+    },
+    // Empty
+    emptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: Spacing.xxxl,
+    },
+    emptyIcon: {
+        fontSize: 64,
+        color: Colors.textTertiary,
+        marginBottom: Spacing.lg,
+    },
+    emptyTitle: {
+        ...Typography.h2,
+        color: Colors.textPrimary,
+        letterSpacing: 4,
+        marginBottom: Spacing.sm,
+    },
+    emptySubtitle: {
+        ...Typography.dataLabel,
+        color: Colors.textTertiary,
+        textAlign: 'center',
+        lineHeight: 18,
+    },
+    // FAB
+    fab: {
+        position: 'absolute',
+        bottom: Spacing.xl,
+        right: Spacing.xl,
+        width: 60,
+        height: 60,
+        borderRadius: 30,
+        overflow: 'hidden',
+        elevation: 10,
+        shadowColor: Colors.kineticGreen,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.5,
+        shadowRadius: 10,
+    },
+    fabGradient: {
+        width: '100%',
+        height: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    fabText: {
+        fontSize: 36,
+        color: Colors.obsidianBase,
+        fontWeight: '900',
+        lineHeight: 36,
+        marginTop: -4,
+        marginLeft: 1, // Optional: slightly adjust X axis if needed too, but normally Y axis is the issue
+    },
+    // Modal
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.9)',
+        justifyContent: 'center',
+        padding: Spacing.xl,
+    },
+    modalContent: {
+        padding: Spacing.xl,
+    },
+    modalHeader: {
+        alignItems: 'center',
+        marginBottom: Spacing.lg,
+    },
+    modalTitle: {
+        ...Typography.dataLabel,
+        color: Colors.textSecondary,
+        letterSpacing: 4,
+    },
+    modalLine: {
+        height: 1,
+        width: 40,
+        backgroundColor: Colors.kineticGreen,
+        marginTop: 4,
+    },
+    modalEventTitle: {
+        ...Typography.bodyMedium,
+        color: Colors.textPrimary,
+        textAlign: 'center',
+        fontSize: 16,
+        marginBottom: Spacing.xl,
+    },
+    outcomePreview: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255,255,255,0.03)',
+        borderRadius: 8,
+        padding: Spacing.md,
+        marginBottom: Spacing.xl,
+    },
+    outcomeBlock: {
+        alignItems: 'center',
+    },
+    outcomeLabel: {
+        ...Typography.dataLabel,
+        fontSize: 8,
+        color: Colors.textTertiary,
+        marginBottom: 4,
+    },
+    outcomeValue: {
+        ...Typography.h3,
+        fontWeight: '900',
+    },
+    outcomeDivider: {
+        width: 1,
+        height: 30,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    inputContainer: {
+        marginBottom: Spacing.xxl,
+    },
+    inputLabel: {
+        ...Typography.dataLabel,
+        color: Colors.textSecondary,
+        letterSpacing: 2,
+        marginBottom: Spacing.sm,
+    },
+    amountInput: {
+        ...Typography.displayHero,
+        fontSize: 48,
+        color: Colors.textPrimary,
+        height: 80,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.glassBorder,
+        textAlign: 'center',
+    },
+    balanceTag: {
+        alignSelf: 'center',
+        marginTop: -10,
+        backgroundColor: Colors.materialDark,
+        paddingHorizontal: 12,
+        paddingVertical: 4,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: Colors.glassBorder,
+    },
+    balanceText: {
+        ...Typography.dataLabel,
+        fontSize: 9,
+        color: Colors.activeGold,
+    },
+    modalButtons: {
+        flexDirection: 'row',
+    },
+    green: { color: Colors.kineticGreen },
+    red: { color: Colors.thermalRed },
+    // Create Event Specific
+    textInput: {
+        ...Typography.bodyMedium,
+        color: Colors.textPrimary,
+        minHeight: 60,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.glassBorder,
+        paddingBottom: Spacing.sm,
+    },
+    numericInput: {
+        ...Typography.h3,
+        color: Colors.textPrimary,
+        height: 48,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.glassBorder,
+        textAlign: 'center',
+    },
+    categoryPicker: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 8,
+        marginTop: Spacing.sm,
+    },
+    catOption: {
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 4,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+        borderWidth: 1,
+        borderColor: 'transparent',
+    },
+    catOptionActive: {
+        backgroundColor: 'rgba(57, 255, 122, 0.1)',
+        borderColor: Colors.kineticGreen,
+    },
+    catOptionText: {
+        ...Typography.dataLabel,
+        fontSize: 10,
+        color: Colors.textTertiary,
+    },
+    catOptionTextActive: {
+        color: Colors.kineticGreen,
+    },
+    disclaimerContainer: {
+        marginTop: Spacing.xl,
+        alignItems: 'center',
+    },
+    disclaimerText: {
+        color: '#8E8E93',
+        fontSize: 10,
+        textAlign: 'center',
+        lineHeight: 14,
+    },
+});
+

@@ -1,0 +1,23 @@
+{
+  "name": "BlitzrMobile",
+  "displayName": "BlitzrMobile",
+  "expo": {
+    "name": "BlitzrMobile",
+    "slug": "blitzr-mobile",
+    "version": "1.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "experiments": {
+      "tsconfigPaths": true
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

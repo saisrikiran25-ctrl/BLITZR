@@ -1,0 +1,32 @@
+{
+  "extends": "@react-native/typescript-config",
+  "compilerOptions": {
+    "types": [
+      "jest"
+    ],
+    "baseUrl": "./",
+    "paths": {
+      "@blitzr/shared": [
+        "../../packages/shared/src"
+      ],
+      "@blitzr/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    },
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../../packages/shared/src/**/*.ts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/Pods",
+    "android",
+    "ios"
+  ]
+}
