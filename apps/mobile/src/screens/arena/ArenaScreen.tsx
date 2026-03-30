@@ -14,7 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Button } from '../../components/common/Button';
 import { TickerTape } from '../../components/common/TickerTape';
-import { Colors, Typography, Spacing, BorderRadius, Gradients } from '../../theme';
+import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { useMarketStore } from '../../store/useMarketStore';
 import { usePropStore } from '../../store/usePropStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';

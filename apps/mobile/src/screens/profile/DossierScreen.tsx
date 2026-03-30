@@ -2,15 +2,19 @@ import React from 'react';
 import {
     View,
     Text,
-    ScrollView,
     StyleSheet,
     StatusBar,
     FlatList,
+    TouchableOpacity,
+    Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Feather } from '@expo/vector-icons';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { GlassCard } from '../../components/common/GlassCard';
-import { Colors, Typography, Spacing, Gradients, BorderRadius } from '../../theme';
+import { Button } from '../../components/common/Button';
+import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { formatCreds, formatChips, formatPrice, formatPctChange } from '../../utils/formatters';
 
 /**
@@ -24,6 +28,12 @@ export const DossierScreen: React.FC = () => {
         netWorth,
         holdings,
     } = usePortfolioStore();
+    const {
+        username,
+        userId,
+        tosAccepted,
+        logout,
+    } = useAuthStore();
 
     const renderHolding = ({ item: holding }: { item: any }) => {
         const isPositive = holding.profit_loss >= 0;
@@ -62,6 +72,10 @@ export const DossierScreen: React.FC = () => {
         );
     };
 
+    const handleComingSoon = (title: string) => {
+        Alert.alert(title, 'This feature is coming soon.');
+    };
+
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
@@ -76,7 +90,7 @@ export const DossierScreen: React.FC = () => {
                     <>
                         <View style={styles.heroContainer}>
                             <Text style={styles.heroCaption}>AGGREGATED_NET_WORTH</Text>
-                            <Text style={styles.heroAmount}>{formatCreds(netWorth)}</Text>
+                            <Text style={styles.heroAmount}>¢{formatCreds(netWorth)}</Text>
                             <View style={styles.heroGlow} />
                         </View>
 
@@ -90,6 +104,91 @@ export const DossierScreen: React.FC = () => {
                                 <Text style={statValueGoldStyle}>{formatChips(chipBalance)}</Text>
                             </GlassCard>
                         </View>
+
+                        <View style={styles.sectionHeader}>
+                            <Text style={styles.sectionTitle}>MY_ACCOUNT</Text>
+                            <View style={styles.headerLine} />
+                        </View>
+
+                        <GlassCard style={styles.accountCard} variant="default" intensity={20}>
+                            <View style={styles.accountRow}>
+                                <View style={styles.accountRowLeft}>
+                                    <Feather name="at-sign" size={16} color={Colors.kineticGreen} />
+                                    <View>
+                                        <Text style={styles.accountLabel}>USERNAME</Text>
+                                        <Text style={styles.accountValue}>{username ?? 'UNKNOWN'}</Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.accountDivider} />
+
+                            <View style={styles.accountRow}>
+                                <View style={styles.accountRowLeft}>
+                                    <Feather name="hash" size={16} color={Colors.activeGold} />
+                                    <View>
+                                        <Text style={styles.accountLabel}>ACCOUNT_ID</Text>
+                                        <Text style={styles.accountValue}>{userId ?? 'N/A'}</Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.accountDivider} />
+
+                            <View style={styles.accountRow}>
+                                <View style={styles.accountRowLeft}>
+                                    <Feather name="shield" size={16} color={Colors.textSecondary} />
+                                    <View>
+                                        <Text style={styles.accountLabel}>TERMS_STATUS</Text>
+                                        <Text style={styles.accountValue}>{tosAccepted ? 'ACCEPTED' : 'PENDING'}</Text>
+                                    </View>
+                                </View>
+                            </View>
+                        </GlassCard>
+
+                        <View style={styles.accountActions}>
+                            <TouchableOpacity style={styles.actionRow} onPress={() => handleComingSoon('EDIT_PROFILE')}>
+                                <View style={styles.actionLeft}>
+                                    <Feather name="user" size={16} color={Colors.textSecondary} />
+                                    <Text style={styles.actionText}>EDIT_PROFILE</Text>
+                                </View>
+                                <Feather name="chevron-right" size={16} color={Colors.textTertiary} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.actionRow} onPress={() => handleComingSoon('PRIVACY')}>
+                                <View style={styles.actionLeft}>
+                                    <Feather name="lock" size={16} color={Colors.textSecondary} />
+                                    <Text style={styles.actionText}>PRIVACY</Text>
+                                </View>
+                                <Feather name="chevron-right" size={16} color={Colors.textTertiary} />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity style={styles.actionRow} onPress={() => handleComingSoon('NOTIFICATIONS')}>
+                                <View style={styles.actionLeft}>
+                                    <Feather name="bell" size={16} color={Colors.textSecondary} />
+                                    <Text style={styles.actionText}>NOTIFICATIONS</Text>
+                                </View>
+                                <Feather name="chevron-right" size={16} color={Colors.textTertiary} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Button
+                            title="LOG_OUT"
+                            variant="danger"
+                            size="sm"
+                            fullWidth
+                            onPress={() => {
+                                Alert.alert(
+                                    'CONFIRM_LOGOUT',
+                                    'END_CURRENT_SESSION?',
+                                    [
+                                        { text: 'CANCEL', style: 'cancel' },
+                                        { text: 'LOG_OUT', style: 'destructive', onPress: logout },
+                                    ],
+                                );
+                            }}
+                            style={styles.logoutButton}
+                        />
 
                         <View style={styles.sectionHeader}>
                             <Text style={styles.sectionTitle}>ACTIVE_POSITIONS</Text>
@@ -159,6 +258,60 @@ const styles = StyleSheet.create({
     statCard: {
         flex: 1,
         padding: Spacing.md,
+    },
+    accountCard: {
+        padding: Spacing.md,
+        marginBottom: Spacing.sm,
+    },
+    accountRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: Spacing.sm,
+    },
+    accountRowLeft: {
+        flexDirection: 'row',
+        gap: Spacing.md,
+        alignItems: 'center',
+    },
+    accountLabel: {
+        ...Typography.dataLabel,
+        color: Colors.textTertiary,
+        fontSize: 10,
+        letterSpacing: 2,
+        marginBottom: 2,
+    },
+    accountValue: {
+        ...Typography.body,
+        color: Colors.textPrimary,
+    },
+    accountDivider: {
+        height: 1,
+        backgroundColor: 'rgba(255,255,255,0.05)',
+    },
+    accountActions: {
+        marginBottom: Spacing.md,
+    },
+    actionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: Spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(255,255,255,0.05)',
+    },
+    actionLeft: {
+        flexDirection: 'row',
+        gap: Spacing.md,
+        alignItems: 'center',
+    },
+    actionText: {
+        ...Typography.dataLabel,
+        color: Colors.textSecondary,
+        fontSize: 10,
+    },
+    logoutButton: {
+        marginBottom: Spacing.xl,
     },
     // Section Header
     sectionHeader: {
@@ -273,4 +426,3 @@ const styles = StyleSheet.create({
         marginTop: Spacing.sm,
     },
 });
-

@@ -12,8 +12,7 @@ import Animated, {
     useAnimatedStyle,
     withRepeat,
     withTiming,
-    interpolate,
-    Extrapolate
+    interpolate
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMarketStore } from '../../store/useMarketStore';
@@ -33,7 +32,7 @@ export const TradingFloorScreen: React.FC<{ navigation: any }> = ({ navigation }
     const pulse = useSharedValue(0);
     React.useEffect(() => {
         pulse.value = withRepeat(withTiming(1, { duration: 2000 }), -1, true);
-    }, []);
+    }, [pulse]);
 
     const animatedHeroGlow = useAnimatedStyle(() => ({
         opacity: interpolate(pulse.value, [0, 1], [0.3, 0.8]),

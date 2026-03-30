@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import {
-    TouchableOpacity,
     Text,
     StyleSheet,
     ViewStyle,
@@ -57,11 +56,11 @@ export const Button: React.FC<ButtonProps> = ({
             scale.value = withSpring(0.96);
             audioService.playSFX('CLICK');
         }
-    }, [disabled, loading]);
+    }, [disabled, loading, scale]);
 
     const handlePressOut = useCallback(() => {
         scale.value = withSpring(1);
-    }, []);
+    }, [scale]);
 
     const handlePress = useCallback(() => {
         if (!disabled && !loading) {
