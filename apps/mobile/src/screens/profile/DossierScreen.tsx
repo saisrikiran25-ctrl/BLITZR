@@ -73,7 +73,7 @@ export const DossierScreen: React.FC = () => {
     };
 
     const handleComingSoon = (title: string) => {
-        Alert.alert(title, 'THIS_FEATURE_IS_COMING_SOON');
+        Alert.alert(title, 'This feature is coming soon.');
     };
 
     return (
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
     accountLabel: {
         ...Typography.dataLabel,
         color: Colors.textTertiary,
-        fontSize: 8,
+        fontSize: 10,
         letterSpacing: 2,
         marginBottom: 2,
     },
