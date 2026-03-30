@@ -34,4 +34,8 @@ apps/mobile/ios/build
 
 # Logs
 *.log
+backend_log.txt
+mobile_log.txt
+*.bundle.js
+*.txt
 npm-debug.log*
