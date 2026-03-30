@@ -76,7 +76,7 @@ export const DossierScreen: React.FC = () => {
                     <>
                         <View style={styles.heroContainer}>
                             <Text style={styles.heroCaption}>AGGREGATED_NET_WORTH</Text>
-                            <Text style={styles.heroAmount}>{formatCreds(netWorth)}</Text>
+                            <Text style={styles.heroAmount}>¢{formatCreds(netWorth)}</Text>
                             <View style={styles.heroGlow} />
                         </View>
 
@@ -273,4 +273,3 @@ const styles = StyleSheet.create({
         marginTop: Spacing.sm,
     },
 });
-
