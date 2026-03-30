@@ -1,6 +1,6 @@
 import { useAuthStore } from '../store/useAuthStore';
 
-const BASE_URL = 'http://localhost:3000/api/v1';
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:3000/api/v1';
 
 /**
  * BLITZR API Client
@@ -42,9 +42,9 @@ class ApiClient {
         return this.request<{ campuses: string[] }>('GET', `/auth/campuses?domain=${domain}`);
     }
 
-    async register(email: string, username: string, password: string, campus?: string, tosAccepted?: boolean) {
+    async register(email: string, username: string, password: string, campus?: string) {
         return this.request<{ user: any; token: string }>('POST', '/auth/register', {
-            email, username, password, campus, tosAccepted
+            email, username, password, campus
         });
     }
 

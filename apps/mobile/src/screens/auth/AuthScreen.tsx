@@ -36,7 +36,6 @@ export const AuthScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [campuses, setCampuses] = useState<string[]>([]);
     const [selectedCampus, setSelectedCampus] = useState<string | undefined>(undefined);
-    const [tosAccepted, setTosAccepted] = useState(false);
     const login = useAuthStore((s) => s.login);
 
     // Fetch strict campuses on email domain change (debounced)
@@ -110,7 +109,16 @@ export const AuthScreen: React.FC = () => {
             // Backend now includes tos_accepted boolean
             login(result.user.user_id, result.user.username, result.token, result.user.tos_accepted || false);
         } catch (error: any) {
-            Alert.alert('Authentication Failed', error.message);
+            const msg = error?.message || 'Unknown error';
+            const lowerMsg = String(msg).toLowerCase();
+
+            if (lowerMsg.includes('waitlist')) {
+                Alert.alert('Campus Not Supported Yet', msg);
+            } else if (lowerMsg.includes('already registered')) {
+                Alert.alert('Account Exists', 'This email is already registered. Try logging in.');
+            } else {
+                Alert.alert('Authentication Failed', msg);
+            }
         } finally {
             setIsLoading(false);
         }

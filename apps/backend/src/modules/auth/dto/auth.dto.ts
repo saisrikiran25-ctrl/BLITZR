@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, Length, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, Length, Matches, IsBoolean } from 'class-validator';
 
 export class RegisterDto {
     @IsString()
@@ -27,6 +27,10 @@ export class RegisterDto {
     @IsOptional()
     @IsString()
     institution_id?: string;
+
+    @IsOptional()
+    @IsBoolean()
+    tosAccepted?: boolean;
 }
 
 export class LoginDto {
