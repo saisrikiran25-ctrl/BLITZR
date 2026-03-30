@@ -1,6 +1,12 @@
 import { useAuthStore } from '../store/useAuthStore';
+import { Platform } from 'react-native';
 
-const BASE_URL = 'http://localhost:3000/api/v1';
+const DEFAULT_BASE_URL = Platform.select({
+    android: 'http://10.0.2.2:3000/api/v1',
+    ios: 'http://localhost:3000/api/v1',
+    default: 'http://localhost:3000/api/v1',
+});
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL;
 
 /**
  * BLITZR API Client
@@ -42,9 +48,9 @@ class ApiClient {
         return this.request<{ campuses: string[] }>('GET', `/auth/campuses?domain=${domain}`);
     }
 
-    async register(email: string, username: string, password: string, campus?: string, tosAccepted?: boolean) {
+    async register(email: string, username: string, password: string, campus?: string) {
         return this.request<{ user: any; token: string }>('POST', '/auth/register', {
-            email, username, password, campus, tosAccepted
+            email, username, password, campus
         });
     }
 

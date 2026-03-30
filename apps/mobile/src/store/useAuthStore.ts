@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface AuthState {
     isAuthenticated: boolean;
@@ -13,29 +15,38 @@ interface AuthState {
     logout: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-    isAuthenticated: false,
-    userId: null,
-    username: null,
-    token: null,
-    tosAccepted: false,
-
-    login: (userId, username, token, tosAccepted) =>
-        set({
-            isAuthenticated: true,
-            userId,
-            username,
-            token,
-            tosAccepted,
-        }),
-
-    acceptTos: () => set({ tosAccepted: true }),
-
-    logout: () =>
-        set({
+export const useAuthStore = create<AuthState>()(
+    persist(
+        (set) => ({
             isAuthenticated: false,
             userId: null,
             username: null,
             token: null,
+            tosAccepted: false,
+
+            login: (userId, username, token, tosAccepted) =>
+                set({
+                    isAuthenticated: true,
+                    userId,
+                    username,
+                    token,
+                    tosAccepted,
+                }),
+
+            acceptTos: () => set({ tosAccepted: true }),
+
+            logout: () =>
+                set({
+                    isAuthenticated: false,
+                    userId: null,
+                    username: null,
+                    token: null,
+                    tosAccepted: false,
+                }),
         }),
-}));
+        {
+            name: 'blitzr-auth',
+            storage: createJSONStorage(() => AsyncStorage),
+        },
+    ),
+);
