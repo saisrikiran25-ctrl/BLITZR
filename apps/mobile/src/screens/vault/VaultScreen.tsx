@@ -12,10 +12,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Button } from '../../components/common/Button';
-import { Colors, Typography, Spacing, BorderRadius, Gradients } from '../../theme';
+import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { formatCreds, formatChips } from '../../utils/formatters';
-import { api } from '../../services/api';
 
 /**
  * VaultScreen — High-Fidelity Asset Management

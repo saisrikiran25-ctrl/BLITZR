@@ -27,7 +27,7 @@ function App(): React.JSX.Element | null {
     SpaceGrotesk_700Bold,
   });
 
-  const [fontError, setFontError] = React.useState<Error | null>(null);
+  const [fontError] = React.useState<Error | null>(null);
   const [useFallback, setUseFallback] = React.useState(false);
 
   useEffect(() => {

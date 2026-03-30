@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, Easing } from 'react-native';
+import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Colors, Typography, Spacing } from '../../theme';
 
 /**
@@ -23,7 +23,6 @@ interface TickerTapeProps {
     speed?: number;
 }
 
-const SCREEN_WIDTH = Dimensions.get('window').width;
 const ITEM_WIDTH = 160;
 
 export const TickerTape: React.FC<TickerTapeProps> = ({

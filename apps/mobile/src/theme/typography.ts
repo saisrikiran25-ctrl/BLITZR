@@ -5,9 +5,8 @@
 // Sizing: Strict 4px grid
 // ============================================================
 
-import { Platform, TextStyle } from 'react-native';
+import { TextStyle } from 'react-native';
 import { Colors } from './colors';
-import { Spacing } from './spacing';
 
 // Font families
 export const Fonts = {

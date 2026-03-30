@@ -22,7 +22,7 @@ import { audioService } from '../../services/AudioService';
 import { useFeedStore } from '../../store/useFeedStore';
 import { GlassCard } from '../../components/common/GlassCard';
 import { TickerTape } from '../../components/common/TickerTape';
-import { Colors, Typography, Spacing, BorderRadius, Gradients } from '../../theme';
+import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { useMarketStore } from '../../store/useMarketStore';
 import { formatTimeAgo } from '../../utils/formatters';
 import { api } from '../../services/api';
@@ -47,7 +47,7 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const scanPos = useSharedValue(0);
     React.useEffect(() => {
         scanPos.value = withRepeat(withTiming(1, { duration: 4000 }), -1, false);
-    }, []);
+    }, [scanPos]);
 
     const animatedScanLine = useAnimatedStyle(() => ({
         top: interpolate(scanPos.value, [0, 1], [-10, 300]),
