@@ -1,10 +1,32 @@
 {
-  "extends": "expo/tsconfig.base",
+  "extends": "@react-native/typescript-config",
   "compilerOptions": {
-    "strict": true,
-    "baseUrl": ".",
+    "types": [
+      "jest"
+    ],
+    "baseUrl": "./",
     "paths": {
-      "@/*": ["src/*"]
-    }
-  }
+      "@blitzr/shared": [
+        "../../packages/shared/src"
+      ],
+      "@blitzr/shared/*": [
+        "../../packages/shared/src/*"
+      ]
+    },
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true,
+    "esModuleInterop": true
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "../../packages/shared/src/**/*.ts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/Pods",
+    "android",
+    "ios"
+  ]
 }

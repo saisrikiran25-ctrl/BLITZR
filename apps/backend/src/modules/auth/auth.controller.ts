@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Get, Query, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RegisterDto, LoginDto } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -8,19 +9,16 @@ export class AuthController {
 
     @Get('campuses')
     async getCampuses(@Query('domain') domain: string) {
-        // Provide endpoint backwards compatibility if needed, though replaced by DB
-        return { campuses: [] }; 
+        return this.authService.getCampuses(domain);
     }
 
     @Post('register')
-    async register(
-        @Body() body: { email: string; username: string; password: string; displayName?: string },
-    ) {
-        return this.authService.register(body.email, body.username, body.password, body.displayName);
+    async register(@Body() body: RegisterDto) {
+        return this.authService.register(body.email, body.username, body.password, body.displayName, body.campus, body.institution_id);
     }
 
     @Post('login')
-    async login(@Body() body: { email: string; password: string }) {
+    async login(@Body() body: LoginDto) {
         return this.authService.login(body.email, body.password);
     }
 

@@ -1,105 +1,136 @@
-/**
- * BLITZR Main App Entry
- *
- * Onboarding flow:
- *   1. Login/Register
- *   2. TOS Screen (F2) — mandatory, cannot be skipped
- *   3. Main Tab Navigator
- *
- * Main tabs:
- *   - Clout Exchange (F1: Trading Floor renamed)
- *   - Arena (Prop Markets with scope selector F4)
- *   - Rumor Feed (F6, F7)
- *   - Profile
- */
-import React, { useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { StatusBar, View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { Text, StyleSheet } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { Colors, Typography, Spacing } from '../theme';
+import { Fonts } from '../theme/typography';
+import { useAuthStore } from '../store/useAuthStore';
 
-import { useAuthStore } from '../store/auth.store';
-import { Colors, Spacing } from '../constants/theme';
-import { Strings } from '../constants/strings';
+// Screens
+import { TradingFloorScreen } from '../screens/trading/TradingFloorScreen';
+import { TickerDetailScreen } from '../screens/trading/TickerDetailScreen';
+import { ArenaScreen } from '../screens/arena/ArenaScreen';
+import { RumorFeedScreen } from '../screens/feed/RumorFeedScreen';
+import { DossierScreen } from '../screens/profile/DossierScreen';
+import { VaultScreen } from '../screens/vault/VaultScreen';
+import { AuthScreen } from '../screens/auth/AuthScreen';
+import { TosScreen } from '../screens/auth/TosScreen';
 
-import TosScreen from '../screens/TosScreen';
-import CloutExchangeScreen from '../screens/CloutExchangeScreen';
-import ArenaScreen from '../screens/ArenaScreen';
-import RumorFeedScreen from '../screens/RumorFeedScreen';
-import LoginScreen from '../screens/LoginScreen';
+/**
+ * BLITZR Tab Navigation — "The Control Panel"
+ * 
+ * 5 tabs per Design Doc §2.1:
+ * 1. Floor (Trading Floor — IPO market)
+ * 2. Arena (Prop Market — YES/NO bets)
+ * 3. Feed (Rumor Feed — anonymous posts)
+ * 4. Dossier (Profile — portfolio & stats)
+ * 5. Vault (Wallet — Cred/Chip exchange)
+ * 
+ * Tab bar: Titanium Gray background, 1.5px line-weight icons,
+ * Kinetic Green active state, Slate neutral inactive.
+ */
 
 const Tab = createBottomTabNavigator();
+const Stack = createNativeStackNavigator();
 
-function ProfilePlaceholder() {
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: Colors.obsidian, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ color: Colors.textSecondary }}>Profile coming soon</Text>
-    </SafeAreaView>
-  );
-}
+// Removed manual text icon mapping, using pure SVG Feather icons below
 
-function MainTabNavigator() {
-  return (
-    <Tab.Navigator
-      screenOptions={{
-        headerShown: false,
-        tabBarStyle: {
-          backgroundColor: Colors.surface,
-          borderTopColor: Colors.glassBorder,
-          borderTopWidth: 1,
-        },
-        tabBarActiveTintColor: Colors.kineticGreen,
-        tabBarInactiveTintColor: Colors.textSecondary,
-        tabBarLabelStyle: { fontSize: 10, letterSpacing: 0.5 },
-      }}
-    >
-      {/* F1: "Clout Exchange" instead of "Trading Floor" */}
-      <Tab.Screen
-        name="CloutExchange"
-        component={CloutExchangeScreen}
-        options={{ title: Strings.tabCloutExchange, tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>📈</Text> }}
-      />
-      <Tab.Screen
-        name="Arena"
-        component={ArenaScreen}
-        options={{ title: Strings.tabArena, tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>🏟</Text> }}
-      />
-      <Tab.Screen
-        name="RumorFeed"
-        component={RumorFeedScreen}
-        options={{ title: Strings.tabRumorFeed, tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>💬</Text> }}
-      />
-      <Tab.Screen
-        name="Profile"
-        component={ProfilePlaceholder}
-        options={{ title: Strings.tabProfile, tabBarIcon: ({ color }) => <Text style={{ color, fontSize: 20 }}>👤</Text> }}
-      />
-    </Tab.Navigator>
-  );
-}
-
-export default function AppNavigator() {
-  const { token, tosAccepted } = useAuthStore();
-
-  if (!token) {
+function TabNavigator() {
     return (
-      <NavigationContainer>
-        <LoginScreen />
-      </NavigationContainer>
+        <Tab.Navigator
+            id="main-tabs"
+            screenOptions={({ route }) => ({
+                headerShown: false,
+                tabBarStyle: styles.tabBar,
+                tabBarActiveTintColor: Colors.kineticGreen,
+                tabBarInactiveTintColor: Colors.slateNeutral,
+                tabBarLabelStyle: styles.tabLabel,
+                tabBarIcon: ({ focused }) => {
+                    let iconName: any = 'circle';
+                    switch (route.name) {
+                        case 'Floor': iconName = 'activity'; break;
+                        case 'Arena': iconName = 'crosshair'; break;
+                        case 'Feed': iconName = 'radio'; break;
+                        case 'Dossier': iconName = 'user'; break;
+                        case 'Vault': iconName = 'hexagon'; break;
+                    }
+                    return (
+                        <Feather
+                            name={iconName}
+                            size={20}
+                            color={focused ? Colors.kineticGreen : Colors.slateNeutral}
+                        />
+                    );
+                },
+            })}
+        >
+            <Tab.Screen name="Floor" component={TradingFloorScreen} />
+            <Tab.Screen name="Arena" component={ArenaScreen} />
+            <Tab.Screen name="Feed" component={RumorFeedScreen} />
+            <Tab.Screen name="Dossier" component={DossierScreen} />
+            <Tab.Screen name="Vault" component={VaultScreen} />
+        </Tab.Navigator>
     );
-  }
-
-  // F2: TOS gate — shown after login, before any app content
-  if (!tosAccepted) {
-    return (
-      <NavigationContainer>
-        <TosScreen onAccepted={() => {}} />
-      </NavigationContainer>
-    );
-  }
-
-  return (
-    <NavigationContainer>
-      <MainTabNavigator />
-    </NavigationContainer>
-  );
 }
+
+import { useInitialData } from '../hooks/useInitialData';
+
+export function AppNavigator() {
+    const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+    const tosAccepted = useAuthStore((s) => s.tosAccepted);
+    useInitialData();
+
+    return (
+        <Stack.Navigator
+            id="root-stack"
+            screenOptions={{
+                headerShown: false,
+                animation: 'slide_from_right',
+                contentStyle: { backgroundColor: Colors.obsidianBase },
+            }}
+        >
+            {isAuthenticated ? (
+                tosAccepted ? (
+                    <>
+                        <Stack.Screen name="Main" component={TabNavigator} />
+                        <Stack.Screen name="TickerDetail" component={TickerDetailScreen} />
+                    </>
+                ) : (
+                    <Stack.Screen name="Tos" component={TosScreen} />
+                )
+            ) : (
+                <Stack.Screen name="Auth" component={AuthScreen} />
+            )}
+        </Stack.Navigator>
+    );
+}
+
+const styles = StyleSheet.create({
+    tabBar: {
+        backgroundColor: Colors.titaniumGray,
+        borderTopWidth: 0.5,
+        borderTopColor: Colors.glassBorder,
+        height: 60,
+        paddingBottom: Spacing.xs,
+        paddingTop: Spacing.xs,
+    },
+    tabLabel: {
+        ...Typography.dataLabel,
+        fontFamily: Fonts.bold,
+        fontSize: 10,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+        textTransform: 'uppercase',
+    },
+    tabIcon: {
+        fontSize: 20,
+        fontWeight: '300',
+    },
+    tabIconActive: {
+        color: Colors.kineticGreen,
+    },
+    tabIconInactive: {
+        color: Colors.slateNeutral,
+    },
+});

@@ -19,6 +19,14 @@ export class RegisterDto {
     @IsOptional()
     @IsString()
     displayName?: string;
+
+    @IsOptional()
+    @IsString()
+    campus?: string;
+
+    @IsOptional()
+    @IsString()
+    institution_id?: string;
 }
 
 export class LoginDto {

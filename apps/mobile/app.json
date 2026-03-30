@@ -1,33 +1,23 @@
 {
+  "name": "BlitzrMobile",
+  "displayName": "BlitzrMobile",
   "expo": {
-    "name": "BLITZR",
-    "slug": "blitzr",
+    "name": "BlitzrMobile",
+    "slug": "blitzr-mobile",
     "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "scheme": "blitzr",
-    "userInterfaceStyle": "dark",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
-    "ios": {
-      "supportsTablet": false,
-      "bundleIdentifier": "app.blitzr.mobile"
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#000000"
-      },
-      "package": "app.blitzr.mobile"
-    },
-    "plugins": [
-      "expo-router"
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "assetBundlePatterns": [
+      "**/*"
     ],
     "experiments": {
-      "typedRoutes": true
+      "tsconfigPaths": true
+    },
+    "web": {
+      "bundler": "metro"
     }
   }
 }

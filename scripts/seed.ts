@@ -4,11 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 
 async function seed() {
     const client = new Client({
-        host: 'localhost',
-        port: 5433,
-        user: 'blitzr_admin',
-        password: 'blitzr_dev_secret',
-        database: 'blitzr_prime',
+        host: process.env.DB_HOST || 'localhost',
+        port: parseInt(process.env.DB_PORT || '5434', 10),
+        user: process.env.DB_USERNAME || 'blitzr_admin',
+        password: process.env.DB_PASSWORD || 'blitzr_dev_secret',
+        database: process.env.DB_DATABASE || 'blitzr_prime',
     });
 
     try {

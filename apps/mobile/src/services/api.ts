@@ -1,170 +1,150 @@
+import { useAuthStore } from '../store/useAuthStore';
+
+const BASE_URL = 'http://localhost:3000/api/v1';
+
 /**
- * BLITZR API Service
- * Centralised HTTP client for all backend calls.
+ * BLITZR API Client
+ * Handles all REST communication with the NestJS backend.
  */
+class ApiClient {
+    private getHeaders(): Record<string, string> {
+        const token = useAuthStore.getState().token;
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        return headers;
+    }
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000';
-const API_PREFIX = BASE_URL.endsWith('/api/v1') ? '' : '/api/v1';
+    private async request<T>(
+        method: string,
+        path: string,
+        body?: any,
+    ): Promise<T> {
+        const response = await fetch(`${BASE_URL}${path}`, {
+            method,
+            headers: this.getHeaders(),
+            body: body ? JSON.stringify(body) : undefined,
+        });
 
-let authToken: string | null = null;
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ message: 'Request failed' }));
+            throw new Error(error.message || `HTTP ${response.status}`);
+        }
 
-export function setAuthToken(token: string) {
-  authToken = token;
+        return response.json();
+    }
+
+    // === AUTH ===
+    async getCampuses(domain: string) {
+        return this.request<{ campuses: string[] }>('GET', `/auth/campuses?domain=${domain}`);
+    }
+
+    async register(email: string, username: string, password: string, campus?: string, tosAccepted?: boolean) {
+        return this.request<{ user: any; token: string }>('POST', '/auth/register', {
+            email, username, password, campus, tosAccepted
+        });
+    }
+
+    async login(email: string, password: string) {
+        return this.request<{ user: any; token: string }>('POST', '/auth/login', {
+            email, password,
+        });
+    }
+
+    async getProfile() {
+        return this.request<any>('GET', '/users/me');
+    }
+
+    async acceptTos() {
+        return this.request<{ success: boolean }>('POST', '/auth/accept-tos');
+    }
+
+    // === IPO ===
+    async createIpo(tickerSymbol: string, category?: string) {
+        return this.request('POST', '/ipo/create', { ticker_symbol: tickerSymbol, category });
+    }
+
+    async getActiveTickers() {
+        return this.request<any[]>('GET', '/ipo/tickers');
+    }
+
+    async getTicker(tickerId: string) {
+        return this.request('GET', `/ipo/ticker/${tickerId}`);
+    }
+
+    async getUserHoldings() {
+        return this.request<any[]>('GET', '/ipo/holdings');
+    }
+
+    // === TRADING ===
+    async previewBuy(tickerId: string, shares: number) {
+        return this.request('POST', '/trading/preview/buy', { ticker_id: tickerId, shares });
+    }
+
+    async executeBuy(tickerId: string, shares: number) {
+        return this.request('POST', '/trading/buy', { ticker_id: tickerId, shares });
+    }
+
+    async executeSell(tickerId: string, shares: number) {
+        return this.request('POST', '/trading/sell', { ticker_id: tickerId, shares });
+    }
+
+    // === PROP MARKET ===
+    async getActiveEvents() {
+        return this.request<any[]>('GET', '/prop-market/events');
+    }
+
+    async placeBet(eventId: string, outcome: 'YES' | 'NO', chipAmount: number) {
+        return this.request('POST', '/prop-market/bet', {
+            event_id: eventId, outcome, chip_amount: chipAmount,
+        });
+    }
+
+    async createPropEvent(title: string, expiryTimestamp: string, description?: string, category?: string, initialLiquidity: number = 0) {
+        return this.request('POST', '/prop-market/create', {
+            title, description, category, expiry_timestamp: expiryTimestamp, initial_liquidity: initialLiquidity,
+        });
+    }
+
+    // === RUMORS ===
+    async getRumors(page: number = 1, limit: number = 20) {
+        return this.request<any[]>('GET', `/rumors?page=${page}&limit=${limit}`);
+    }
+
+    async createRumor(content: string) {
+        return this.request('POST', '/rumors', { content });
+    }
+
+    async upvoteRumor(rumorId: string) {
+        return this.request('POST', `/rumors/${rumorId}/upvote`);
+    }
+
+    async downvoteRumor(rumorId: string) {
+        return this.request('POST', `/rumors/${rumorId}/downvote`);
+    }
+
+    async disputeRumor(rumorId: string) {
+        return this.request('POST', `/rumors/${rumorId}/dispute`);
+    }
+
+    // === WALLET ===
+    async exchange(amount: number, type: 'cred_to_chip' | 'chip_to_cred') {
+        const path = type === 'cred_to_chip'
+            ? '/wallet/exchange/creds-to-chips'
+            : '/wallet/exchange/chips-to-creds';
+        return this.request<{ message: string; balances: { cred_balance: string; chip_balance: string } }>('POST', path, { amount });
+    }
+
+    async exchangeCredsToChips(amount: number) {
+        return this.request('POST', '/wallet/exchange/creds-to-chips', { amount });
+    }
+
+    async exchangeChipsToCreds(amount: number) {
+        return this.request('POST', '/wallet/exchange/chips-to-creds', { amount });
+    }
 }
 
-export function clearAuthToken() {
-  authToken = null;
-}
-
-async function request<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  path: string,
-  body?: unknown,
-): Promise<T> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
-
-  const res = await fetch(`${BASE_URL}${API_PREFIX}/${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(err.message ?? `Request failed: ${res.status}`);
-  }
-
-  return res.json() as Promise<T>;
-}
-
-// ─── Auth ────────────────────────────────────────────────────────────────────
-
-export const authApi = {
-  register: (email: string, username: string, password: string, displayName?: string) =>
-    request<{ token: string; user: { user_id: string; username: string } }>(
-      'POST', 'auth/register', { email, username, password, displayName },
-    ),
-
-  login: (email: string, password: string) =>
-    request<{ token: string; user: { user_id: string; username: string; tos_accepted: boolean; credibility_score: number } }>(
-      'POST', 'auth/login', { email, password },
-    ),
-
-  acceptTos: () => request<{ success: boolean }>('POST', 'auth/accept-tos'),
-};
-
-// ─── IPO / Clout Exchange (Trading Floor) ────────────────────────────────────
-
-export const ipoApi = {
-  listMyself: (tickerId: string, initialSupply?: number) =>
-    request<unknown>('POST', 'ipo/list', { ticker_id: tickerId, initial_supply: initialSupply }),
-
-  getTicker: (tickerId: string) =>
-    request<{ ticker_id: string; current_supply: number; price: number; total_volume: number }>(
-      'GET', `ipo/ticker/${tickerId}`,
-    ),
-
-  getTopGainers: () =>
-    request<Array<{ ticker_id: string; price: number; change_pct: number }>>('GET', 'ipo/top-gainers'),
-
-  getTopLosers: () =>
-    request<Array<{ ticker_id: string; price: number; change_pct: number }>>('GET', 'ipo/top-losers'),
-};
-
-// ─── Trading ─────────────────────────────────────────────────────────────────
-
-export const tradingApi = {
-  /** B12: returns { status: 'QUEUED' } immediately — trade processed via Redis queue */
-  buy: (tickerId: string, shares: number) =>
-    request<{ status: 'QUEUED'; message: string }>('POST', 'trading/buy', { ticker_id: tickerId, shares }),
-
-  /** B12: returns { status: 'QUEUED' } immediately */
-  sell: (tickerId: string, shares: number) =>
-    request<{ status: 'QUEUED'; message: string }>('POST', 'trading/sell', { ticker_id: tickerId, shares }),
-
-  previewBuy: (tickerId: string, shares: number) =>
-    request<{ net_cost: number; price_per_share: number; burn: number; dividend: number }>(
-      'POST', 'trading/preview/buy', { ticker_id: tickerId, shares },
-    ),
-
-  getCandles: (tickerId: string, interval = '1h', limit = 100) =>
-    request<Array<{ open: number; high: number; low: number; close: number; time: string }>>(
-      'GET', `trading/candles/${tickerId}?interval=${interval}&limit=${limit}`,
-    ),
-};
-
-// ─── Prop Market (Arena) ─────────────────────────────────────────────────────
-
-export type PropScope = 'LOCAL' | 'REGIONAL' | 'NATIONAL' | 'ALL';
-
-export const propMarketApi = {
-  /** B3: fetch events filtered by scope */
-  getEvents: (scope: PropScope = 'LOCAL') =>
-    request<Array<{
-      event_id: string;
-      title: string;
-      yes_pool: number;
-      no_pool: number;
-      total_pool: number;
-      expiry_timestamp: string;
-      scope: PropScope;
-      featured: boolean;
-    }>>('GET', `markets?scope=${scope}`),
-
-  placeBet: (eventId: string, outcome: 'YES' | 'NO', chipAmount: number) =>
-    request<unknown>('POST', 'prop-market/bet', { event_id: eventId, outcome, chip_amount: chipAmount }),
-};
-
-// ─── Rumor Feed ───────────────────────────────────────────────────────────────
-
-export const rumorApi = {
-  getFeed: (page = 1, limit = 20) =>
-    request<Array<{
-      post_id: string;
-      text: string;
-      ghost_id: string;
-      post_type: 'FACTUAL_CLAIM' | 'OPINION' | 'NEUTRAL';
-      risk_score: number;
-      upvotes: number;
-      downvotes: number;
-      created_at: string;
-    }>>('GET', `rumor?page=${page}&limit=${limit}`),
-
-  createPost: (text: string) =>
-    request<{ post: { post_id: string }; visibility: string }>('POST', 'rumor', { text }),
-
-  /** B10: dispute a post */
-  dispute: (postId: string) =>
-    request<{ success: boolean; total_disputes: number }>('POST', `rumor/${postId}/dispute`),
-
-  upvote: (postId: string) => request<unknown>('POST', `rumor/${postId}/upvote`),
-  downvote: (postId: string) => request<unknown>('POST', `rumor/${postId}/downvote`),
-};
-
-// ─── National Leaderboard ─────────────────────────────────────────────────────
-
-export const leaderboardApi = {
-  /** B5: fetch national leaderboard snapshot (refreshed every 30 minutes) */
-  getNational: (limit = 50) =>
-    request<Array<{
-      entry_id: string;
-      ticker_id: string;
-      institution_short_code: string;
-      institution_name: string;
-      owner_display_name: string;
-      snapshot_price: number;
-      snapshot_volume: number;
-      change_pct: number;
-      campus_rank: number;
-      national_rank: number;
-      featured: boolean;
-    }>>('GET', `leaderboard/national?limit=${limit}`),
-};
-
-// ─── Wallet ───────────────────────────────────────────────────────────────────
-
-export const walletApi = {
-  getBalance: () =>
-    request<{ cred_balance: number; chip_balance: number; net_worth: number }>('GET', 'wallet/balance'),
-};
+export const api = new ApiClient();
