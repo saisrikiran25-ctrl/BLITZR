@@ -1,6 +1,5 @@
 CREATE TABLE IF NOT EXISTS admin_analytics (
-    id SERIAL PRIMARY KEY,
-    -- (Placeholder, we are doing TOS right now)
+    id SERIAL PRIMARY KEY
 );
 
 -- Actually, let's just add the fields to users for migration 004

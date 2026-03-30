@@ -36,6 +36,7 @@ export const AuthScreen: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [campuses, setCampuses] = useState<string[]>([]);
     const [selectedCampus, setSelectedCampus] = useState<string | undefined>(undefined);
+    const [authError, setAuthError] = useState<string | null>(null);
     const login = useAuthStore((s) => s.login);
 
     // Fetch strict campuses on email domain change (debounced)
@@ -81,6 +82,11 @@ export const AuthScreen: React.FC = () => {
         };
     });
 
+    const handleFormChange = (setter: (v: string) => void, value: string) => {
+        setter(value);
+        if (authError) setAuthError(null);
+    };
+
     const handleSubmit = async () => {
         if (!email || !password) {
             Alert.alert('Missing Fields', 'Email and password are required.');
@@ -88,16 +94,17 @@ export const AuthScreen: React.FC = () => {
         }
 
         setIsLoading(true);
+        setAuthError(null);
         try {
             let result: any;
             if (isRegistering) {
                 if (!username) {
-                    Alert.alert('Missing Fields', 'Username is required.');
+                    setAuthError('Username is required.');
                     setIsLoading(false);
                     return;
                 }
                 if (campuses.length > 0 && !selectedCampus) {
-                    Alert.alert('Missing Field', 'Please select your Campus from the dropdown.');
+                    setAuthError('Please select your Campus from the dropdown.');
                     setIsLoading(false);
                     return;
                 }
@@ -106,18 +113,17 @@ export const AuthScreen: React.FC = () => {
                 result = await api.login(email, password);
             }
 
-            // Backend now includes tos_accepted boolean
             login(result.user.user_id, result.user.username, result.token, result.user.tos_accepted || false);
         } catch (error: any) {
             const msg = error?.message || 'Unknown error';
             const lowerMsg = String(msg).toLowerCase();
 
             if (lowerMsg.includes('waitlist')) {
-                Alert.alert('Campus Not Supported Yet', msg);
-            } else if (lowerMsg.includes('already registered')) {
-                Alert.alert('Account Exists', 'This email is already registered. Try logging in.');
+                setAuthError(msg);
+            } else if (lowerMsg.includes('already registered') || lowerMsg.includes('conflict')) {
+                setAuthError('Account Exists: This email is already registered. Please Login.');
             } else {
-                Alert.alert('Authentication Failed', msg);
+                setAuthError(msg);
             }
         } finally {
             setIsLoading(false);
@@ -150,10 +156,16 @@ export const AuthScreen: React.FC = () => {
                         {isRegistering ? 'CREATE ACCOUNT' : 'LOGIN'}
                     </Text>
 
+                    {authError && (
+                        <View style={styles.errorContainer}>
+                            <Text style={styles.errorText}>{authError}</Text>
+                        </View>
+                    )}
+
                     <TextInput
                         style={styles.input}
                         value={email}
-                        onChangeText={setEmail}
+                        onChangeText={(v) => handleFormChange(setEmail, v)}
                         placeholder="Email (.edu)"
                         placeholderTextColor={Colors.textTertiary}
                         keyboardType="email-address"
@@ -163,10 +175,13 @@ export const AuthScreen: React.FC = () => {
                     {isRegistering && campuses.length > 0 && (
                         <View style={styles.pickerContainer}>
                             <RNPickerSelect
-                                onValueChange={(value) => setSelectedCampus(value)}
+                                onValueChange={(value) => {
+                                    setSelectedCampus(value || undefined);
+                                    if (authError) setAuthError(null);
+                                }}
                                 items={campuses.map(c => ({ label: `${c} Campus`, value: c }))}
-                                placeholder={{ label: 'Select Your Campus...', value: null }}
-                                value={selectedCampus}
+                                placeholder={{ label: 'Select Your Campus...', value: '' }}
+                                value={selectedCampus || ''}
                                 style={pickerSelectStyles}
                                 useNativeAndroidPickerStyle={false}
                             />
@@ -177,7 +192,7 @@ export const AuthScreen: React.FC = () => {
                         <TextInput
                             style={styles.input}
                             value={username}
-                            onChangeText={setUsername}
+                            onChangeText={(v) => handleFormChange(setUsername, v)}
                             placeholder="Username (your $TICKER name)"
                             placeholderTextColor={Colors.textTertiary}
                             autoCapitalize="none"
@@ -187,7 +202,7 @@ export const AuthScreen: React.FC = () => {
                     <TextInput
                         style={styles.input}
                         value={password}
-                        onChangeText={setPassword}
+                        onChangeText={(v) => handleFormChange(setPassword, v)}
                         placeholder="Password"
                         placeholderTextColor={Colors.textTertiary}
                         secureTextEntry
@@ -210,7 +225,10 @@ export const AuthScreen: React.FC = () => {
                         variant="secondary"
                         size="sm"
                         fullWidth
-                        onPress={() => setIsRegistering(!isRegistering)}
+                        onPress={() => {
+                            setIsRegistering(!isRegistering);
+                            setAuthError(null);
+                        }}
                         style={{ marginTop: Spacing.md }}
                     />
                 </GlassCard>
@@ -331,6 +349,20 @@ const styles = StyleSheet.create({
         borderRadius: BorderRadius.card,
         marginBottom: Spacing.md,
         // Overflow hidden if we wanted it, but let's keep it clean
+    },
+    errorContainer: {
+        backgroundColor: '#440000',
+        padding: Spacing.md,
+        borderRadius: BorderRadius.card,
+        marginBottom: Spacing.xl,
+        borderWidth: 1,
+        borderColor: '#ff0000',
+    },
+    errorText: {
+        ...Typography.caption,
+        color: '#ffffff',
+        textAlign: 'center',
+        fontWeight: 'bold',
     },
 });
 

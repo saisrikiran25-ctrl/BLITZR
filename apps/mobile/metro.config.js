@@ -16,10 +16,9 @@ config.resolver.nodeModulesPaths = [
 ];
 // 2.1 definitive alias for zustand to avoid ESM import.meta issues on web
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (platform === 'web' && (moduleName === 'zustand' || moduleName === 'zustand/vanilla')) {
-    const filePath = moduleName === 'zustand' 
-      ? path.resolve(projectRoot, 'node_modules/zustand/index.js')
-      : path.resolve(projectRoot, 'node_modules/zustand/vanilla.js');
+  if (platform === 'web' && (moduleName === 'zustand' || moduleName.startsWith('zustand/'))) {
+    const subPath = moduleName === 'zustand' ? 'index.js' : moduleName.replace('zustand/', '') + '.js';
+    const filePath = path.resolve(workspaceRoot, 'node_modules/zustand', subPath);
     return {
       type: 'sourceFile',
       filePath,
