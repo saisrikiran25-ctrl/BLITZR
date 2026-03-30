@@ -30,6 +30,7 @@ export class RegisterDto {
 
     @IsOptional()
     @IsBoolean()
+    // Accepted for client compatibility; registration source of truth remains backend defaults.
     tosAccepted?: boolean;
 }
 
