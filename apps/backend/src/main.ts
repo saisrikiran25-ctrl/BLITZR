@@ -1,9 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
+import { DataSource } from 'typeorm';
+import { runNativeMigrations } from './config/migration-runner';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
+
+    // Run native migrations before starting the server
+    const dataSource = app.get(DataSource);
+    await runNativeMigrations(dataSource);
 
     // Global prefix for all API routes
     app.setGlobalPrefix('api/v1');
