@@ -1,10 +1,10 @@
 name: blitzr-prime
-region: blr # Defaulting to Bangalore, but user can change during import
+region: blr
 services:
   - name: blitzr-backend
-    source_dir: apps/backend
-    build_command: npm install && npm run build
-    run_command: npm run migrate:prod && npm run start
+    source_dir: /
+    build_command: npm install && npm run backend:build
+    run_command: npm run start
     instance_count: 1
     instance_size_slug: basic-xxs
     http_port: 3001

@@ -15,6 +15,9 @@
     "shared:build": "npm run build --workspace=packages/shared",
     "start": "node apps/backend/deploy-migrate.js && node apps/backend/dist/apps/backend/src/main.js"
   },
+  "dependencies": {
+    "pg": "^8.20.0"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
