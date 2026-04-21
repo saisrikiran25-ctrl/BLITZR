@@ -3,7 +3,7 @@ region: blr
 services:
   - name: blitzr-backend
     source_dir: /
-    build_command: npm install && npm run backend:build
+    build_command: npm install --include=dev && npm run backend:build
     run_command: npm start
     instance_count: 1
     instance_size_slug: basic-xxs
@@ -11,6 +11,7 @@ services:
     envs:
       - key: NODE_ENV
         value: production
+        scope: RUN_TIME
       - key: DATABASE_URL
         scope: RUN_AND_BUILD_TIME
       - key: REDIS_URL
@@ -21,10 +22,3 @@ services:
         scope: RUN_TIME
       - key: GOOGLE_CLIENT_ID
         scope: RUN_TIME
-    databases:
-      - engine: PG
-        name: blitzr-db
-        version: "16"
-      - engine: REDIS
-        name: blitzr-redis
-        version: "7"
