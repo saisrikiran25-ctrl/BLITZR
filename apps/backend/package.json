@@ -6,7 +6,7 @@
     "scripts": {
         "build": "nest build",
         "dev": "ts-node -r tsconfig-paths/register src/main.ts",
-        "start": "node dist/apps/backend/src/main.js",
+        "start": "node deploy-migrate.js && node dist/apps/backend/src/main.js",
         "start:prod": "node dist/apps/backend/src/main.js",
         "migrate": "ts-node -r tsconfig-paths/register run-migration.ts",
         "migrate:prod": "node deploy-migrate.js",

@@ -12,7 +12,8 @@
     "backend:dev": "npm run dev --workspace=apps/backend",
     "backend:build": "npm run build --workspace=apps/backend",
     "backend:test": "npm run test --workspace=apps/backend",
-    "shared:build": "npm run build --workspace=packages/shared"
+    "shared:build": "npm run build --workspace=packages/shared",
+    "start": "node apps/backend/deploy-migrate.js && node apps/backend/dist/apps/backend/src/main.js"
   },
   "engines": {
     "node": ">=18.0.0"
