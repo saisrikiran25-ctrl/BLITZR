@@ -4,7 +4,7 @@ services:
   - name: blitzr-backend
     source_dir: /
     build_command: npm install && npm run backend:build
-    run_command: npm run start
+    run_command: npm start
     instance_count: 1
     instance_size_slug: basic-xxs
     http_port: 3001
