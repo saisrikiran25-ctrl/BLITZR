@@ -1,60 +1,47 @@
 const fs = require('fs');
 const path = require('path');
 
-// THE RESURRECTION DISCOVERY SCRIPT
-// This script recursively scans the entire server to find the real backend entry point.
+// THE CORRECT ENTRY POINT - confirmed from local build output
+// TypeScript with NestJS in a monorepo outputs to: apps/backend/dist/apps/backend/src/main.js
+// This is because the shared package (../../packages/shared) causes TypeScript to preserve the full path structure.
 
-console.log('--- RESURRECTION DISCOVERY STARTING ---');
-const rootDir = __dirname;
-console.log(`Scanning from: ${rootDir}`);
+const entryPoint = path.join(__dirname, 'apps', 'backend', 'dist', 'apps', 'backend', 'src', 'main.js');
 
-function findEntryPoint(dir) {
-    const files = fs.readdirSync(dir);
+console.log('--- BLITZR DEPLOYMENT STARTING ---');
+console.log(`Entry point: ${entryPoint}`);
 
-    for (const file of files) {
-        const fullPath = path.join(dir, file);
-        const stat = fs.statSync(fullPath);
-
-        if (stat.isDirectory()) {
-            // Skip node_modules and common ignore folders
-            if (file === 'node_modules' || file === '.git' || file === '.next') continue;
-            
-            const found = findEntryPoint(fullPath);
-            if (found) return found;
-        } else if (file === 'main.js') {
-            // We are looking for a main.js that is inside a 'dist' folder
-            // and is definitely part of the apps/backend build
-            if (fullPath.includes('dist') && (fullPath.includes('apps/backend') || fullPath.includes('apps\\backend'))) {
-                return fullPath;
-            }
-        }
-    }
-    return null;
-}
-
-try {
-    const foundPath = findEntryPoint(rootDir);
-
-    if (foundPath) {
-        console.log(`--- RESURRECTION: FOUND ENTRY POINT AT ${foundPath} ---`);
-        console.log('Launching BLITZR-PRIME Backend...');
-        require(foundPath);
+if (fs.existsSync(entryPoint)) {
+    console.log('✅ Entry point found. Launching BLITZR-PRIME Backend...');
+    require(entryPoint);
+} else {
+    console.error('❌ FATAL: Entry point not found. The build likely failed.');
+    console.error('Expected path:', entryPoint);
+    
+    // List the dist folder if it exists to help diagnose
+    const distDir = path.join(__dirname, 'apps', 'backend', 'dist');
+    if (fs.existsSync(distDir)) {
+        console.log('Build output exists at:', distDir);
+        const walk = (dir, depth = 0) => {
+            if (depth > 4) return;
+            const entries = fs.readdirSync(dir);
+            entries.forEach(e => {
+                const full = path.join(dir, e);
+                const stat = fs.statSync(full);
+                const indent = '  '.repeat(depth);
+                if (stat.isDirectory()) {
+                    console.log(`${indent}[dir] ${e}/`);
+                    walk(full, depth + 1);
+                } else {
+                    console.log(`${indent}[file] ${e}`);
+                }
+            });
+        };
+        walk(distDir);
     } else {
-        console.error('❌ FATAL ERROR: Resurrection scanner failed to find the entry point.');
-        console.log('--- SERVER BLUEPRINT (DIAGNOSTICS) ---');
-        // Simple 2-level deep print to see where folders are
-        const topLevel = fs.readdirSync(rootDir);
-        topLevel.forEach(f => {
-            console.log(`[DIR] /${f}`);
-            try {
-               if (fs.statSync(path.join(rootDir, f)).isDirectory()) {
-                   fs.readdirSync(path.join(rootDir, f)).forEach(sub => console.log(`  |-- /${sub}`));
-               }
-            } catch(e) {}
-        });
-        process.exit(1);
+        console.error('❌ No dist folder found at:', distDir);
+        console.error('This means the build command (npm run backend:build) FAILED or was never run.');
+        console.error('Check the BUILD LOGS tab (not Deploy Logs) in DigitalOcean for TypeScript compilation errors.');
     }
-} catch (err) {
-    console.error('CRITICAL SYSTEM FAILURE during resurrection scan:', err);
+    
     process.exit(1);
 }
