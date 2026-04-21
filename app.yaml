@@ -3,7 +3,7 @@ region: blr
 services:
   - name: blitzr-backend
     source_dir: /
-    build_command: npm install --include=dev && npm run backend:build
+    build_command: npm install --omit=dev
     run_command: npm start
     instance_count: 1
     instance_size_slug: basic-xxs

@@ -3,9 +3,10 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build
+# Build - ignore all dist EXCEPT the backend's compiled output
 dist/
 build/
+!apps/backend/dist/
 *.js.map
 
 # Environment
