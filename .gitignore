@@ -3,10 +3,11 @@ node_modules/
 .pnp
 .pnp.js
 
-# Build - ignore all dist EXCEPT the backend's compiled output
+# Build - ignore all dist EXCEPT pre-compiled packages required by DigitalOcean
 dist/
 build/
 !apps/backend/dist/
+!packages/shared/dist/
 *.js.map
 
 # Environment
