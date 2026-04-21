@@ -4,28 +4,26 @@
  */
 
 /**
- * Format Creds: always 4 decimal places.
+ * Format Creds: ₠ 400.00
  */
 export function formatCreds(amount: number): string {
-    return amount.toFixed(2);
+    return `₠ ${amount.toFixed(2)}`;
 }
 
 /**
- * Format Chips: 2 decimal places.
+ * Format Chips: ¤ 400.00
  */
 export function formatChips(amount: number): string {
-    return amount.toFixed(2);
+    return `¤ ${amount.toFixed(2)}`;
 }
 
 /**
- * Format price with appropriate precision.
- * Small prices get more decimals; large prices get fewer.
+ * Format price with fixed precision.
+ * All prices now use exactly 2 decimal places.
+ * Format: ₠ 0.25 (Prices are always CREDs)
  */
 export function formatPrice(price: number): string {
-    if (price < 0.01) return price.toFixed(6);
-    if (price < 1) return price.toFixed(4);
-    if (price < 100) return price.toFixed(2);
-    return price.toFixed(1);
+    return `₠ ${price.toFixed(2)}`;
 }
 
 /**

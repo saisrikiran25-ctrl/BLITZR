@@ -8,12 +8,14 @@ import { PropMarketService } from './prop-market.service';
 import { JwtOrAdminGuard } from '../../common/guards/jwt-or-admin.guard';
 import { UsersModule } from '../users/users.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
         TypeOrmModule.forFeature([PropEventEntity, PropBetEntity]),
         UsersModule,
         RealtimeModule,
+        NotificationsModule,
     ],
     controllers: [PropMarketController, MarketsController],
     providers: [PropMarketService, JwtOrAdminGuard],

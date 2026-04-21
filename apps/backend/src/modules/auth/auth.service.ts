@@ -1,16 +1,25 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import { UsersService } from '../users/users.service';
 import { DataSource } from 'typeorm';
 
 @Injectable()
 export class AuthService {
+    private googleClient: OAuth2Client;
+
     constructor(
         private readonly usersService: UsersService,
         private readonly jwtService: JwtService,
+        private readonly configService: ConfigService,
         private readonly dataSource: DataSource,
-    ) { }
+    ) {
+        this.googleClient = new OAuth2Client(
+            this.configService.get<string>('GOOGLE_CLIENT_ID')
+        );
+    }
 
     async getCampuses(domain: string) {
         console.log(`[DEBUG] getCampuses called for domain: "${domain}"`);
@@ -68,9 +77,9 @@ export class AuthService {
                 throw new ConflictException('Email already registered');
             }
 
-            const existingUsername = await this.usersService.findByUsername(username);
-            if (existingUsername) {
-                throw new ConflictException('Username already taken');
+            const usernameTaken = await this.usersService.isUsernameTaken(username, institution.institution_id);
+            if (usernameTaken) {
+                throw new ConflictException('Username already taken in this institution');
             }
 
             const salt = await bcrypt.genSalt(12);
@@ -137,6 +146,94 @@ export class AuthService {
             [userId]
         );
         return { success: true };
+    }
+
+    async googleLogin(idToken: string) {
+        try {
+            const ticket = await this.googleClient.verifyIdToken({
+                idToken,
+                audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+            });
+
+            const payload = ticket.getPayload();
+            if (!payload || !payload.email) {
+                throw new UnauthorizedException('Invalid Google token payload');
+            }
+
+            const { email, name, hd } = payload; // hd is the hosted domain (institution)
+            const domain = hd || email.split('@')[1];
+
+            // 1. Validate domain against institutions
+            const res = await this.dataSource.query(
+                'SELECT * FROM institutions WHERE email_domain = $1 AND verified = true',
+                [domain]
+            );
+            const institution = res[0];
+
+            if (!institution) {
+                // Add to waitlist just like manual registration
+                await this.dataSource.query(
+                    'INSERT INTO waitlist (email, email_domain) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                    [email, domain]
+                );
+                throw new BadRequestException(
+                    'Your college is not yet on BLITZR. You have been added to the waitlist.'
+                );
+            }
+
+            // 2. Find or Create User
+            let user = await this.usersService.findByEmail(email);
+            let isNewUser = false;
+
+            if (!user) {
+                isNewUser = true;
+                // For Google login, we generate a random temporary password or leave it empty
+                // as the user is authenticated via Google.
+                const tempPassword = Math.random().toString(36).slice(-16);
+                const salt = await bcrypt.genSalt(12);
+                const passwordHash = await bcrypt.hash(tempPassword, salt);
+
+                // We don't have a username yet, so we use email prefix as a placeholder
+                // The frontend/user will be prompted to change this.
+                let baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                let username = baseUsername;
+                let counter = 1;
+                
+                // Ensure unique username
+                while (await this.usersService.isUsernameTaken(username, institution.institution_id)) {
+                    username = `${baseUsername}${counter++}`;
+                }
+
+                user = await this.usersService.create({
+                    email,
+                    username,
+                    display_name: name || username,
+                    password_hash: passwordHash,
+                    institution_id: institution.institution_id,
+                    credibility_score: 60, // Bonus for verified Google account
+                    tos_accepted: false,
+                });
+            }
+
+            const token = this.generateToken(user.user_id, institution.short_code);
+
+            return {
+                user: {
+                    user_id: user.user_id,
+                    username: user.username,
+                    tos_accepted: user.tos_accepted,
+                    credibility_score: user.credibility_score,
+                    isNewUser,
+                },
+                token,
+            };
+        } catch (error) {
+            if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
+                throw error;
+            }
+            console.error('[CRITICAL ERROR] Google Login failed:', error);
+            throw new InternalServerErrorException('Authentication failed');
+        }
     }
 
     private generateToken(userId: string, collegeDomain: string): string {

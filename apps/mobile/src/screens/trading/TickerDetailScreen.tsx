@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     Alert,
     StatusBar,
+    Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/common/GlassCard';
@@ -14,9 +15,12 @@ import { Button } from '../../components/common/Button';
 import { Colors, Typography, Spacing, BorderRadius, Gradients } from '../../theme';
 import { useMarketStore } from '../../store/useMarketStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { formatPrice, formatPctChange, formatCompact } from '../../utils/formatters';
 import { previewBuyPrice, previewSellPrice } from '../../utils/bondingCurve';
 import { api } from '../../services/api';
+
+declare const window: any;
 
 /**
  * TickerDetailScreen — High-Fidelity Dossier
@@ -29,6 +33,10 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     const { tickerId } = route.params;
     const ticker = useMarketStore((s) => s.tickers[tickerId]);
     const { credBalance } = usePortfolioStore();
+    const { userId } = useAuthStore();
+    
+    // Ownership check for Panic Button visibility
+    const isOwner = ticker?.owner_id === userId;
 
     const [shares, setShares] = useState(1);
     const [mode, setMode] = useState<'buy' | 'sell'>('buy');
@@ -63,6 +71,28 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             setIsLoading(false);
         }
     }, [mode, shares, tickerId]);
+    
+    const handleDelist = useCallback(async () => {
+        setIsLoading(true);
+        try {
+            await api.delistIpo();
+            if (Platform.OS === 'web') {
+                window.alert('Ticker Delisted: Your IPO has been terminated. All holders have been refunded.');
+            } else {
+                Alert.alert('Ticker Delisted', 'Your IPO has been terminated. All holders have been refunded.');
+            }
+            useAuthStore.getState().updateProfile({ tosAccepted: true }); // Sync state
+            navigation.navigate('TradingFloor');
+        } catch (error: any) {
+            if (Platform.OS === 'web') {
+                window.alert('Delist Failed: ' + error.message);
+            } else {
+                Alert.alert('Delist Failed', error.message);
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }, [navigation]);
 
     return (
         <View style={styles.container}>
@@ -71,7 +101,7 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             {/* Ambient Background */}
             <LinearGradient
                 colors={Gradients.obsidianDeep as any}
-                style={StyleSheet.absoluteFill}
+                style={StyleSheet.absoluteFill as any}
             />
 
             <ScrollView showsVerticalScrollIndicator={false}>
@@ -92,9 +122,9 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                     <View style={styles.priceContainer}>
                         <Text style={[
                             styles.heroPrice,
-                            isPositive ? Typography.phosphorGreen : styles.red
+                            isPositive ? Typography.phosphorGreen : styles.redGlow
                         ]}>
-                            {formatPrice(price)} ¢
+                            {formatPrice(price)}
                         </Text>
                     </View>
                     <Text style={[styles.heroChange, isPositive ? styles.green : styles.red]}>
@@ -198,12 +228,12 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                         <View style={styles.previewRow}>
                             <Text style={styles.previewLabel}>Impact Cost</Text>
                             <Text style={[styles.previewValue, mode === 'buy' ? styles.red : styles.green]}>
-                                {formatPrice(mode === 'buy' ? preview.totalCost : preview.totalValue)} ¢
+                                {formatPrice(mode === 'buy' ? preview.totalCost : preview.totalValue)}
                             </Text>
                         </View>
                         <View style={styles.previewRow}>
                             <Text style={styles.previewLabel}>Execution Price</Text>
-                            <Text style={styles.previewValue}>{formatPrice(preview.newPrice)} ¢</Text>
+                            <Text style={styles.previewValue}>{formatPrice(preview.newPrice)}</Text>
                         </View>
                         <View style={styles.previewRow}>
                             <Text style={styles.previewLabel}>Slippage Estimate</Text>
@@ -228,6 +258,36 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                         </Text>
                     </View>
                 </GlassCard>
+
+                {/* Panic Button (Owners Only) */}
+                {isOwner && (
+                    <View style={styles.panicSection}>
+                        <Button
+                            title="PANIC: DELIST IPO"
+                            variant="sell"
+                            size="md"
+                            fullWidth
+                            loading={isLoading}
+                            onPress={() => {
+                                if (Platform.OS === 'web') {
+                                    const confirmed = window.confirm("WARNING: Emergency Delisting.\n\nAre you sure you want to DELIST your IPO? All holders will be refunded and you will be invisible for 72h.");
+                                    if (confirmed) {
+                                        handleDelist();
+                                    }
+                                } else {
+                                    Alert.alert('Hold to Confirm', 'Maintain pressure for 3 seconds to execute emergency delisting.');
+                                }
+                            }}
+                            onLongPress={Platform.OS === 'web' ? undefined : handleDelist}
+                            delayLongPress={Platform.OS === 'web' ? undefined : 3000}
+                            style={styles.delistBtn}
+                        />
+                        <Text style={styles.panicSubtext}>
+                            WARNING: 3-second hold to confirm. Refunds all holders. Permanent 72h invisibility.
+                        </Text>
+                    </View>
+                )}
+                
                 <View style={{ height: 40 }} />
             </ScrollView>
         </View>
@@ -299,6 +359,12 @@ const styles = StyleSheet.create({
     },
     green: { color: Colors.kineticGreen },
     red: { color: Colors.thermalRed },
+    redGlow: {
+        color: Colors.thermalRed,
+        textShadowColor: Colors.glowRed,
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 8,
+    },
     // Chart
     chartContainer: {
         marginHorizontal: Spacing.lg,
@@ -387,18 +453,26 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: Spacing.md,
         alignItems: 'center',
-        borderRadius: BorderRadius.button,
-        borderWidth: 1,
+        borderRadius: 100, // Pill shaped tabs
+        borderWidth: 2, // Thicker border
         borderColor: Colors.glassBorder,
-        backgroundColor: Colors.materialLight,
+        backgroundColor: Colors.materialDark,
     },
     buyModeActive: {
         backgroundColor: Colors.pulseGreen,
         borderColor: Colors.kineticGreen,
+        shadowColor: Colors.glowGreen,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
     },
     sellModeActive: {
         backgroundColor: Colors.pulseRed,
         borderColor: Colors.thermalRed,
+        shadowColor: Colors.glowRed,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
     },
     modeText: {
         ...Typography.bodyMedium,
@@ -473,6 +547,26 @@ const styles = StyleSheet.create({
         fontSize: 10,
         textAlign: 'center',
         lineHeight: 14,
+    },
+    // Panic Button
+    panicSection: {
+        marginHorizontal: Spacing.lg,
+        marginTop: Spacing.sm,
+        padding: Spacing.md,
+        alignItems: 'center',
+    },
+    delistBtn: {
+        borderColor: Colors.thermalRed,
+        borderWidth: 1,
+        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    },
+    panicSubtext: {
+        ...Typography.caption,
+        color: Colors.textTertiary,
+        textAlign: 'center',
+        marginTop: Spacing.sm,
+        fontSize: 9,
+        lineHeight: 12,
     },
 });
 

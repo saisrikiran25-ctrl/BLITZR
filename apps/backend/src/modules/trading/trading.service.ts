@@ -3,6 +3,7 @@ import {
     BadRequestException,
     NotFoundException,
     ForbiddenException,
+    Logger,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -11,6 +12,7 @@ import { TransactionEntity } from './entities/transaction.entity';
 import { BondingCurveService } from '../ipo/bonding-curve.service';
 import { IPO_BURN_RATE, IPO_DIVIDEND_RATE, applyIpoFees } from '@blitzr/shared';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
+import { NotificationsService } from '../notifications/notifications.service';
 
 /**
  * TradingService
@@ -31,12 +33,15 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
  */
 @Injectable()
 export class TradingService {
+    private readonly logger = new Logger(TradingService.name);
+
     constructor(
         @InjectRepository(TransactionEntity)
         private readonly txRepo: Repository<TransactionEntity>,
         private readonly bondingCurve: BondingCurveService,
         private readonly dataSource: DataSource,
         private readonly realtimeGateway: RealtimeGateway,
+        private readonly notificationsService: NotificationsService,
     ) { }
 
     /**
@@ -44,12 +49,27 @@ export class TradingService {
      */
     async previewBuy(collegeDomain: string, tickerId: string, sharesToBuy: number) {
         const ticker = await this.dataSource.query(
-            `SELECT current_supply, scaling_constant, status FROM tickers WHERE ticker_id = $1 AND college_domain = $2`,
+            `SELECT current_supply, scaling_constant, status, frozen_until FROM tickers WHERE ticker_id = $1 AND college_domain = $2`,
             [tickerId, collegeDomain],
         );
 
+        // Global Lockdown Check
+        const isLockdown = await this.dataSource.query(`SELECT value FROM settings WHERE key = 'GLOBAL_LOCKDOWN'`);
+        if (isLockdown.length && isLockdown[0].value === 'true') {
+            throw new ForbiddenException('Market is in GLOBAL LOCKDOWN mode. All trading is suspended.');
+        }
+
         if (!ticker.length) throw new NotFoundException(`Ticker ${tickerId} not found`);
-        if (ticker[0].status !== 'ACTIVE') throw new ForbiddenException('Ticker is not active');
+        
+        // Circuit Breaker Check
+        if (ticker[0].status === 'AUTO_FROZEN' || ticker[0].status === 'FROZEN') {
+            const frozenUntil = ticker[0].frozen_until ? new Date(ticker[0].frozen_until).getTime() : 0;
+            if (frozenUntil > Date.now()) {
+                throw new ForbiddenException(`Trading halted until ${new Date(frozenUntil).toLocaleTimeString()}`);
+            }
+        }
+        
+        if (ticker[0].status === 'DELISTED') throw new ForbiddenException('Ticker is delisted');
 
         const supply = Number(ticker[0].current_supply);
         const grossCost = this.bondingCurve.getBuyCost(supply, sharesToBuy);
@@ -92,9 +112,15 @@ export class TradingService {
         await queryRunner.startTransaction();
 
         try {
+            // L5 Global Lockdown Check
+            const isLockdown = await queryRunner.query(`SELECT value FROM settings WHERE key = 'GLOBAL_LOCKDOWN' FOR SHARE`);
+            if (isLockdown.length && isLockdown[0].value === 'true') {
+                throw new ForbiddenException('Market is in GLOBAL LOCKDOWN mode. All trading is suspended.');
+            }
+
             // Step 1: Lock the ticker row
             const [ticker] = await queryRunner.query(
-                `SELECT current_supply, scaling_constant, owner_id, status, price_open, college_domain 
+                `SELECT current_supply, scaling_constant, owner_id, status, price_open, college_domain, frozen_until 
          FROM tickers 
          WHERE ticker_id = $1 AND college_domain = $2
          FOR UPDATE`,
@@ -102,7 +128,17 @@ export class TradingService {
             );
 
             if (!ticker) throw new NotFoundException(`Ticker ${tickerId} not found`);
-            if (ticker.status !== 'ACTIVE') throw new ForbiddenException('Ticker is frozen or delisted');
+            
+            // L3 Circuit Breaker Check
+            if (ticker.status === 'AUTO_FROZEN' || ticker.status === 'FROZEN') {
+                const frozenUntil = ticker.frozen_until ? new Date(ticker.frozen_until).getTime() : 0;
+                if (frozenUntil > Date.now()) {
+                    throw new ForbiddenException(`Trading halted for security. Resumes at ${new Date(frozenUntil).toLocaleTimeString()}`);
+                }
+                // If time expired, we allow it (and status will be updated to ACTIVE in Step 4)
+            } else if (ticker.status === 'DELISTED') {
+                throw new ForbiddenException('Ticker is delisted and cannot be traded');
+            }
 
             const supply = Number(ticker.current_supply);
 
@@ -132,6 +168,7 @@ export class TradingService {
              total_volume = total_volume + $2,
              total_trades = total_trades + 1,
              human_trades_1h = human_trades_1h + 1,
+             status = 'ACTIVE', -- Auto-resume if it was frozen but time expired
              updated_at = NOW()
          WHERE ticker_id = $3`,
                 [sharesToBuy, grossCost, tickerId],
@@ -201,6 +238,15 @@ export class TradingService {
             this.realtimeGateway.broadcastPriceUpdate(ticker.college_domain, tickerId, finalPrice, newSupply, changePct, newVolume);
             this.realtimeGateway.broadcastPulse(ticker.college_domain, tickerId, 'BUY');
 
+            // Step 11: In-app notification
+            await this.notificationsService.createNotification(
+                userId,
+                'TRADE_EXECUTED',
+                `Successfully bought ${sharesToBuy} shares of $${tickerId} at ${finalPrice.toFixed(4)}`,
+                'TRADING',
+                { tickerId, shares: sharesToBuy, price: finalPrice, type: 'BUY' }
+            );
+
             return {
                 tx_type: 'BUY',
                 ticker_id: tickerId,
@@ -231,14 +277,29 @@ export class TradingService {
         await queryRunner.startTransaction();
 
         try {
+            // L5 Global Lockdown Check
+            const isLockdown = await queryRunner.query(`SELECT value FROM settings WHERE key = 'GLOBAL_LOCKDOWN' FOR SHARE`);
+            if (isLockdown.length && isLockdown[0].value === 'true') {
+                throw new ForbiddenException('Market is in GLOBAL LOCKDOWN mode. All trading is suspended.');
+            }
+
             // Lock ticker
             const [ticker] = await queryRunner.query(
-                `SELECT current_supply, owner_id, status, price_open, college_domain FROM tickers WHERE ticker_id = $1 AND college_domain = $2 FOR UPDATE`,
+                `SELECT current_supply, owner_id, status, price_open, college_domain, frozen_until FROM tickers WHERE ticker_id = $1 AND college_domain = $2 FOR UPDATE`,
                 [tickerId, collegeDomain],
             );
 
             if (!ticker) throw new NotFoundException(`Ticker ${tickerId} not found`);
-            if (ticker.status !== 'ACTIVE') throw new ForbiddenException('Ticker is frozen or delisted');
+            
+            // L3 Circuit Breaker Check
+            if (ticker.status === 'AUTO_FROZEN' || ticker.status === 'FROZEN') {
+                const frozenUntil = ticker.frozen_until ? new Date(ticker.frozen_until).getTime() : 0;
+                if (frozenUntil > Date.now()) {
+                    throw new ForbiddenException(`Trading halted for security. Resumes at ${new Date(frozenUntil).toLocaleTimeString()}`);
+                }
+            } else if (ticker.status === 'DELISTED') {
+                throw new ForbiddenException('Ticker is delisted and cannot be traded');
+            }
 
             const supply = Number(ticker.current_supply);
 
@@ -264,6 +325,7 @@ export class TradingService {
              total_volume = total_volume + $2,
              total_trades = total_trades + 1,
              human_trades_1h = human_trades_1h + 1,
+             status = 'ACTIVE', -- Auto-resume
              updated_at = NOW()
          WHERE ticker_id = $3`,
                 [sharesToSell, grossValue, tickerId],
@@ -332,6 +394,15 @@ export class TradingService {
             this.realtimeGateway.broadcastPriceUpdate(ticker.college_domain, tickerId, finalPrice, newSupply, changePct, newVolumeSell);
             this.realtimeGateway.broadcastPulse(ticker.college_domain, tickerId, 'SELL');
 
+            // Step 11: In-app notification
+            await this.notificationsService.createNotification(
+                userId,
+                'TRADE_EXECUTED',
+                `Successfully sold ${sharesToSell} shares of $${tickerId} at ${finalPrice.toFixed(4)}`,
+                'TRADING',
+                { tickerId, shares: sharesToSell, price: finalPrice, type: 'SELL' }
+            );
+
             return {
                 tx_type: 'SELL',
                 ticker_id: tickerId,
@@ -383,6 +454,27 @@ export class TradingService {
                 volume: Number(t.total_volume),
                 change_pct: changePct,
             };
+
+            // L3 Circuit Breaker: 24h Auto-Freeze on 25% drop
+            if (changePct <= -25) {
+                this.logger.error(`CRITICAL_DROP_DETECTED: ${t.ticker_id} dropped ${changePct}%. Triggering 24h halt.`);
+                await this.dataSource.query(
+                    `UPDATE tickers 
+                     SET status = 'AUTO_FROZEN', 
+                         frozen_until = NOW() + INTERVAL '24 hours',
+                         updated_at = NOW() 
+                     WHERE ticker_id = $1`,
+                    [t.ticker_id]
+                );
+                
+                // Alert owner
+                await this.notificationsService.createNotification(
+                    t.owner_id,
+                    'TICKER_FROZEN',
+                    `Your ticker $${t.ticker_id} has been auto-frozen for 24h due to a critical price drop (>25%).`,
+                    'SYSTEM'
+                );
+            }
 
             const domain = t.college_domain || 'iift.edu';
             if (!domainMap.has(domain)) {

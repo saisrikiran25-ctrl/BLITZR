@@ -6,9 +6,11 @@ import {
     UpdateDateColumn,
     OneToOne,
     OneToMany,
+    Index,
 } from 'typeorm';
 
 @Entity('users')
+@Index(['institution_id', 'username'], { unique: true })
 export class UserEntity {
     @PrimaryGeneratedColumn('uuid')
     user_id: string;
@@ -16,7 +18,7 @@ export class UserEntity {
     @Column({ type: 'varchar', length: 255, unique: true })
     email: string;
 
-    @Column({ type: 'varchar', length: 50, unique: true })
+    @Column({ type: 'varchar', length: 50 })
     username: string;
 
     @Column({ type: 'varchar', length: 100, nullable: true })
@@ -49,7 +51,7 @@ export class UserEntity {
     @Column({ type: 'varchar', length: 30, default: 'USER' })
     role: 'USER' | 'ADMIN' | 'INSTITUTION_ADMIN';
 
-    @Column({ type: 'int', default: 0 })
+    @Column({ type: 'int', default: 50 })
     credibility_score: number;
 
     @Column({ type: 'boolean', default: false })
@@ -66,6 +68,16 @@ export class UserEntity {
 
     @Column({ type: 'timestamptz', nullable: true })
     last_active_at: Date;
+
+    // Notification Preferences
+    @Column({ type: 'boolean', default: true })
+    notify_trading: boolean;
+
+    @Column({ type: 'boolean', default: true })
+    notify_price_threshold: boolean;
+
+    @Column({ type: 'boolean', default: true })
+    notify_arena_resolution: boolean;
 
     @CreateDateColumn({ type: 'timestamptz' })
     created_at: Date;

@@ -5,6 +5,7 @@ export const getDatabaseConfig = (
     configService: ConfigService,
 ): TypeOrmModuleOptions => ({
     type: 'postgres',
+    url: configService.get<string>('DATABASE_URL'),
     host: configService.get<string>('DB_HOST', 'localhost'),
     port: configService.get<number>('DB_PORT', 5432),
     username: configService.get<string>('DB_USERNAME', 'blitzr_admin'),

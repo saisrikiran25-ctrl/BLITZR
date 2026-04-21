@@ -110,4 +110,22 @@ export class AdminController {
             body.featured ?? false,
         );
     }
+
+    @Post('emergency/lockdown')
+    @ApiOperation({ summary: 'L5 Toggle Global Lockdown (Halts all trading/rumors)' })
+    toggleLockdown(@Body() body: { active: boolean }) {
+        return this.adminService.toggleGlobalLockdown(body.active);
+    }
+
+    @Get('risk-metrics')
+    @ApiOperation({ summary: 'L5 Real-time Risk Dashboard telemetry' })
+    getRiskMetrics() {
+        return this.adminService.getRiskMetrics();
+    }
+
+    @Get('audit-export')
+    @ApiOperation({ summary: 'L5 Export moderation audit logs' })
+    exportAuditLogs() {
+        return this.adminService.exportAuditLogs();
+    }
 }

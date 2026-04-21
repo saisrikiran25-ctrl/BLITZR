@@ -25,26 +25,29 @@ interface PortfolioState {
     setLoading: (loading: boolean) => void;
     performExchange: (amount: number, type: 'cred_to_chip' | 'chip_to_cred') => Promise<boolean>;
     fetchInitialData: () => Promise<void>;
+    clearData: () => void;
 }
 
 export const usePortfolioStore = create<PortfolioState>((set, get) => ({
     credBalance: 100,
     chipBalance: 200,
-    netWorth: 100,
+    netWorth: 200,
     credibilityScore: 0,
     holdings: [],
     isLoading: true,
 
     setBalances: (creds, chips) =>
         set((state) => {
+            const numCreds = typeof creds === 'string' ? parseFloat(creds) : creds;
+            const numChips = typeof chips === 'string' ? parseFloat(chips) : chips;
             const holdingsValue = state.holdings.reduce(
                 (sum, h) => sum + h.current_value,
                 0,
             );
             return {
-                credBalance: creds,
-                chipBalance: chips,
-                netWorth: creds + (chips / 2) + holdingsValue,
+                credBalance: numCreds,
+                chipBalance: numChips,
+                netWorth: numCreds + (numChips / 2) + holdingsValue,
             };
         }),
 
@@ -124,4 +127,13 @@ export const usePortfolioStore = create<PortfolioState>((set, get) => ({
             set({ isLoading: false });
         }
     },
+    clearData: () =>
+        set({
+            credBalance: 100,
+            chipBalance: 200,
+            netWorth: 200,
+            credibilityScore: 0,
+            holdings: [],
+            isLoading: false,
+        }),
 }));

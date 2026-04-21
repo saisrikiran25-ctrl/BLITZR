@@ -296,8 +296,77 @@ export class AdminAnalyticsService {
         }
 
         return {
-            message: `Ticker${delistedIds.length > 1 ? 's' : ''} ${delistedIds.join(', ')} delisted and all backers refunded.`,
+            message: `Ticker${delistedIds.length > 1 ? 's' : ''} ${delistedIds.join(', ')} delisted. Holdings remain in backers' portfolios at zero liquidity.`,
             delisted: delistedIds,
         };
+    }
+
+    /**
+     * L5 Global Lockdown Toggle
+     * Halts ALL trading and rumor publishing platform-wide.
+     */
+    async toggleGlobalLockdown(active: boolean) {
+        await this.dataSource.query(
+            `UPDATE settings SET value = $1, updated_at = NOW() WHERE key = 'GLOBAL_LOCKDOWN'`,
+            [String(active)],
+        );
+        this.logger.warn(`GLOBAL_LOCKDOWN_${active ? 'ACTIVATED' : 'DEACTIVATED'}`);
+        return { success: true, lockdown_active: active };
+    }
+
+    /**
+     * Real-time Admin Risk Dashboard Data (L5)
+     * Provides a bird-eye view of toxicity and market stress.
+     */
+    async getRiskMetrics() {
+        const [toxicityStats] = await this.dataSource.query(`
+            SELECT 
+                COUNT(*) FILTER (WHERE risk_score > 0.8) as high_risk_count,
+                AVG(risk_score)::numeric as avg_toxicity,
+                COUNT(*) FILTER (WHERE visibility = 'PENDING') as pending_count
+            FROM rumor_posts
+            WHERE created_at >= NOW() - INTERVAL '24 hours'
+        `);
+
+        const [marketStress] = await this.dataSource.query(`
+            SELECT 
+                COUNT(*) FILTER (WHERE status = 'AUTO_FROZEN') as frozen_tickers_count,
+                COUNT(*) FILTER (WHERE status = 'DELISTED') as delisted_count
+            FROM tickers
+        `);
+
+        return {
+            timestamp: new Date(),
+            toxicity: {
+                high_risk_24h: Number(toxicityStats.high_risk_count),
+                avg_toxicity_24h: Number(toxicityStats.avg_toxicity || 0).toFixed(2),
+                pending_moderation: Number(toxicityStats.pending_count),
+            },
+            market: {
+                halted_tickers: Number(marketStress.frozen_tickers_count),
+                delisted_tickers: Number(marketStress.delisted_count),
+            }
+        };
+    }
+
+    /**
+     * Audit Log Export (L5 Compliance)
+     * Returns a structured list of all moderation actions for legal review.
+     */
+    async exportAuditLogs() {
+        return this.dataSource.query(`
+            SELECT 
+                mq.queue_id,
+                mq.flag_type,
+                mq.status,
+                mq.created_at,
+                mq.reviewed_at,
+                rp.content as post_content,
+                rp.author_id,
+                rp.risk_score
+            FROM moderation_queue mq
+            JOIN rumor_posts rp ON mq.post_id = rp.post_id
+            ORDER BY mq.created_at DESC
+        `);
     }
 }

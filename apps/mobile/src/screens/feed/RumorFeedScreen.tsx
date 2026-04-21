@@ -22,12 +22,14 @@ import { audioService } from '../../services/AudioService';
 import { useFeedStore } from '../../store/useFeedStore';
 import { GlassCard } from '../../components/common/GlassCard';
 import { TickerTape } from '../../components/common/TickerTape';
-import { Colors, Typography, Spacing, Gradients } from '../../theme';
+import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
 import { useMarketStore } from '../../store/useMarketStore';
 import { formatTimeAgo } from '../../utils/formatters';
 import { api } from '../../services/api';
 import { Button } from '../../components/common/Button';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { useAuthStore } from '../../store/useAuthStore';
+import { Feather } from '@expo/vector-icons';
 
 /**
  * RumorFeedScreen — High-Fidelity Intelligence Feed
@@ -39,15 +41,18 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const { credibilityScore } = usePortfolioStore();
 
     // Broadcast Modal State
-    const [isCreateModalVisible, setIsCreateModalVisible] = React.useState(false);
     const [newRumorContent, setNewRumorContent] = React.useState('');
     const [isDeploying, setIsDeploying] = React.useState(false);
+    const [isCreateModalVisible, setIsCreateModalVisible] = React.useState(false);
+    const [isDisclosureModalVisible, setIsDisclosureModalVisible] = React.useState(false);
+    const { rumorDisclosureAccepted, updateProfile } = useAuthStore();
 
     // Ghost Scan Animation
     const scanPos = useSharedValue(0);
     React.useEffect(() => {
         scanPos.value = withRepeat(withTiming(1, { duration: 4000 }), -1, false);
-    }, [scanPos]);
+        fetchInitialData(); // Trigger initial feed extraction on screen mount
+    }, [scanPos, fetchInitialData]);
 
     const animatedScanLine = useAnimatedStyle(() => ({
         top: interpolate(scanPos.value, [0, 1], [-10, 300]),
@@ -70,8 +75,8 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     };
 
     const handleCreateRumor = async () => {
-        if (!newRumorContent || newRumorContent.trim().length < 5) {
-            Alert.alert('Invalid Transmission', 'Intelligence broadcasts must contain at least 5 characters of encrypted context.');
+        if (!newRumorContent || newRumorContent.trim().length < 1) {
+            Alert.alert('Invalid Transmission', 'Intelligence broadcasts must contain at least 1 characters of encrypted context.');
             return;
         }
 
@@ -131,18 +136,18 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                             <Text style={styles.ghostAvatarText}>Ω</Text>
                         </View>
                         <View>
-                            <Text style={styles.ghostId}>ANONYMOUS_ENTITY_{item.ghost_id.slice(-4)}</Text>
+                            <Text style={styles.ghostId}>Anonymous Entity {item.ghost_id.slice(-4)}</Text>
                             <Text style={styles.timestamp}>{formatTimeAgo(item.created_at)}</Text>
                         </View>
                     </View>
                     {item.is_pinned && (
                         <View style={styles.pinnedNotice}>
-                            <Text style={styles.pinnedNoticeText}>PRIORITY</Text>
+                            <Text style={styles.pinnedNoticeText}>Priority</Text>
                         </View>
                     )}
                     {(item as Exclude<typeof item, never> & { post_type?: string }).post_type === 'FACTUAL_CLAIM' && (
                         <View style={styles.factualNotice}>
-                            <Text style={styles.factualNoticeText}>⚠️ FACTUAL CLAIM</Text>
+                            <Text style={styles.factualNoticeText}>⚠️ Factual Claim</Text>
                         </View>
                     )}
                 </View>
@@ -186,16 +191,6 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                                         />
                                         <Text style={styles.voteUp}>▲ {item.upvotes}</Text>
                                     </TouchableOpacity>
-                                    <TouchableOpacity
-                                        style={[styles.voteButton, isDown && styles.voteButtonActiveDown]}
-                                        onPress={() => handleVote(item.rumor_id, 'DOWN')}
-                                    >
-                                        <LinearGradient
-                                            colors={[isDown ? 'rgba(255,59,48,0.2)' : 'rgba(255,59,48,0.05)', 'transparent']}
-                                            style={styles.voteButtonBg}
-                                        />
-                                        <Text style={styles.voteDown}>▼ {item.downvotes}</Text>
-                                    </TouchableOpacity>
                                     
                                     <TouchableOpacity
                                         style={styles.disputeButton}
@@ -216,12 +211,12 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill as any} />
 
             <TickerTape items={tickerTapeItems} />
 
             <View style={styles.feedHeader}>
-                <Text style={styles.feedTitle}>INTELLIGENCE_STREAM</Text>
+                <Text style={styles.feedTitle}>Intelligence Stream</Text>
                 <View style={styles.headerDot} />
             </View>
 
@@ -234,7 +229,7 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
                         <Text style={styles.emptyIcon}>∅</Text>
-                        <Text style={styles.emptyTitle}>NO DATA_FLOW</Text>
+                        <Text style={styles.emptyTitle}>No Active Data</Text>
                         <Text style={styles.emptySubtitle}>
                             The encrypted channel is currently silent.
                         </Text>
@@ -245,7 +240,13 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             <TouchableOpacity
                 style={styles.fab}
                 activeOpacity={0.8}
-                onPress={() => setIsCreateModalVisible(true)}
+                onPress={() => {
+                    if (!rumorDisclosureAccepted) {
+                        setIsDisclosureModalVisible(true);
+                    } else {
+                        setIsCreateModalVisible(true);
+                    }
+                }}
             >
                 <LinearGradient
                     colors={Gradients.buttonBuy as any}
@@ -267,7 +268,7 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 <View style={styles.modalOverlay}>
                     <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>ENCRYPTED_BROADCAST</Text>
+                            <Text style={styles.modalTitle}>Secure Broadcast</Text>
                             <View style={styles.modalLine} />
                         </View>
 
@@ -276,12 +277,12 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                                 <Text style={styles.ghostAvatarTextSmall}>Ω</Text>
                             </View>
                             <Text style={styles.ghostWarningText}>
-                                Your biological IP signature will be scrambled via one-way cryptographic hashing upon deployment. You are acting as ANONYMOUS_ENTITY_XXXX.
+                                Your network signature will be scrambled via one-way cryptographic hashing upon deployment. You are acting as Anonymous Entity XXXX.
                             </Text>
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>TRANSMISSION_PAYLOAD</Text>
+                            <Text style={styles.inputLabel}>Message Payload</Text>
                             <TextInput
                                 style={styles.textInput}
                                 value={newRumorContent}
@@ -301,8 +302,8 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                             {isRestrictedFactualClaim() && (
                                 <View style={styles.restrictionWarning}>
                                     <Text style={styles.restrictionWarningText}>
-                                        ⚠️ CREDIBILITY LOCK: Your score ({credibilityScore}) is below 50. 
-                                        You cannot execute 'Factual Claim' intelligence drops until you prove competency in the Prop Arena.
+                                        ⚠️ Credibility Lock: Your score ({credibilityScore}) is below 50. 
+                                        You cannot execute factual intelligence drops until you prove competency in the Arena.
                                     </Text>
                                 </View>
                             )}
@@ -310,17 +311,65 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
                         <View style={styles.modalButtons}>
                             <Button
-                                title="ABORT"
+                                title="Abort"
                                 variant="secondary"
                                 onPress={() => setIsCreateModalVisible(false)}
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                             <Button
-                                title="TRANSMIT"
+                                title="Transmit"
                                 variant="buy"
                                 loading={isDeploying}
                                 disabled={isRestrictedFactualClaim()}
                                 onPress={handleCreateRumor}
+                                style={{ flex: 2 }}
+                            />
+                        </View>
+                    </GlassCard>
+                </View>
+            </Modal>
+
+            {/* Identity Disclosure Modal (L5 Compliance) */}
+            <Modal
+                visible={isDisclosureModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsDisclosureModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <GlassCard style={styles.modalContent} variant="elevated" intensity={60}>
+                        <View style={styles.modalHeader}>
+                            <Feather name="shield" size={32} color={Colors.kineticGreen} />
+                            <Text style={[styles.modalTitle, { marginTop: Spacing.md }]}>Identity Disclosure</Text>
+                            <View style={styles.modalLine} />
+                        </View>
+
+                        <Text style={styles.disclosureText}>
+                            Your identity is <Text style={{ color: Colors.kineticGreen, fontWeight: 'bold' }}>HIDDEN</Text> from other students.
+                            {"\n\n"}
+                            However, your account is verified by your official college email. In cases of <Text style={{ color: Colors.thermalRed }}>legal violations</Text>, harassment, or direct threats, BLITZR cooperates with law enforcement and college authorities.
+                        </Text>
+
+                        <View style={styles.modalButtons}>
+                            <Button
+                                title="I Decline"
+                                variant="secondary"
+                                onPress={() => setIsDisclosureModalVisible(false)}
+                                style={{ flex: 1, marginRight: 8 }}
+                            />
+                            <Button
+                                title="I Acknowledge & Agree"
+                                variant="buy"
+                                onPress={async () => {
+                                    try {
+                                        await api.updateProfile({ rumor_disclosure_accepted: true });
+                                        updateProfile({ rumorDisclosureAccepted: true });
+                                        setIsDisclosureModalVisible(false);
+                                        setIsCreateModalVisible(true);
+                                    } catch (error: any) {
+                                        Alert.alert('Error', 'Failed to save acknowledgement.');
+                                    }
+                                }}
                                 style={{ flex: 2 }}
                             />
                         </View>
@@ -361,10 +410,8 @@ const styles = StyleSheet.create({
         paddingBottom: Spacing.sm,
     },
     feedTitle: {
-        ...Typography.caption,
-        color: Colors.textSecondary,
-        letterSpacing: 3,
-        fontWeight: '700',
+        ...Typography.h3,
+        color: Colors.textPrimary,
     },
     headerDot: {
         width: 4,
@@ -383,10 +430,15 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.md,
         padding: Spacing.lg,
         overflow: 'hidden',
+        borderRadius: 16,
     },
     pinnedCard: {
-        borderColor: 'rgba(212, 175, 55, 0.3)',
-        borderWidth: 1,
+        borderColor: Colors.activeGold,
+        borderWidth: 1.5,
+        shadowColor: Colors.glowGold,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 15,
     },
     scanLine: {
         position: 'absolute',
@@ -401,11 +453,11 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: 0,
         right: 0,
-        width: 40,
-        height: 40,
+        width: 80,
+        height: 80,
         backgroundColor: Colors.activeGold,
-        opacity: 0.05,
-        borderRadius: 20,
+        opacity: 0.1,
+        borderRadius: 40,
         transform: [{ scale: 2 }],
     },
     // Header
@@ -436,10 +488,9 @@ const styles = StyleSheet.create({
         fontWeight: '900',
     },
     ghostId: {
-        ...Typography.ticker,
-        color: Colors.textSecondary,
-        fontSize: 10,
-        letterSpacing: 1,
+        ...Typography.bodyMedium,
+        color: Colors.textPrimary,
+        fontSize: 14,
     },
     pinnedNotice: {
         backgroundColor: Colors.activeGold,
@@ -449,9 +500,9 @@ const styles = StyleSheet.create({
     },
     pinnedNoticeText: {
         ...Typography.dataLabel,
-        fontSize: 8,
+        fontSize: 9,
         color: Colors.obsidianBase,
-        fontWeight: '900',
+        fontFamily: Fonts.bold,
     },
     factualNotice: {
         borderColor: Colors.activeGold,
@@ -463,9 +514,9 @@ const styles = StyleSheet.create({
     },
     factualNoticeText: {
         ...Typography.dataLabel,
-        fontSize: 8,
+        fontSize: 9,
         color: Colors.activeGold,
-        fontWeight: '900',
+        fontFamily: Fonts.bold,
     },
     timestamp: {
         ...Typography.dataLabel,
@@ -521,22 +572,31 @@ const styles = StyleSheet.create({
     voteButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.03)',
-        paddingHorizontal: 10,
-        paddingVertical: 6,
-        borderRadius: 6,
+        backgroundColor: Colors.materialDark,
+        paddingHorizontal: 16, // Chunkier
+        paddingVertical: 8,
+        borderRadius: 100, // Pill
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: Colors.glassBorder,
         overflow: 'hidden',
     },
     voteButtonActiveUp: {
-        borderColor: 'rgba(0,255,65,0.4)',
+        borderColor: Colors.kineticGreen,
+        shadowColor: Colors.glowGreen,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
     },
     voteButtonActiveDown: {
-        borderColor: 'rgba(255,59,48,0.4)',
+        borderColor: Colors.thermalRed,
+        shadowColor: Colors.glowRed,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.6,
+        shadowRadius: 8,
     },
     voteButtonBg: {
         ...StyleSheet.absoluteFillObject,
+        opacity: 0.2, // Boost background gradient
     },
     voteUp: {
         ...Typography.priceSmall,
@@ -553,15 +613,15 @@ const styles = StyleSheet.create({
     disputeButton: {
         justifyContent: 'center',
         alignItems: 'center',
-        paddingHorizontal: 10,
-        backgroundColor: 'rgba(255,255,255,0.02)',
-        borderRadius: 6,
+        paddingHorizontal: 14,
+        backgroundColor: Colors.materialDark,
+        borderRadius: 100, // Pill
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.05)',
+        borderColor: Colors.glassBorder,
     },
     disputeIcon: {
-        fontSize: 12,
-        opacity: 0.6,
+        fontSize: 14,
+        opacity: 0.8,
     },
     // Empty
     emptyState: {
@@ -578,7 +638,6 @@ const styles = StyleSheet.create({
     emptyTitle: {
         ...Typography.h2,
         color: Colors.textPrimary,
-        letterSpacing: 4,
     },
     emptySubtitle: {
         ...Typography.dataLabel,
@@ -590,15 +649,17 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: Spacing.xl,
         right: Spacing.xl,
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         overflow: 'hidden',
-        elevation: 10,
+        elevation: 12,
         shadowColor: Colors.kineticGreen,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.6,
+        shadowRadius: 15,
+        borderWidth: 1.5,
+        borderColor: Colors.kineticGreen,
     },
     fabGradient: {
         width: '100%',
@@ -629,9 +690,8 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.lg,
     },
     modalTitle: {
-        ...Typography.dataLabel,
-        color: Colors.textSecondary,
-        letterSpacing: 4,
+        ...Typography.h2,
+        color: Colors.textPrimary,
     },
     modalLine: {
         height: 1,
@@ -716,6 +776,14 @@ const styles = StyleSheet.create({
     },
     modalButtons: {
         flexDirection: 'row',
+    },
+    disclosureText: {
+        ...Typography.body,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: Spacing.xxl,
+        paddingHorizontal: Spacing.sm,
     },
 });
 

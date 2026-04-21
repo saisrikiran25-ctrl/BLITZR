@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 interface TickerData {
     ticker_id: string;
+    owner_id: string; // The user who owns this ticker/IPO
     price: number;
     change_pct: number;
     supply: number;
@@ -42,6 +43,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
         set((state) => {
             const existing = state.tickers[tickerId] || {
                 ticker_id: tickerId,
+                owner_id: '',
                 price: 0,
                 change_pct: 0,
                 supply: 0,
@@ -86,6 +88,7 @@ export const useMarketStore = create<MarketState>((set, get) => ({
         const { wsService } = require('../services/websocket');
         tickers.forEach((t) => {
             get().updateTicker(t.ticker_id, {
+                owner_id: t.owner_id,
                 price: parseFloat(t.current_price || t.price || '0'),
                 supply: parseInt(t.current_supply || t.supply || '0'),
                 change_pct: parseFloat(t.change_percentage || t.change_pct || '0'),

@@ -127,6 +127,18 @@ export class MarketMonitorService implements OnModuleInit, OnModuleDestroy {
                         [monitorData.author_id],
                     );
 
+                    // L3 Circuit Breaker: Halt trading for 30 minutes
+                    await this.dataSource.query(
+                        `UPDATE tickers
+                         SET status = 'AUTO_FROZEN',
+                             frozen_until = NOW() + INTERVAL '30 minutes',
+                             updated_at = NOW()
+                         WHERE ticker_id = $1`,
+                        [tickerId],
+                    );
+
+                    this.logger.warn(`CIRCUIT_BREAKER_TRIGGERED: ${tickerId} halted for 30m due to post ${postId}`);
+
                     triggered = true;
                     await this.redisClient.del(`monitor:post:${postId}`);
                     break;

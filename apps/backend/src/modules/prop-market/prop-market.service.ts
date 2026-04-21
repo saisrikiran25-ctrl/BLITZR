@@ -11,6 +11,7 @@ import { PropBetEntity } from './entities/prop-bet.entity';
 import { applyPropFees, calculatePariMutuelPayout, PROP_PLATFORM_FEE_RATE } from '@blitzr/shared';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { CredibilityService } from '../users/credibility.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PropMarketService {
@@ -22,6 +23,7 @@ export class PropMarketService {
         private readonly dataSource: DataSource,
         private readonly realtimeGateway: RealtimeGateway,
         private readonly credibilityService: CredibilityService,
+        private readonly notificationsService: NotificationsService,
     ) { }
 
     /**
@@ -238,9 +240,34 @@ export class PropMarketService {
                     `UPDATE prop_bets SET payout_amount = $1, is_settled = true WHERE bet_id = $2`,
                     [payout, bet.bet_id],
                 );
+
+                // Notification for winner
+                await this.notificationsService.createNotification(
+                    bet.user_id,
+                    'ARENA_VICTORY',
+                    `You won ¤${payout.toFixed(2)} on "${event.title}"!`,
+                    'ARENA',
+                    { eventId, payout, outcome: winningOutcome }
+                );
             }
 
             // Mark losing bets as settled (no payout)
+            const losingBets = await queryRunner.query(
+                `SELECT bet_id, user_id FROM prop_bets 
+         WHERE event_id = $1 AND outcome_choice != $2 AND is_settled = false`,
+                [eventId, winningOutcome],
+            );
+
+            for (const bet of losingBets) {
+                await this.notificationsService.createNotification(
+                    bet.user_id,
+                    'ARENA_RESOLUTION',
+                    `Event "${event.title}" resolved as ${winningOutcome}. Better luck next time!`,
+                    'ARENA',
+                    { eventId, outcome: winningOutcome }
+                );
+            }
+
             await queryRunner.query(
                 `UPDATE prop_bets SET is_settled = true, payout_amount = 0 
          WHERE event_id = $1 AND outcome_choice != $2`,

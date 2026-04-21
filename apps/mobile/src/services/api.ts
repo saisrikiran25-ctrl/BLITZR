@@ -2,9 +2,9 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Platform } from 'react-native';
 
 const DEFAULT_BASE_URL = Platform.select({
-    android: 'http://10.0.2.2:3000/api/v1',
-    ios: 'http://localhost:3000/api/v1',
-    default: 'http://localhost:3000/api/v1',
+    android: 'http://10.0.2.2:3001/api/v1',
+    ios: 'http://localhost:3001/api/v1',
+    default: 'http://localhost:3001/api/v1',
 });
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL;
 
@@ -60,8 +60,34 @@ class ApiClient {
         });
     }
 
+    async googleLogin(idToken: string) {
+        return this.request<{ user: any; token: string; isNewUser: boolean }>('POST', '/auth/google', {
+            idToken,
+        });
+    }
+
     async getProfile() {
         return this.request<any>('GET', '/users/me');
+    }
+
+    async updateProfile(data: any) {
+        return this.request<any>('PATCH', '/users/me', data);
+    }
+
+    async getNotifications(limit = 20) {
+        return this.request<any[]>('GET', `/notifications?limit=${limit}`);
+    }
+
+    async markAsRead(id: string) {
+        return this.request<any>('POST', `/notifications/${id}/read`);
+    }
+
+    async markAllAsRead() {
+        return this.request<any>('POST', '/notifications/read-all');
+    }
+
+    async deleteAccount() {
+        return this.request<any>('DELETE', '/users/me');
     }
 
     async acceptTos() {
@@ -71,6 +97,10 @@ class ApiClient {
     // === IPO ===
     async createIpo(tickerSymbol: string, category?: string) {
         return this.request('POST', '/ipo/create', { ticker_symbol: tickerSymbol, category });
+    }
+
+    async delistIpo() {
+        return this.request('POST', '/ipo/delist');
     }
 
     async getActiveTickers() {

@@ -19,7 +19,7 @@ import { useMarketStore } from '../../store/useMarketStore';
 import { GlassCard } from '../../components/common/GlassCard';
 import { TickerTape } from '../../components/common/TickerTape';
 import { SkeletonCard } from '../../components/common/SkeletonScreen';
-import { Colors, Typography, Spacing, Gradients } from '../../theme';
+import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
 import { formatPrice, formatPctChange, formatCompact } from '../../utils/formatters';
 
 /**
@@ -55,7 +55,7 @@ export const TradingFloorScreen: React.FC<{ navigation: any }> = ({ navigation }
                     {/* Thermal Trace Glow */}
                     <LinearGradient
                         colors={(isPositive ? Gradients.thermalTraceGreen : Gradients.thermalTraceRed) as any}
-                        style={StyleSheet.absoluteFill}
+                        style={StyleSheet.absoluteFill as any}
                         start={{ x: 0, y: 0.5 }}
                         end={{ x: 1, y: 0.5 }}
                     />
@@ -64,7 +64,7 @@ export const TradingFloorScreen: React.FC<{ navigation: any }> = ({ navigation }
                         <Text style={styles.tickerSymbol}>{item.ticker_id}</Text>
                         <Text style={styles.tickerNameSub}>PRIMARY ENTITY</Text>
                         <Text style={styles.tickerPrice}>
-                            {formatPrice(item.price)} ¢
+                            {formatPrice(item.price)}
                         </Text>
                         <Text style={styles.tickerSupply}>S: {formatCompact(item.supply)}</Text>
                     </View>
@@ -90,7 +90,7 @@ export const TradingFloorScreen: React.FC<{ navigation: any }> = ({ navigation }
             {/* Ambient Background Glow */}
             <LinearGradient
                 colors={Gradients.obsidianDeep as any}
-                style={StyleSheet.absoluteFill}
+                style={StyleSheet.absoluteFill as any}
             />
 
             {/* Ticker Tape Marquee */}
@@ -101,9 +101,8 @@ export const TradingFloorScreen: React.FC<{ navigation: any }> = ({ navigation }
                 <Text style={styles.heroLabel}>GLOBAL DATA AGGREGATE</Text>
                 <View style={styles.numberWrapper}>
                     <Text style={styles.heroNumber}>
-                        {formatCompact(globalMarketCap)}
+                        {formatPrice(globalMarketCap)}
                     </Text>
-                    <Text style={styles.heroSuffix}>¢</Text>
                 </View>
                 <Animated.View style={[styles.heroGlow, animatedHeroGlow]} />
             </View>
@@ -159,14 +158,12 @@ const styles = StyleSheet.create({
     },
     heroNumber: {
         ...Typography.displayHero,
-        color: Colors.textPrimary,
-        fontSize: 48,
-        letterSpacing: -1,
-    },
-    heroSuffix: {
-        ...Typography.h2,
-        color: Colors.kineticGreen,
-        marginLeft: Spacing.xs,
+        color: Colors.kineticGreen, // Neon cyber green
+        fontSize: 56, // Massive
+        letterSpacing: -2,
+        textShadowColor: Colors.glowGreen,
+        textShadowOffset: { width: 0, height: 0 },
+        textShadowRadius: 15,
     },
     heroGlow: {
         position: 'absolute',
@@ -248,25 +245,34 @@ const styles = StyleSheet.create({
         fontSize: 10,
     },
     pnlBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 4,
-        marginBottom: 4,
+        paddingHorizontal: 12, // Wider pill
+        paddingVertical: 6,
+        borderRadius: 100, // Pill shaped gamified badge
+        marginBottom: 6,
     },
     pnlBadgePos: {
-        backgroundColor: 'rgba(0, 255, 65, 0.15)',
-        borderWidth: 1,
-        borderColor: 'rgba(0, 255, 65, 0.3)',
+        backgroundColor: Colors.pulseGreen,
+        borderWidth: 1.5,
+        borderColor: Colors.kineticGreen,
+        shadowColor: Colors.glowGreen,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 12,
     },
     pnlBadgeNeg: {
-        backgroundColor: 'rgba(255, 49, 49, 0.15)',
-        borderWidth: 1,
-        borderColor: 'rgba(255, 49, 49, 0.3)',
+        backgroundColor: Colors.pulseRed,
+        borderWidth: 1.5,
+        borderColor: Colors.thermalRed,
+        shadowColor: Colors.glowRed,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 12,
     },
     pnlText: {
         ...Typography.dataLabel,
-        fontSize: 11,
+        fontSize: 12,
         color: Colors.textPrimary,
+        fontFamily: Fonts.bold,
     },
     volumeLabel: {
         ...Typography.dataLabel,

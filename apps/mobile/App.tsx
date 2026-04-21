@@ -4,11 +4,11 @@ import { StatusBar, View } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import {
   useFonts,
-  SpaceGrotesk_400Regular,
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold
-} from '@expo-google-fonts/space-grotesk';
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold
+} from '@expo-google-fonts/inter';
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { wsService } from './src/services/websocket';
 import { Colors } from './src/theme';
@@ -21,10 +21,10 @@ SplashScreen.preventAutoHideAsync();
  */
 function App(): React.JSX.Element | null {
   const [fontsLoaded] = useFonts({
-    SpaceGrotesk_400Regular,
-    SpaceGrotesk_500Medium,
-    SpaceGrotesk_600SemiBold,
-    SpaceGrotesk_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
 
   const [fontError] = React.useState<Error | null>(null);

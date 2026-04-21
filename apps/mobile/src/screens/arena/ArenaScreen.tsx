@@ -14,10 +14,11 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Button } from '../../components/common/Button';
 import { TickerTape } from '../../components/common/TickerTape';
-import { Colors, Typography, Spacing, Gradients } from '../../theme';
+import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
 import { useMarketStore } from '../../store/useMarketStore';
 import { usePropStore } from '../../store/usePropStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
+import { formatCreds, formatChips } from '../../utils/formatters';
 import { api } from '../../services/api';
 
 /**
@@ -28,7 +29,7 @@ export const ArenaScreen: React.FC = () => {
     const { tickerTapeItems } = useMarketStore();
     const { events, isLoading, fetchInitialData } = usePropStore();
     const { chipBalance } = usePortfolioStore();
-    const [selectedTab, setSelectedTab] = useState<'ACTIVE' | 'SETTLED'>('ACTIVE');
+    const [selectedTab, setSelectedTab] = useState<'Active' | 'Settled'>('Active');
 
     // Betting Modal State
     const [isBetModalVisible, setIsBetModalVisible] = useState(false);
@@ -47,11 +48,11 @@ export const ArenaScreen: React.FC = () => {
     const [isCreating, setIsCreating] = useState(false);
 
     const filteredEvents = events.filter(e =>
-        selectedTab === 'ACTIVE' ? e.status === 'OPEN' : e.status === 'SETTLED'
+        selectedTab === 'Active' ? e.status === 'OPEN' : e.status === 'SETTLED'
     );
 
     const formatTimeRemaining = (ms: number): string => {
-        if (ms <= 0) return 'EXPIRED';
+        if (ms <= 0) return 'Expired';
         const hours = Math.floor(ms / 3600000);
         const minutes = Math.floor((ms % 3600000) / 60000);
         if (hours > 0) return `${hours}h ${minutes}m`;
@@ -121,7 +122,7 @@ export const ArenaScreen: React.FC = () => {
                 liquidity
             );
 
-            Alert.alert('Market Deployed', `Event created successfully with ${liquidity}¢ initial pool parity.`);
+            Alert.alert('Market Deployed', `Event created successfully with ¤ ${liquidity} initial pool parity.`);
             setIsCreateModalVisible(false);
             setNewEventTitle(''); // Reset
             setCustomCategory(''); // Reset
@@ -146,7 +147,7 @@ export const ArenaScreen: React.FC = () => {
                 <View style={styles.cardHeader}>
                     <View style={styles.categoryBadge}>
                         <Text style={styles.categoryIcon}>🏛️</Text>
-                        <Text style={styles.propCategory}>{item.category || 'POLITICS'}</Text>
+                        <Text style={styles.propCategory}>{item.category || 'Politics'}</Text>
                     </View>
                 </View>
 
@@ -155,7 +156,7 @@ export const ArenaScreen: React.FC = () => {
                     {item.title}
                 </Text>
                 <Text style={styles.propDate}>
-                    {isSettled ? 'SETTLED' : `Ends in ${formatTimeRemaining(item.time_remaining_ms)}`}
+                    {isSettled ? 'Settled' : `Ends in ${formatTimeRemaining(item.time_remaining_ms)}`}
                 </Text>
 
                 {/* Outcomes List */}
@@ -167,13 +168,13 @@ export const ArenaScreen: React.FC = () => {
                         activeOpacity={0.7}
                     >
                         <View style={styles.outcomeInfo}>
-                            <Text style={styles.outcomeName}>YES</Text>
+                            <Text style={styles.outcomeName}>Yes</Text>
                             <View style={styles.progressTrack}>
                                 <View style={[styles.progressBar, { width: `${yesPct}%`, backgroundColor: Colors.kineticGreen }]} />
                             </View>
                         </View>
                         <View style={styles.outcomeStats}>
-                            <Text style={styles.outcomeOdds}>{Math.round(yesPct)}¢</Text>
+                            <Text style={styles.outcomeOdds}>¤ {Math.round(yesPct)}</Text>
                         </View>
                     </TouchableOpacity>
 
@@ -184,21 +185,21 @@ export const ArenaScreen: React.FC = () => {
                         activeOpacity={0.7}
                     >
                         <View style={styles.outcomeInfo}>
-                            <Text style={styles.outcomeName}>NO</Text>
+                            <Text style={styles.outcomeName}>No</Text>
                             <View style={styles.progressTrack}>
                                 <View style={[styles.progressBar, { width: `${noPct}%`, backgroundColor: Colors.thermalRed }]} />
                             </View>
                         </View>
                         <View style={styles.outcomeStats}>
-                            <Text style={styles.outcomeOdds}>{Math.round(noPct)}¢</Text>
+                            <Text style={styles.outcomeOdds}>¤ {Math.round(noPct)}</Text>
                         </View>
                     </TouchableOpacity>
                 </View>
 
                 {/* Footer Stats */}
                 <View style={styles.cardFooter}>
-                    <Text style={styles.volumeText}>{totalPool.toLocaleString(undefined, { maximumFractionDigits: 0 })}¢ vol</Text>
-                    <Text style={styles.marketCount}>LIVE</Text>
+                    <Text style={styles.volumeText}>{formatCreds(totalPool)} Vol</Text>
+                    <Text style={styles.marketCount}>Live</Text>
                 </View>
             </GlassCard>
         );
@@ -207,12 +208,12 @@ export const ArenaScreen: React.FC = () => {
     return (
         <View style={styles.container}>
             <StatusBar barStyle="light-content" />
-            <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill as any} />
 
             <TickerTape items={tickerTapeItems} />
 
             <View style={styles.tabBar}>
-                {['ACTIVE', 'SETTLED'].map((tab: any) => (
+                {['Active', 'Settled'].map((tab: any) => (
                     <TouchableOpacity
                         key={tab}
                         style={[styles.tab, selectedTab === tab && styles.tabActive]}
@@ -227,11 +228,11 @@ export const ArenaScreen: React.FC = () => {
             </View>
 
             {isLoading ? (
-                <View style={styles.emptyState}><Text style={styles.emptyTitle}>SCANNING ARENA...</Text></View>
+                <View style={styles.emptyState}><Text style={styles.emptyTitle}>Scanning Arena...</Text></View>
             ) : filteredEvents.length === 0 ? (
                 <View style={styles.emptyState}>
                     <Text style={styles.emptyIcon}>∅</Text>
-                    <Text style={styles.emptyTitle}>NO ACTIVE PROPS</Text>
+                    <Text style={styles.emptyTitle}>No Active Markets</Text>
                     <Text style={styles.emptySubtitle}>Initialize new events via the (+) controller.</Text>
                 </View>
             ) : (
@@ -246,7 +247,7 @@ export const ArenaScreen: React.FC = () => {
                 />
             )}
 
-            {selectedTab === 'ACTIVE' && (
+            {selectedTab === 'Active' && (
                 <TouchableOpacity
                     style={styles.fab}
                     activeOpacity={0.8}
@@ -272,7 +273,7 @@ export const ArenaScreen: React.FC = () => {
                 <View style={styles.modalOverlay}>
                     <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>BET_TERMINAL_V1</Text>
+                            <Text style={styles.modalTitle}>Place Bet</Text>
                             <View style={styles.modalLine} />
                         </View>
 
@@ -280,18 +281,18 @@ export const ArenaScreen: React.FC = () => {
 
                         <View style={styles.outcomePreview}>
                             <View style={styles.outcomeBlock}>
-                                <Text style={styles.outcomeLabel}>POSITION</Text>
+                                <Text style={styles.outcomeLabel}>Position</Text>
                                 <Text style={[styles.outcomeValue, selectedOutcome === 'YES' ? styles.green : styles.red]}>
                                     {selectedOutcome}
                                 </Text>
                             </View>
                             <View style={styles.outcomeDivider} />
                             <View style={styles.outcomeBlock}>
-                                <Text style={styles.outcomeLabel}>EST. RETURN</Text>
+                                <Text style={styles.outcomeLabel}>Estimated Return</Text>
                                 <Text style={styles.outcomeValue}>
                                     {(() => {
                                         const amount = parseInt(betAmount) || 0;
-                                        if (amount <= 0 || !selectedEvent) return '0.00¢';
+                                        if (amount <= 0 || !selectedEvent) return formatChips(0);
 
                                         // Dynamic slippage calculation
                                         const total = selectedEvent.yes_pool + selectedEvent.no_pool;
@@ -304,14 +305,14 @@ export const ArenaScreen: React.FC = () => {
                                         const newPool = pool + netBet;
 
                                         const returnAmount = newTotal * (netBet / newPool);
-                                        return returnAmount.toFixed(2) + '¢';
+                                        return formatChips(returnAmount);
                                     })()}
                                 </Text>
                             </View>
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>CHIP_ALLOCATION</Text>
+                            <Text style={styles.inputLabel}>Chip Allocation</Text>
                             <TextInput
                                 style={styles.amountInput}
                                 value={betAmount}
@@ -321,19 +322,19 @@ export const ArenaScreen: React.FC = () => {
                                 placeholderTextColor="rgba(255,255,255,0.2)"
                             />
                             <View style={styles.balanceTag}>
-                                <Text style={styles.balanceText}>BAL: {chipBalance}</Text>
+                                <Text style={styles.balanceText}>Balance: {chipBalance}</Text>
                             </View>
                         </View>
 
                         <View style={styles.modalButtons}>
                             <Button
-                                title="ABORT"
+                                title="Abort"
                                 variant="secondary"
                                 onPress={() => setIsBetModalVisible(false)}
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                             <Button
-                                title="APPROVE"
+                                title="Approve"
                                 variant={selectedOutcome === 'YES' ? 'buy' : 'sell'}
                                 loading={isSubmitting}
                                 onPress={handlePlaceBet}
@@ -359,12 +360,12 @@ export const ArenaScreen: React.FC = () => {
                 <View style={styles.modalOverlay}>
                     <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>DEPLOY_MARKET</Text>
+                            <Text style={styles.modalTitle}>Create Market</Text>
                             <View style={styles.modalLine} />
                         </View>
 
                         <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>PROPOSITION_TITLE</Text>
+                            <Text style={styles.inputLabel}>Proposition Title</Text>
                             <TextInput
                                 style={styles.textInput}
                                 value={newEventTitle}
@@ -378,9 +379,9 @@ export const ArenaScreen: React.FC = () => {
 
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl }}>
                             <View style={{ flex: 1, marginRight: Spacing.md }}>
-                                <Text style={styles.inputLabel}>CATEGORY</Text>
+                                <Text style={styles.inputLabel}>Category</Text>
                                 <View style={styles.categoryPicker}>
-                                    {['CAMPUS', 'SPORTS', 'EVENTS', 'OPINION', 'OTHER'].map((cat) => (
+                                    {['Campus', 'Sports', 'Events', 'Opinion', 'Other'].map((cat) => (
                                         <TouchableOpacity
                                             key={cat}
                                             style={[styles.catOption, newEventCategory === cat && styles.catOptionActive]}
@@ -396,7 +397,7 @@ export const ArenaScreen: React.FC = () => {
                                             style={[styles.textInput, { minHeight: 40, paddingBottom: 4, fontSize: 12 }]}
                                             value={customCategory}
                                             onChangeText={setCustomCategory}
-                                            placeholder="ENTER CUSTOM CATEGORY..."
+                                            placeholder="Enter custom category..."
                                             placeholderTextColor="rgba(255,255,255,0.2)"
                                             maxLength={15}
                                             autoCapitalize="characters"
@@ -408,7 +409,7 @@ export const ArenaScreen: React.FC = () => {
 
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xxl }}>
                             <View style={{ flex: 1, marginRight: Spacing.md }}>
-                                <Text style={styles.inputLabel}>TIMEFRAME (HOURS)</Text>
+                                <Text style={styles.inputLabel}>Duration (Hours)</Text>
                                 <TextInput
                                     style={styles.numericInput}
                                     value={newEventExpiryHours}
@@ -420,7 +421,7 @@ export const ArenaScreen: React.FC = () => {
                             </View>
 
                             <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                                <Text style={styles.inputLabel}>SEED_LIQUIDITY (CHIPS)</Text>
+                                <Text style={styles.inputLabel}>Initial Liquidity</Text>
                                 <TextInput
                                     style={[styles.numericInput, { color: Colors.kineticGreen }]}
                                     value={newEventLiquidity}
@@ -430,8 +431,8 @@ export const ArenaScreen: React.FC = () => {
                                     placeholderTextColor="rgba(255,255,255,0.2)"
                                 />
                                 <View style={{ position: 'absolute', bottom: -20, left: 0, right: 0, alignItems: 'center' }}>
-                                    <Text style={{ fontSize: 9, color: Colors.thermalRed, fontWeight: '700' }}>
-                                        COST: -{parseInt(newEventLiquidity || '0') * 2} BAL
+                                    <Text style={{ fontSize: 9, color: Colors.thermalRed, fontFamily: Fonts.bold }}>
+                                        Cost: -{parseInt(newEventLiquidity || '0') * 2} Chips
                                     </Text>
                                 </View>
                             </View>
@@ -439,13 +440,13 @@ export const ArenaScreen: React.FC = () => {
 
                         <View style={styles.modalButtons}>
                             <Button
-                                title="CANCEL"
+                                title="Cancel"
                                 variant="secondary"
                                 onPress={() => setIsCreateModalVisible(false)}
                                 style={{ flex: 1, marginRight: 8 }}
                             />
                             <Button
-                                title="DEPLOY"
+                                title="Deploy"
                                 variant="buy"
                                 loading={isCreating}
                                 onPress={handleCreateEvent}
@@ -487,10 +488,8 @@ const styles = StyleSheet.create({
         borderRadius: 2,
     },
     tabText: {
-        ...Typography.caption,
+        ...Typography.h3,
         color: Colors.textTertiary,
-        letterSpacing: 3,
-        fontWeight: '700',
     },
     tabTextActive: {
         color: Colors.textPrimary,
@@ -532,17 +531,15 @@ const styles = StyleSheet.create({
     propCategory: {
         ...Typography.dataLabel,
         color: Colors.textSecondary,
-        fontSize: 9,
-        fontWeight: '700',
-        textTransform: 'uppercase',
+        fontSize: 10,
+        fontFamily: Fonts.semibold,
     },
     propTitle: {
         ...Typography.bodyMedium,
         color: Colors.textPrimary,
-        fontSize: 14,
-        fontWeight: '700',
-        height: 40,
-        lineHeight: 20,
+        fontSize: 15,
+        height: 44,
+        lineHeight: 22,
         marginTop: 4,
     },
     propDate: {
@@ -565,10 +562,9 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     outcomeName: {
-        ...Typography.dataLabel,
+        ...Typography.bodyMedium,
         color: Colors.textPrimary,
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 13,
         marginBottom: 4,
     },
     progressTrack: {
@@ -590,7 +586,6 @@ const styles = StyleSheet.create({
     outcomeOdds: {
         ...Typography.h3,
         color: Colors.textPrimary,
-        fontWeight: '800',
         marginRight: 8,
     },
     cardFooter: {
@@ -626,7 +621,6 @@ const styles = StyleSheet.create({
     emptyTitle: {
         ...Typography.h2,
         color: Colors.textPrimary,
-        letterSpacing: 4,
         marginBottom: Spacing.sm,
     },
     emptySubtitle: {
@@ -679,9 +673,8 @@ const styles = StyleSheet.create({
         marginBottom: Spacing.lg,
     },
     modalTitle: {
-        ...Typography.dataLabel,
-        color: Colors.textSecondary,
-        letterSpacing: 4,
+        ...Typography.h2,
+        color: Colors.textPrimary,
     },
     modalLine: {
         height: 1,
@@ -729,8 +722,8 @@ const styles = StyleSheet.create({
     inputLabel: {
         ...Typography.dataLabel,
         color: Colors.textSecondary,
-        letterSpacing: 2,
-        marginBottom: Spacing.sm,
+        fontSize: 11,
+        marginBottom: Spacing.xs,
     },
     amountInput: {
         ...Typography.displayHero,

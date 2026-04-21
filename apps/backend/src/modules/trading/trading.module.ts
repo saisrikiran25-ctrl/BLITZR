@@ -9,6 +9,7 @@ import { OhlcAggregationService } from './ohlc-aggregation.service';
 import { IpoModule } from '../ipo/ipo.module';
 import { UsersModule } from '../users/users.module';
 import { RealtimeModule } from '../realtime/realtime.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
     imports: [
@@ -16,6 +17,7 @@ import { RealtimeModule } from '../realtime/realtime.module';
         IpoModule,
         UsersModule,
         RealtimeModule,
+        NotificationsModule,
     ],
     controllers: [TradingController],
     providers: [TradingService, TradeQueueService, OhlcAggregationService],

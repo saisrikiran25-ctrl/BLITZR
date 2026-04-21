@@ -16,6 +16,11 @@ import { DossierScreen } from '../screens/profile/DossierScreen';
 import { VaultScreen } from '../screens/vault/VaultScreen';
 import { AuthScreen } from '../screens/auth/AuthScreen';
 import { TosScreen } from '../screens/auth/TosScreen';
+import { EditProfileScreen } from '../screens/profile/EditProfileScreen';
+import { PrivacyScreen } from '../screens/profile/PrivacyScreen';
+import { PrivacyDetailScreen } from '../screens/profile/PrivacyDetailScreen';
+import { NotificationsScreen } from '../screens/profile/NotificationsScreen';
+import { NotificationCenter } from '../components/notifications/NotificationCenter';
 
 /**
  * BLITZR Tab Navigation — "The Control Panel"
@@ -95,6 +100,11 @@ export function AppNavigator() {
                     <>
                         <Stack.Screen name="Main" component={TabNavigator} />
                         <Stack.Screen name="TickerDetail" component={TickerDetailScreen} />
+                        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                        <Stack.Screen name="Privacy" component={PrivacyScreen} />
+                        <Stack.Screen name="PrivacyDetail" component={PrivacyDetailScreen} />
+                        <Stack.Screen name="Notifications" component={NotificationsScreen} />
+                        <Stack.Screen name="NotificationCenter" component={NotificationCenter} />
                     </>
                 ) : (
                     <Stack.Screen name="Tos" component={TosScreen} />

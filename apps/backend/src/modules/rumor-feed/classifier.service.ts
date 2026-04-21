@@ -14,9 +14,11 @@ export interface ClassificationResult {
 export class ClassifierService {
     private readonly logger = new Logger(ClassifierService.name);
     private openai?: OpenAI;
+    private sarvamAi?: OpenAI;
     private redisClient?: Redis;
     private readonly redisUrl: string;
     private readonly openAiKey: string;
+    private readonly sarvamKey: string;
 
     // Rule-based dictionaries
     private factualIndicators = [
@@ -34,6 +36,7 @@ export class ClassifierService {
     constructor(private configService: ConfigService) {
         this.redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
         this.openAiKey = this.configService.get<string>('OPENAI_API_KEY', 'default-key-for-typing');
+        this.sarvamKey = this.configService.get<string>('SARVAM_API_KEY', '');
     }
 
     async classify(text: string): Promise<ClassificationResult> {
@@ -45,7 +48,19 @@ export class ClassifierService {
         }
 
         const llmResult = await this.classifyWithLLM(text);
-        return { ...llmResult, tickers };
+        
+        // Sarvam AI (Unified Toxicity Control & Detection)
+        const sarvamRisk = await this.checkSarvamToxicity(text);
+        
+        // Final risk calculation
+        const finalRisk = Math.max(llmResult.risk_score, sarvamRisk);
+        
+        return { 
+            post_type: llmResult.post_type, 
+            risk_score: finalRisk, 
+            confidence: llmResult.confidence, 
+            tickers 
+        };
     }
 
     private extractTickers(text: string): string[] {
@@ -130,8 +145,76 @@ Return ONLY valid JSON: {"post_type": "...", "risk_score": 0.0}`,
 
     private getOpenAIClient(): OpenAI {
         if (!this.openai) {
-            this.openai = new OpenAI({ apiKey: this.openAiKey });
+            this.openai = new OpenAI({ apiKey: this.openAiKey || 'default-key' });
         }
         return this.openai;
+    }
+
+    private getSarvamClient(): OpenAI {
+        if (!this.sarvamAi) {
+            this.sarvamAi = new OpenAI({ 
+                apiKey: this.sarvamKey || 'default-key',
+                baseURL: 'https://api.sarvam.ai/v1' 
+            });
+        }
+        return this.sarvamAi;
+    }
+
+    /**
+     * Sarvam AI Unified Anti-Toxicity Control
+     * Handles both general toxicity and regional/Hinglish nuance.
+     */
+    private async checkSarvamToxicity(text: string): Promise<number> {
+        if (!this.sarvamKey) {
+            this.logger.warn('SARVAM_API_KEY not set. Using fallback toxicity check.');
+            const profanityAndSlang = ['shit', 'fuck', 'bitch', 'asshole', 'gaali', 'harami', 'kamina', 'bhenchod', 'chutiya'];
+            if (profanityAndSlang.some(word => text.toLowerCase().includes(word))) {
+                return 0.95; 
+            }
+            return 0.0;
+        }
+
+        try {
+            this.logger.debug('Running Sarvam AI Toxicity check...');
+            const sarvam = this.getSarvamClient();
+            
+            // ==========================================
+            // USER'S CUSTOM ANTI-TOXICITY PROMPT GOES HERE
+            // ==========================================
+            const SYSTEM_PROMPT = `You are an uncompromising zero-tolerance anti-toxicity moderator for a campus network. Your sole purpose is to detect and flag any inappropriate content.
+
+YOU MUST strictly identify and assign a risk_score of 1.0 if the text contains ANY of the following:
+1. Vulgarity & Profanity: Any English or Hindi swearing, cursing, or bad words (e.g., "fuck", "bitch", "shit", "bhenchod", "chutiya", "madarchod", "gaali").
+2. Evasion & Misspellings: Any attempt to bypass filters using misspellings, symbols, or leetspeak (e.g., "fcuk", "f*ck", "f u c k", "b!tch").
+3. Hate Speech & Extremism: Any racist, religious abuse, or references to hate groups/figures used abusively (e.g., "Hitler", Nazi rhetoric, slurs).
+4. Severe Bullying/Harassment.
+
+If any of these are present, return EXACTLY: {"risk_score": 1.0}
+If the text is completely clean and safe, return EXACTLY: {"risk_score": 0.0}
+
+Return ONLY valid JSON with a single key "risk_score" from 0.0 to 1.0 representing the toxicity level.`;
+
+            const response = await sarvam.chat.completions.create({
+                model: 'sarvam-30b', // Sarvam recommended model
+                messages: [
+                    {
+                        role: 'system',
+                        content: SYSTEM_PROMPT,
+                    },
+                    { role: 'user', content: text },
+                ],
+                temperature: 0,
+                max_tokens: 30,
+            });
+
+            const rawJson = response.choices[0]?.message?.content || '{}';
+            // clean potential markdown wrappers from LLM output
+            const cleaned = rawJson.replace(/```json/g, '').replace(/```/g, '');
+            const parsed = JSON.parse(cleaned);
+            return typeof parsed.risk_score === 'number' ? parsed.risk_score : 0.0;
+        } catch (error) {
+            this.logger.error('Sarvam AI Toxicity Check Failed', error);
+            return 0.0;
+        }
     }
 }

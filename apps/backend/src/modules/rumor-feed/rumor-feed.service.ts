@@ -29,6 +29,12 @@ export class RumorFeedService {
      * Create a new anonymous rumor post.
      */
     async createPost(authorId: string, collegeDomain: string, text: string) {
+        // L5 Global Lockdown Check
+        const isLockdown = await this.dataSource.query(`SELECT value FROM settings WHERE key = 'GLOBAL_LOCKDOWN'`);
+        if (isLockdown.length && isLockdown[0].value === 'true') {
+            throw new ForbiddenException('Intelligence Stream is in GLOBAL LOCKDOWN mode. All broadcasts suspended.');
+        }
+
         const ghostId = this.generateGhostId();
 
         // STEP 1: Check prohibited content
@@ -39,6 +45,10 @@ export class RumorFeedService {
 
         // STEP 2: Classify the post
         const classification = await this.classifierService.classify(text);
+
+        if (classification.risk_score >= 0.99) {
+            throw new BadRequestException('STRICT WARNING: Your post contains vulgar, evasive, or hate speech and has been completely blocked from the feed.');
+        }
 
         // STEP 3: Credibility gate
         const [user] = await this.dataSource.query(
@@ -64,11 +74,16 @@ export class RumorFeedService {
         }
 
         // STEP 5: Determine visibility + moderation flag
-        let visibility: 'PUBLIC' | 'PENDING' | 'HIDDEN' | 'REMOVED' = 'PUBLIC';
+        const visibility: 'PUBLIC' | 'PENDING' | 'HIDDEN' | 'REMOVED' = 'PUBLIC';
         let moderationFlag: string | null = null;
+
         if (classification.post_type === 'FACTUAL_CLAIM' && classification.risk_score >= 0.7) {
-            visibility = 'PENDING';
             moderationFlag = 'HIGH_RISK_CLAIM';
+        }
+
+        // L2 Shadow Gate: Alert admins, but keep PUBLIC for demo/instant feedback
+        if (credScore < 10 && visibility === 'PUBLIC') {
+            moderationFlag = 'SHADOW_REVIEW';
         }
 
         // STEP 6: Save post
@@ -271,7 +286,7 @@ export class RumorFeedService {
                     );
 
                     await queryRunner.manager.query(
-                        `UPDATE users SET credibility_score = GREATEST(0, credibility_score - 10) WHERE user_id = $1`,
+                        `UPDATE users SET chip_balance = GREATEST(0, chip_balance - 500) WHERE user_id = $1`,
                         [post.author_id],
                     );
 

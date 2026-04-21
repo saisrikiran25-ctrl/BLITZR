@@ -94,5 +94,6 @@ export class PropEventEntity {
     college_domain: string;
 
     @UpdateDateColumn({ type: 'timestamptz' })
-    updated_at: Date;
+    updated_at: Date;    
 }
+

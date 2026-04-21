@@ -1,171 +1,169 @@
 // ============================================================
-// BLITZR: Typography — "The Authority Grid"
-// Primary: Inter / SF Pro Display
-// Data: JetBrains Mono / Roboto Mono (monospaced, prevents layout jumping)
-// Sizing: Strict 4px grid
+// BLITZR: Modern Typography — "Gamified Cyberpunk"
+// Primary: Inter (Modern, professional, highly readable)
+// Tone: Vibrant, neon, extreme contrast
 // ============================================================
 
 import { TextStyle } from 'react-native';
 import { Colors } from './colors';
 
-// Font families
 export const Fonts = {
-    primary: 'SpaceGrotesk_400Regular',
-    bold: 'SpaceGrotesk_700Bold',
-    mono: 'SpaceGrotesk_500Medium',
+    primary: 'Inter_400Regular',
+    medium: 'Inter_500Medium',
+    semibold: 'Inter_600SemiBold',
+    bold: 'Inter_700Bold',
 };
 
-// Strict 4px grid sizing
+// Larger font sizing for a chunkier gamified feel
 export const FontSizes = {
-    /** Data labels — smallest legible */
-    xs: 10,     // 10px
-    /** Small captions */
-    sm: 12,     // 12px (3 × 4)
-    /** Body text */
-    body: 14,   // 14px
-    /** Large body / subheadings */
-    md: 16,     // 16px (4 × 4)
-    /** Section headers */
-    lg: 18,     // 18px
-    /** Screen titles */
-    xl: 20,     // 20px (5 × 4)
-    /** Hero numbers */
-    xxl: 24,    // 24px (6 × 4)
-    /** Global Market Cap counter */
-    hero: 32,   // 32px (8 × 4)
-    /** Massive display */
-    display: 48, // 48px (12 × 4)
+    xs: 12,     
+    sm: 14,     
+    body: 16,   
+    md: 18,     
+    lg: 20,     
+    xl: 24,     
+    xxl: 32,    
+    hero: 44,   
+    display: 60,
 } as const;
 
-// Line heights (based on 4px grid)
 export const LineHeights = {
-    xs: 16,
-    sm: 16,
-    body: 20,
-    md: 24,
-    lg: 24,
-    xl: 28,
-    xxl: 32,
-    hero: 40,
-    display: 56,
+    xs: 18,
+    sm: 20,
+    body: 24,
+    md: 26,
+    lg: 28,
+    xl: 32,
+    xxl: 40,
+    hero: 52,
+    display: 68,
 } as const;
 
-// Font weights
 export const FontWeights = {
     regular: '400' as TextStyle['fontWeight'],
     medium: '500' as TextStyle['fontWeight'],
     semibold: '600' as TextStyle['fontWeight'],
-    bold: '700' as TextStyle['fontWeight'],
-    black: '900' as TextStyle['fontWeight'],
+    bold: '800' as TextStyle['fontWeight'], // Extra chunky bold
 };
 
-// Pre-composed text styles
 export const Typography = {
-    // === HEADERS ===
     displayHero: {
-        fontFamily: Fonts.mono,
+        fontFamily: Fonts.bold,
         fontSize: FontSizes.hero,
         lineHeight: LineHeights.hero,
         fontWeight: FontWeights.bold,
+        letterSpacing: -2, 
+        textTransform: 'uppercase', // Cyberpunk standard
     } as TextStyle,
 
     h1: {
-        fontFamily: Fonts.primary,
+        fontFamily: Fonts.bold,
         fontSize: FontSizes.xxl,
         lineHeight: LineHeights.xxl,
         fontWeight: FontWeights.bold,
+        letterSpacing: -1,
+        textTransform: 'uppercase',
     } as TextStyle,
 
     h2: {
-        fontFamily: Fonts.primary,
+        fontFamily: Fonts.semibold,
         fontSize: FontSizes.xl,
         lineHeight: LineHeights.xl,
-        fontWeight: FontWeights.semibold,
+        fontWeight: FontWeights.bold,
+        letterSpacing: -0.5,
     } as TextStyle,
 
     h3: {
-        fontFamily: Fonts.primary,
+        fontFamily: Fonts.semibold,
         fontSize: FontSizes.lg,
         lineHeight: LineHeights.lg,
-        fontWeight: FontWeights.semibold,
+        fontWeight: FontWeights.bold,
+        letterSpacing: 0,
     } as TextStyle,
 
-    // === BODY ===
     body: {
         fontFamily: Fonts.primary,
         fontSize: FontSizes.body,
         lineHeight: LineHeights.body,
-        fontWeight: FontWeights.regular,
+        fontWeight: FontWeights.medium, // Thicker base body for contrast
     } as TextStyle,
 
     bodyMedium: {
-        fontFamily: Fonts.primary,
+        fontFamily: Fonts.medium,
         fontSize: FontSizes.body,
         lineHeight: LineHeights.body,
-        fontWeight: FontWeights.medium,
+        fontWeight: FontWeights.semibold,
     } as TextStyle,
 
     caption: {
         fontFamily: Fonts.primary,
         fontSize: FontSizes.sm,
         lineHeight: LineHeights.sm,
-        fontWeight: FontWeights.regular,
+        fontWeight: FontWeights.medium,
+        color: Colors.textSecondary,
+        letterSpacing: 0.5,
     } as TextStyle,
 
-    // === DATA / MONOSPACED ===
     ticker: {
-        fontFamily: Fonts.mono,
-        fontSize: FontSizes.body,
-        lineHeight: LineHeights.body,
+        fontFamily: Fonts.bold,
+        fontSize: FontSizes.md,
+        lineHeight: LineHeights.md,
         fontWeight: FontWeights.bold,
+        letterSpacing: 1, // Gamified tracking
     } as TextStyle,
 
     price: {
-        fontFamily: Fonts.mono,
+        fontFamily: Fonts.bold,
         fontSize: FontSizes.md,
         lineHeight: LineHeights.md,
-        fontWeight: FontWeights.semibold,
+        fontWeight: FontWeights.bold,
+        letterSpacing: -0.5,
     } as TextStyle,
 
     priceSmall: {
-        fontFamily: Fonts.mono,
+        fontFamily: Fonts.semibold,
         fontSize: FontSizes.sm,
         lineHeight: LineHeights.sm,
-        fontWeight: FontWeights.medium,
+        fontWeight: FontWeights.semibold,
+        letterSpacing: -0.25,
     } as TextStyle,
 
     priceLarge: {
-        fontFamily: Fonts.mono,
+        fontFamily: Fonts.bold,
         fontSize: FontSizes.xxl,
         lineHeight: LineHeights.xxl,
         fontWeight: FontWeights.bold,
+        letterSpacing: -1.5,
     } as TextStyle,
 
     dataLabel: {
-        fontFamily: Fonts.mono,
+        fontFamily: Fonts.bold,
         fontSize: FontSizes.xs,
         lineHeight: LineHeights.xs,
-        fontWeight: FontWeights.regular,
+        fontWeight: FontWeights.bold,
+        color: Colors.textSecondary,
+        letterSpacing: 2, // Modern wide label format
+        textTransform: 'uppercase',
     } as TextStyle,
 
-    // Ticker tape marquee
     tickerTape: {
-        fontFamily: Fonts.mono,
-        fontSize: FontSizes.sm,
-        lineHeight: 24, // 24px high marquee
-        fontWeight: FontWeights.medium,
+        fontFamily: Fonts.bold,
+        fontSize: FontSizes.body,
+        lineHeight: 24,
+        fontWeight: FontWeights.bold,
+        letterSpacing: 2,
+        textTransform: 'uppercase',
     } as TextStyle,
 
-    // Phosphor Glow HUD Styles
     phosphorGreen: {
         color: Colors.kineticGreen,
-        textShadowColor: 'rgba(0, 255, 65, 0.5)',
+        textShadowColor: Colors.glowGreen,
         textShadowOffset: { width: 0, height: 0 },
         textShadowRadius: 8,
     },
     phosphorAmber: {
         color: Colors.thermalAmber,
-        textShadowColor: 'rgba(255, 149, 0, 0.5)',
+        textShadowColor: Colors.thermalAmber,
         textShadowOffset: { width: 0, height: 0 },
         textShadowRadius: 8,
     },

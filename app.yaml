@@ -1,0 +1,30 @@
+name: blitzr-prime
+region: blr # Defaulting to Bangalore, but user can change during import
+services:
+  - name: blitzr-backend
+    source_dir: apps/backend
+    build_command: npm install && npm run build
+    run_command: npm run migrate && npm run start:prod
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    http_port: 3001
+    envs:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+      - key: REDIS_URL
+        scope: RUN_AND_BUILD_TIME
+      - key: JWT_SECRET
+        scope: RUN_TIME
+      - key: SARVAM_API_KEY
+        scope: RUN_TIME
+      - key: GOOGLE_CLIENT_ID
+        scope: RUN_TIME
+    databases:
+      - engine: PG
+        name: blitzr-db
+        version: "16"
+      - engine: REDIS
+        name: blitzr-redis
+        version: "7"

@@ -70,7 +70,7 @@ export class IpoService {
             user_id: userId,
             ticker_id: tickerId,
             shares_held: INITIAL_SUPPLY,
-            avg_buy_price: this.bondingCurve.getPrice(INITIAL_SUPPLY),
+            avg_buy_price: startingPrice,  // Reuse already-computed value
         });
 
         await this.holdingRepo.save(holding);
@@ -84,7 +84,7 @@ export class IpoService {
         return {
             ticker_id: tickerId,
             current_supply: INITIAL_SUPPLY,
-            starting_price: this.bondingCurve.getPrice(INITIAL_SUPPLY),
+            starting_price: startingPrice,  // Reuse already-computed value
             market_cap: this.bondingCurve.getMarketCap(INITIAL_SUPPLY),
         };
     }

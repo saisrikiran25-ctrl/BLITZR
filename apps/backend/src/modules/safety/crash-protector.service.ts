@@ -38,7 +38,8 @@ export class CrashProtectorService implements OnModuleInit, OnModuleDestroy {
         // Find all active tickers
         const activeTickers = await this.tickerRepo.find({
             where: { status: 'ACTIVE' },
-            relations: ['owner']
+            relations: ['owner'],
+            select: ['ticker_id', 'current_supply', 'owner_id', 'status', 'price_open', 'frozen_until'],
         });
 
         for (const ticker of activeTickers) {
@@ -51,12 +52,23 @@ export class CrashProtectorService implements OnModuleInit, OnModuleDestroy {
                 [ticker.ticker_id, twentyFourHoursAgo],
             );
 
-            if (!txYesterday?.price_at_execution) {
+            // Fall back to session price_open if no 24h transaction exists
+            // (protects new/low-volume tickers that might not have traded yet)
+            let baslinePrice: number | null = txYesterday?.price_at_execution
+                ? Number(txYesterday.price_at_execution)
+                : null;
+
+            if (!baslinePrice) {
+                // Use price_open as fallback baseline
+                baslinePrice = Number(ticker.price_open) || null;
+            }
+
+            if (!baslinePrice) {
                 continue;
             }
 
             const priceNow = this.bondingCurve.getPrice(Number(ticker.current_supply));
-            const priceThen = Number(txYesterday.price_at_execution);
+            const priceThen = baslinePrice;
             const changePct = ((priceNow - priceThen) / priceThen) * 100;
 
             if (changePct <= -25) {

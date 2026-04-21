@@ -19,7 +19,7 @@ async function bootstrap() {
     app.useGlobalPipes(
         new ValidationPipe({
             whitelist: true,
-            forbidNonWhitelisted: true,
+            forbidNonWhitelisted: false,
             transform: true,
             transformOptions: {
                 enableImplicitConversion: true,
@@ -27,7 +27,7 @@ async function bootstrap() {
         }),
     );
 
-    const port = process.env.PORT || 3000;
+    const port = 3001;
     await app.listen(port);
     console.log(`🚀 BLITZR-PRIME backend running on port ${port}`);
 }

@@ -14,7 +14,7 @@ import Animated, {
     withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, BorderRadius, Spacing, Gradients } from '../../theme';
+import { Colors, Typography, BorderRadius, Spacing, Gradients, Fonts, FontWeights } from '../../theme';
 
 interface ButtonProps {
     title: string;
@@ -25,6 +25,8 @@ interface ButtonProps {
     loading?: boolean;
     fullWidth?: boolean;
     style?: StyleProp<ViewStyle>;
+    onLongPress?: () => void;
+    delayLongPress?: number;
 }
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -44,6 +46,8 @@ export const Button: React.FC<ButtonProps> = ({
     loading = false,
     fullWidth = false,
     style,
+    onLongPress,
+    delayLongPress,
 }) => {
     const scale = useSharedValue(1);
 
@@ -94,6 +98,8 @@ export const Button: React.FC<ButtonProps> = ({
             onPress={handlePress}
             onPressIn={handlePressIn}
             onPressOut={handlePressOut}
+            onLongPress={!disabled && !loading ? onLongPress : undefined}
+            delayLongPress={delayLongPress}
             disabled={disabled || loading}
             style={[
                 styles.base,
@@ -110,7 +116,7 @@ export const Button: React.FC<ButtonProps> = ({
                     colors={gradientColors}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 0 }}
-                    style={StyleSheet.absoluteFill}
+                    style={StyleSheet.absoluteFill as any}
                 />
             )}
             {renderContent()}
@@ -122,11 +128,10 @@ const styles = StyleSheet.create({
     base: {
         alignItems: 'center',
         justifyContent: 'center',
-        borderRadius: BorderRadius.button,
+        borderRadius: 100, // Pill shaped for modern gamified look
         overflow: 'hidden',
-        // Industrial edge highlight
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.1)',
+        borderTopWidth: 1.5,
+        borderTopColor: 'rgba(255, 255, 255, 0.25)', // Stronger inner highlight
     },
     fullWidth: {
         width: '100%',
@@ -136,10 +141,11 @@ const styles = StyleSheet.create({
     },
     text: {
         ...Typography.bodyMedium,
+        fontFamily: Fonts.bold, // Bolder
         color: Colors.textPrimary,
-        fontWeight: '800',
-        letterSpacing: 2,
-        textTransform: 'uppercase',
+        fontWeight: FontWeights.bold,
+        textTransform: 'uppercase', // Aggressive gamified text
+        letterSpacing: 2, // Wider tracking
     },
     secondaryText: {
         color: Colors.textSecondary,

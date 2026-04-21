@@ -29,14 +29,14 @@ export const GlassCard: React.FC<GlassCardProps> = ({
             <BlurView
                 intensity={Platform.OS === 'web' ? 0 : intensity}
                 tint="dark"
-                style={StyleSheet.absoluteFill}
+                style={StyleSheet.absoluteFill as any}
             />
             {hasShimmer && variant !== 'flat' && (
                 <LinearGradient
                     colors={Gradients.glassShine as any}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 0.5, y: 0.5 }}
-                    style={StyleSheet.absoluteFill}
+                    style={StyleSheet.absoluteFill as any}
                 />
             )}
             <View style={styles.content}>
@@ -49,14 +49,15 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 const styles = StyleSheet.create({
     card: {
         borderRadius: BorderRadius.card,
-        borderWidth: 1,
-        borderColor: Colors.glassBorder,
+        borderWidth: 1.5,
+        borderColor: Colors.glassBorder, // Thick reflective rim
         overflow: 'hidden',
-        // Shadow for depth
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
+        // Subtle, refined dark blue shadow (Substantially toned down)
+        shadowColor: '#000D1A',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 6,
     },
     content: {
         padding: 16,

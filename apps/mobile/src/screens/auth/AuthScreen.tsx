@@ -9,7 +9,14 @@ import {
     KeyboardAvoidingView,
     Platform,
     Pressable,
+    ActivityIndicator,
 } from 'react-native';
+// Mocking the import for the environment, in reality: import { GoogleSignin } from '@react-native-google-signin/google-signin';
+const GoogleSignin: any = {
+    configure: (config: any) => {},
+    signIn: async () => ({ idToken: 'google_id_token_mock' }),
+    hasPlayServices: async () => true,
+};
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -37,7 +44,16 @@ export const AuthScreen: React.FC = () => {
     const [campuses, setCampuses] = useState<string[]>([]);
     const [selectedCampus, setSelectedCampus] = useState<string | undefined>(undefined);
     const [authError, setAuthError] = useState<string | null>(null);
+    const [tosChecked, setTosChecked] = useState(false);
+    const [googleLoading, setGoogleLoading] = useState(false);
     const login = useAuthStore((s) => s.login);
+
+    useEffect(() => {
+        GoogleSignin.configure({
+            webClientId: 'PLACEHOLDER_GOOGLE_WEB_CLIENT_ID', // Replaced by user in .env
+            offlineAccess: true,
+        });
+    }, []);
 
     // Fetch strict campuses on email domain change (debounced)
     useEffect(() => {
@@ -87,9 +103,45 @@ export const AuthScreen: React.FC = () => {
         if (authError) setAuthError(null);
     };
 
+    const handleGoogleSignIn = async () => {
+        setGoogleLoading(true);
+        setAuthError(null);
+        try {
+            await GoogleSignin.hasPlayServices();
+            const userInfo = await GoogleSignin.signIn();
+            
+            if (!userInfo.idToken) {
+                throw new Error('Google Sign-In failed: No ID Token received.');
+            }
+
+            const result = await api.googleLogin(userInfo.idToken);
+
+            if (result.isNewUser) {
+                // If it's a new user, they might need to set a custom username
+                // For now, we'll auto-login them with the generated one, 
+                // but we could redirect to a profile-setup screen.
+                Alert.alert('Welcome!', `Your basic account is ready. Your ticker name is currently $${result.user.username}. You can change this in Profile later.`);
+            }
+
+            login(
+                result.user.user_id, 
+                result.user.username, 
+                result.token, 
+                result.user.tos_accepted || false, 
+                result.user.is_ipo_active || false, 
+                result.user.rumor_disclosure_accepted || false
+            );
+        } catch (error: any) {
+            console.log('Google Sign-In Error:', error);
+            setAuthError(error.message || 'Google Authentication failed.');
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
     const handleSubmit = async () => {
-        if (!email || !password) {
-            Alert.alert('Missing Fields', 'Email and password are required.');
+        if (isRegistering && !tosChecked) {
+            Alert.alert('Terms of Service', 'You must understand that BLITZR operates with virtual credits to create an account.');
             return;
         }
 
@@ -113,7 +165,7 @@ export const AuthScreen: React.FC = () => {
                 result = await api.login(email, password);
             }
 
-            login(result.user.user_id, result.user.username, result.token, result.user.tos_accepted || false);
+            login(result.user.user_id, result.user.username, result.token, result.user.tos_accepted || false, result.user.is_ipo_active || false, result.user.rumor_disclosure_accepted || false);
         } catch (error: any) {
             const msg = error?.message || 'Unknown error';
             const lowerMsg = String(msg).toLowerCase();
@@ -208,7 +260,19 @@ export const AuthScreen: React.FC = () => {
                         secureTextEntry
                     />
 
-
+                    {isRegistering && (
+                        <Pressable 
+                            style={styles.checkboxContainer} 
+                            onPress={() => setTosChecked(!tosChecked)}
+                        >
+                            <View style={[styles.checkbox, tosChecked && styles.checkboxActive]}>
+                                {tosChecked && <Text style={styles.checkmark}>✓</Text>}
+                            </View>
+                            <Text style={styles.checkboxText}>
+                                I understand that Creds and Chips are virtual game currency with no real-world monetary value.
+                            </Text>
+                        </Pressable>
+                    )}
 
                     <Button
                         title={isRegistering ? 'REGISTER' : 'LOGIN'}
@@ -216,8 +280,9 @@ export const AuthScreen: React.FC = () => {
                         size="lg"
                         fullWidth
                         loading={isLoading}
+                        disabled={isRegistering && !tosChecked}
                         onPress={handleSubmit}
-                        style={{ marginTop: Spacing.lg }}
+                        style={{ marginTop: Spacing.sm }}
                     />
 
                     <Button
@@ -230,6 +295,22 @@ export const AuthScreen: React.FC = () => {
                             setAuthError(null);
                         }}
                         style={{ marginTop: Spacing.md }}
+                    />
+
+                    <View style={styles.dividerContainer}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>IDENTITY VERIFICATION</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    <Button
+                        title="SIGN IN WITH GOOGLE"
+                        variant="secondary"
+                        size="lg"
+                        fullWidth
+                        loading={googleLoading}
+                        onPress={handleGoogleSignIn}
+                        style={styles.googleButton}
                     />
                 </GlassCard>
 
@@ -363,6 +444,27 @@ const styles = StyleSheet.create({
         color: '#ffffff',
         textAlign: 'center',
         fontWeight: 'bold',
+    },
+    dividerContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: Spacing.xl,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        backgroundColor: Colors.glassBorder,
+        opacity: 0.5,
+    },
+    dividerText: {
+        ...Typography.caption,
+        color: Colors.textTertiary,
+        marginHorizontal: Spacing.md,
+        letterSpacing: 1.5,
+    },
+    googleButton: {
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        borderColor: Colors.glassBorder,
     },
 });
 
