@@ -1,47 +1,54 @@
 const fs = require('fs');
 const path = require('path');
+const Module = require('module');
 
-// THE CORRECT ENTRY POINT - confirmed from local build output
-// TypeScript with NestJS in a monorepo outputs to: apps/backend/dist/apps/backend/src/main.js
-// This is because the shared package (../../packages/shared) causes TypeScript to preserve the full path structure.
+// ─────────────────────────────────────────────────────────────────────
+// MODULE ALIAS INJECTION
+// The compiled backend requires('@blitzr/shared') which npm workspace
+// symlinks normally resolve. On DigitalOcean the symlink resolution
+// can fail. We intercept the require() call and redirect it to the
+// copy of shared that is ALREADY compiled inside the backend's own
+// dist folder — 100% reliable, no npm symlinks involved.
+// ─────────────────────────────────────────────────────────────────────
+const sharedPath = path.join(
+    __dirname,
+    'apps', 'backend', 'dist', 'packages', 'shared', 'src', 'index.js'
+);
 
-const entryPoint = path.join(__dirname, 'apps', 'backend', 'dist', 'apps', 'backend', 'src', 'main.js');
+const _originalResolve = Module._resolveFilename;
+Module._resolveFilename = function (request, parent, isMain, options) {
+    if (request === '@blitzr/shared' || request.startsWith('@blitzr/shared/')) {
+        const subPath = request.slice('@blitzr/shared'.length);
+        const resolved = path.join(
+            __dirname,
+            'apps', 'backend', 'dist', 'packages', 'shared', 'src',
+            subPath || 'index.js'
+        );
+        return _originalResolve.call(this, resolved, parent, isMain, options);
+    }
+    return _originalResolve.call(this, request, parent, isMain, options);
+};
+
+// ─────────────────────────────────────────────────────────────────────
+// ENTRY POINT LAUNCH
+// ─────────────────────────────────────────────────────────────────────
+const entryPoint = path.join(
+    __dirname,
+    'apps', 'backend', 'dist', 'apps', 'backend', 'src', 'main.js'
+);
 
 console.log('--- BLITZR DEPLOYMENT STARTING ---');
-console.log(`Entry point: ${entryPoint}`);
 
-if (fs.existsSync(entryPoint)) {
-    console.log('✅ Entry point found. Launching BLITZR-PRIME Backend...');
-    require(entryPoint);
-} else {
-    console.error('❌ FATAL: Entry point not found. The build likely failed.');
-    console.error('Expected path:', entryPoint);
-    
-    // List the dist folder if it exists to help diagnose
-    const distDir = path.join(__dirname, 'apps', 'backend', 'dist');
-    if (fs.existsSync(distDir)) {
-        console.log('Build output exists at:', distDir);
-        const walk = (dir, depth = 0) => {
-            if (depth > 4) return;
-            const entries = fs.readdirSync(dir);
-            entries.forEach(e => {
-                const full = path.join(dir, e);
-                const stat = fs.statSync(full);
-                const indent = '  '.repeat(depth);
-                if (stat.isDirectory()) {
-                    console.log(`${indent}[dir] ${e}/`);
-                    walk(full, depth + 1);
-                } else {
-                    console.log(`${indent}[file] ${e}`);
-                }
-            });
-        };
-        walk(distDir);
-    } else {
-        console.error('❌ No dist folder found at:', distDir);
-        console.error('This means the build command (npm run backend:build) FAILED or was never run.');
-        console.error('Check the BUILD LOGS tab (not Deploy Logs) in DigitalOcean for TypeScript compilation errors.');
-    }
-    
+if (!fs.existsSync(sharedPath)) {
+    console.error('❌ FATAL: Shared package not found at:', sharedPath);
     process.exit(1);
 }
+console.log('✅ @blitzr/shared aliased to:', sharedPath);
+
+if (!fs.existsSync(entryPoint)) {
+    console.error('❌ FATAL: Backend entry point not found at:', entryPoint);
+    process.exit(1);
+}
+console.log('✅ Entry point found. Launching BLITZR-PRIME Backend...');
+
+require(entryPoint);
