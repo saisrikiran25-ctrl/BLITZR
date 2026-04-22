@@ -10,12 +10,8 @@ import {
     Platform,
     Pressable,
 } from 'react-native';
-// Mocking the import for the environment, in reality: import { GoogleSignin } from '@react-native-google-signin/google-signin';
-const GoogleSignin: any = {
-    configure: (_config: any) => {},
-    signIn: async () => ({ idToken: 'google_id_token_mock' }),
-    hasPlayServices: async () => true,
-};
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
 import Animated, {
     useSharedValue,
     useAnimatedStyle,
@@ -48,9 +44,12 @@ export const AuthScreen: React.FC = () => {
     const login = useAuthStore((s) => s.login);
 
     useEffect(() => {
+        // The Web Client ID is required for identity verification on the backend.
+        // It should be provided by the environment configuration.
         GoogleSignin.configure({
-            webClientId: 'PLACEHOLDER_GOOGLE_WEB_CLIENT_ID', // Replaced by user in .env
+            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'PENDING_EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
             offlineAccess: true,
+            forceCodeForRefreshToken: true,
         });
     }, []);
 
