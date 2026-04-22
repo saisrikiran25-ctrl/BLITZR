@@ -4,6 +4,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ScheduleModule } from '@nestjs/schedule';
 import { APP_GUARD } from '@nestjs/core';
 import { TosGuard } from './common/guards/tos.guard';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -29,6 +31,12 @@ import { getDatabaseConfig } from './config/database.config';
         ConfigModule.forRoot({
             isGlobal: true,
             envFilePath: '.env',
+        }),
+
+        // Static Frontend
+        ServeStaticModule.forRoot({
+            rootPath: join(__dirname, '..', '..', '..', 'client'),
+            exclude: ['/api/(.*)'],
         }),
 
         // PostgreSQL via TypeORM

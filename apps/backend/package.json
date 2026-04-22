@@ -5,7 +5,7 @@
     "description": "BLITZR-PRIME NestJS Backend",
     "scripts": {
         "build": "nest build",
-        "postbuild": "node scripts/sync-migrations.js",
+        "postbuild": "node scripts/sync-assets.js",
         "dev": "ts-node -r tsconfig-paths/register src/main.ts",
         "start": "node dist/apps/backend/src/main.js",
         "start:prod": "node dist/apps/backend/src/main.js",
@@ -27,6 +27,7 @@
         "@nestjs/platform-express": "^10.3.0",
         "@nestjs/platform-socket.io": "^10.3.0",
         "@nestjs/schedule": "^4.1.2",
+        "@nestjs/serve-static": "^4.0.2",
         "@nestjs/swagger": "^11.2.6",
         "@nestjs/typeorm": "^10.0.1",
         "@nestjs/websockets": "^10.3.0",

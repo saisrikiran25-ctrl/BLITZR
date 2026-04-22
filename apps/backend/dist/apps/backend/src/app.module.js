@@ -13,6 +13,8 @@ const typeorm_1 = require("@nestjs/typeorm");
 const schedule_1 = require("@nestjs/schedule");
 const core_1 = require("@nestjs/core");
 const tos_guard_1 = require("./common/guards/tos.guard");
+const serve_static_1 = require("@nestjs/serve-static");
+const path_1 = require("path");
 // Feature Modules
 const auth_module_1 = require("./modules/auth/auth.module");
 const users_module_1 = require("./modules/users/users.module");
@@ -39,6 +41,11 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 envFilePath: '.env',
+            }),
+            // Static Frontend
+            serve_static_1.ServeStaticModule.forRoot({
+                rootPath: (0, path_1.join)(__dirname, '..', '..', '..', 'client'),
+                exclude: ['/api/(.*)'],
             }),
             // PostgreSQL via TypeORM
             typeorm_1.TypeOrmModule.forRootAsync({
