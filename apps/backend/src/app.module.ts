@@ -36,7 +36,7 @@ import { getDatabaseConfig } from './config/database.config';
         // Static Frontend
         ServeStaticModule.forRoot({
             rootPath: join(__dirname, '..', '..', '..', 'client'),
-            exclude: ['/api/(.*)'],
+            exclude: ['/api(.*)'],
         }),
 
         // PostgreSQL via TypeORM

@@ -3,7 +3,11 @@ import { useMarketStore } from '../store/useMarketStore';
 import { usePropStore } from '../store/usePropStore';
 import { useAuthStore } from '../store/useAuthStore';
 
-const WS_URL = 'wss://monkfish-app-r6nxh.ondigitalocean.app/market';
+const WS_URL = Platform.select({
+    android: 'wss://monkfish-app-r6nxh.ondigitalocean.app/market',
+    ios: 'wss://monkfish-app-r6nxh.ondigitalocean.app/market',
+    default: (typeof window !== 'undefined' ? `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/market` : ''),
+});
 
 /**
  * WebSocket service for real-time data.

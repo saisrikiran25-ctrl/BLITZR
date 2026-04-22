@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 const DEFAULT_BASE_URL = Platform.select({
     android: 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1',
     ios: 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1',
-    default: 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1',
+    default: '/api/v1', // Realignment for co-located production
 });
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL;
 
