@@ -5,6 +5,7 @@
     "description": "BLITZR-PRIME NestJS Backend",
     "scripts": {
         "build": "nest build",
+        "postbuild": "node scripts/sync-migrations.js",
         "dev": "ts-node -r tsconfig-paths/register src/main.ts",
         "start": "node dist/apps/backend/src/main.js",
         "start:prod": "node dist/apps/backend/src/main.js",
