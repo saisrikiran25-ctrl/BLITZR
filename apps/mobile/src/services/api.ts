@@ -55,37 +55,43 @@ class ApiClient {
         body?: any,
     ): Promise<T> {
         const urls = getBaseUrls();
-        let lastNetworkError: unknown = null;
+        const attemptErrors: string[] = [];
 
-        for (let i = 0; i < urls.length; i++) {
-            const baseUrl = urls[i];
-            let response: Response;
-
+        for (let attemptIndex = 0; attemptIndex < urls.length; attemptIndex++) {
+            const baseUrl = urls[attemptIndex];
             try {
-                response = await fetch(`${baseUrl}${path}`, {
+                const response = await fetch(`${baseUrl}${path}`, {
                     method,
                     headers: this.getHeaders(),
                     body: body ? JSON.stringify(body) : undefined,
                 });
+
+                if (!response.ok) {
+                    const errorPayload = await response.json().catch(() => ({ message: 'Request failed' }));
+                    const message = errorPayload.message || `HTTP ${response.status}`;
+
+                    if (response.status >= 500 && attemptIndex < urls.length - 1) {
+                        attemptErrors.push(`${baseUrl}: ${message}`);
+                        continue;
+                    }
+
+                    const httpError = new Error(message);
+                    httpError.name = 'ApiHttpError';
+                    throw httpError;
+                }
+
+                return response.json();
             } catch (error) {
-                lastNetworkError = error;
-                continue;
+                if (error instanceof Error && error.name === 'ApiHttpError') {
+                    throw error;
+                }
+                const message = error instanceof Error ? error.message : 'Network request failed';
+                attemptErrors.push(`${baseUrl}: ${message}`);
             }
-
-            if (response.status === 404 && i < urls.length - 1) {
-                continue;
-            }
-
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({ message: 'Request failed' }));
-                throw new Error(error.message || `HTTP ${response.status}`);
-            }
-
-            return response.json();
         }
 
-        const fallbackMessage = lastNetworkError instanceof Error
-            ? lastNetworkError.message
+        const fallbackMessage = attemptErrors.length > 0
+            ? `Unable to connect to BLITZR services. Tried: ${attemptErrors.join(' | ')}`
             : 'Unable to connect to BLITZR services.';
         throw new Error(fallbackMessage);
     }
