@@ -41,8 +41,31 @@ ALTER TABLE prop_events ADD COLUMN IF NOT EXISTS institution_id UUID REFERENCES 
 ALTER TABLE prop_events ADD COLUMN IF NOT EXISTS featured BOOLEAN DEFAULT FALSE;
 
 -- Rename rumors to rumor_posts for spec alignment
-ALTER TABLE IF EXISTS rumors RENAME TO rumor_posts;
-ALTER TABLE IF EXISTS rumor_posts RENAME COLUMN rumor_id TO post_id;
+DO $$
+BEGIN
+    IF to_regclass('public.rumors') IS NOT NULL
+       AND to_regclass('public.rumor_posts') IS NULL THEN
+        ALTER TABLE rumors RENAME TO rumor_posts;
+    END IF;
+
+    IF to_regclass('public.rumor_posts') IS NOT NULL
+       AND EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'rumor_posts'
+              AND column_name = 'rumor_id'
+       )
+       AND NOT EXISTS (
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'rumor_posts'
+              AND column_name = 'post_id'
+       ) THEN
+        ALTER TABLE rumor_posts RENAME COLUMN rumor_id TO post_id;
+    END IF;
+END $$;
 
 -- Migration 5: Modify Rumor Posts Table
 DO $$ BEGIN
