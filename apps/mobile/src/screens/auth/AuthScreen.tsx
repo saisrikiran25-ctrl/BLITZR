@@ -9,11 +9,10 @@ import {
     KeyboardAvoidingView,
     Platform,
     Pressable,
-    ActivityIndicator,
 } from 'react-native';
 // Mocking the import for the environment, in reality: import { GoogleSignin } from '@react-native-google-signin/google-signin';
 const GoogleSignin: any = {
-    configure: (config: any) => {},
+    configure: (_config: any) => {},
     signIn: async () => ({ idToken: 'google_id_token_mock' }),
     hasPlayServices: async () => true,
 };

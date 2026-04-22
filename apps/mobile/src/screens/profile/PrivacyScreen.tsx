@@ -43,7 +43,7 @@ export const PrivacyScreen: React.FC = () => {
             if (Platform.OS === 'web') {
                 (window as any).location.reload();
             }
-        } catch (error) {
+        } catch {
             if (Platform.OS === 'web') {
                 (window as any).alert('Failed to execute data purge.');
             } else {

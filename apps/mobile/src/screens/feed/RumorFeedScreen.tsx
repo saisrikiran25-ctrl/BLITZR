@@ -177,7 +177,6 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                         {(() => {
                             const voteStatus = userVotes[item.rumor_id];
                             const isUp = voteStatus === 'UP';
-                            const isDown = voteStatus === 'DOWN';
 
                             return (
                                 <>
@@ -366,7 +365,7 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                                         updateProfile({ rumorDisclosureAccepted: true });
                                         setIsDisclosureModalVisible(false);
                                         setIsCreateModalVisible(true);
-                                    } catch (error: any) {
+                                    } catch {
                                         Alert.alert('Error', 'Failed to save acknowledgement.');
                                     }
                                 }}
@@ -786,5 +785,4 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.sm,
     },
 });
-
 

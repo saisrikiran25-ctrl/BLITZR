@@ -18,6 +18,14 @@ jest.mock('@expo-google-fonts/space-grotesk', () => ({
   SpaceGrotesk_700Bold: {},
 }));
 
+jest.mock('@expo-google-fonts/inter', () => ({
+  useFonts: () => [true],
+  Inter_400Regular: {},
+  Inter_500Medium: {},
+  Inter_600SemiBold: {},
+  Inter_700Bold: {},
+}));
+
 jest.mock('../src/services/websocket', () => ({
   wsService: {
     connect: jest.fn(),
