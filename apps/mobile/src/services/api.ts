@@ -37,21 +37,28 @@ const getBaseUrls = (): string[] => {
         }
     };
 
+    // 1. First priority: Explicitly configured API URL
     add(configuredBaseUrl);
 
+    // 2. Second priority: If running on a non-local web host, try its own origin
     if (currentLocation?.origin && !isLocalWebHost) {
         add(`${currentLocation.origin}/api/v1`);
     }
 
+    // 3. Third priority: Known Production URL
     add(PRODUCTION_BASE_URL);
+
+    // 4. Fourth priority: Default Platform URL (usually production)
     add(DEFAULT_BASE_URL);
 
+    // 5. Fifth priority: Fallback to localhost if on a local host
     if (isLocalWebHost) {
         add(LOCAL_DEV_BASE_URL);
     }
 
     return urls;
 };
+
 
 /**
  * BLITZR API Client
@@ -83,13 +90,18 @@ class ApiClient {
                     method,
                     headers: this.getHeaders(),
                     body: body ? JSON.stringify(body) : undefined,
+                }).catch(err => {
+                    // This handles network-level errors (e.g. ERR_CONNECTION_REFUSED)
+                    throw err;
                 });
 
                 if (!response.ok) {
                     const errorBody = await response.json().catch(() => ({ message: 'Request failed' }));
                     const message = errorBody.message || `HTTP ${response.status}`;
 
+                    // If it's a 5xx error, it might be worth trying the next URL
                     if (response.status >= 500 && urlIndex < urls.length - 1) {
+                        console.warn(`[API] 5xx error from ${baseUrl}, trying next candidate...`);
                         attemptErrors.push(`${baseUrl}: ${message}`);
                         continue;
                     }
@@ -105,9 +117,11 @@ class ApiClient {
                     throw error;
                 }
                 const message = error instanceof Error ? error.message : 'Network request failed';
+                console.warn(`[API] Failed to reach ${baseUrl}: ${message}`);
                 attemptErrors.push(`${baseUrl}: ${message}`);
             }
         }
+
 
         const fallbackMessage = attemptErrors.length > 0
             ? `Unable to connect to BLITZR services. Tried: ${attemptErrors.join(' | ')}`
