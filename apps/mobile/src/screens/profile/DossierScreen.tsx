@@ -64,7 +64,7 @@ export const DossierScreen: React.FC = () => {
             fetchNotifications();
             
             return () => {}; // Optional cleanup
-        }, [])
+        }, [fetchNotifications])
     );
 
     const renderHolding = ({ item: holding }: { item: any }) => {
@@ -102,10 +102,6 @@ export const DossierScreen: React.FC = () => {
                 </View>
             </GlassCard>
         );
-    };
-
-    const handleComingSoon = (title: string) => {
-        Alert.alert(title, 'This feature is coming soon.');
     };
 
     const handleCreateIpo = async () => {

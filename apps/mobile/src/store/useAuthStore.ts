@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
                         'blitzr-auth',
                         'blitzr-notifications',
                     ]);
-                } catch (_) {
+                } catch {
                     // Ignore storage errors — state is already wiped above
                 }
             },

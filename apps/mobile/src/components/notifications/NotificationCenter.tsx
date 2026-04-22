@@ -11,7 +11,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
-import { GlassCard } from '../../components/common/GlassCard';
 import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { useNotificationsStore } from '../../store/useNotificationsStore';
@@ -22,7 +21,7 @@ export const NotificationCenter: React.FC = () => {
 
     React.useEffect(() => {
         fetchNotifications();
-    }, []);
+    }, [fetchNotifications]);
 
     const getIcon = (type: string) => {
         switch (type) {

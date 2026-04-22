@@ -22,7 +22,7 @@ export const NotificationsScreen: React.FC = () => {
 
     React.useEffect(() => {
         fetchPreferences();
-    }, []);
+    }, [fetchPreferences]);
 
     const renderToggle = (icon: any, title: string, value: boolean, onToggle: (v: boolean) => void) => (
         <View style={styles.toggleRow}>

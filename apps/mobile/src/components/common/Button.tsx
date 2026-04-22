@@ -14,7 +14,7 @@ import Animated, {
     withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Colors, Typography, BorderRadius, Spacing, Gradients, Fonts, FontWeights } from '../../theme';
+import { Colors, Typography, Spacing, Gradients, Fonts, FontWeights } from '../../theme';
 
 interface ButtonProps {
     title: string;

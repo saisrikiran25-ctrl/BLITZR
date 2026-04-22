@@ -1,12 +1,38 @@
 import { useAuthStore } from '../store/useAuthStore';
 import { Platform } from 'react-native';
 
+const PRODUCTION_BASE_URL = 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1';
 const DEFAULT_BASE_URL = Platform.select({
-    android: 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1',
-    ios: 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1',
-    default: '/api/v1', // Realignment for co-located production
+    android: PRODUCTION_BASE_URL,
+    ios: PRODUCTION_BASE_URL,
+    web: '/api/v1',
+    default: PRODUCTION_BASE_URL,
 });
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_BASE_URL;
+
+const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '');
+const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+const API_HTTP_ERROR_NAME = 'ApiHttpError';
+
+const getBaseUrls = (): string[] => {
+    const urls: string[] = [];
+    const add = (value?: string) => {
+        if (!value) return;
+        const normalized = normalizeBaseUrl(value);
+        if (!urls.includes(normalized)) {
+            urls.push(normalized);
+        }
+    };
+
+    add(configuredBaseUrl);
+    add(DEFAULT_BASE_URL);
+
+    if (typeof window !== 'undefined' && window.location?.origin) {
+        add(`${window.location.origin}/api/v1`);
+    }
+
+    add(PRODUCTION_BASE_URL);
+    return urls;
+};
 
 /**
  * BLITZR API Client
@@ -29,18 +55,45 @@ class ApiClient {
         path: string,
         body?: any,
     ): Promise<T> {
-        const response = await fetch(`${BASE_URL}${path}`, {
-            method,
-            headers: this.getHeaders(),
-            body: body ? JSON.stringify(body) : undefined,
-        });
+        const urls = getBaseUrls();
+        const attemptErrors: string[] = [];
 
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ message: 'Request failed' }));
-            throw new Error(error.message || `HTTP ${response.status}`);
+        for (const [urlIndex, baseUrl] of urls.entries()) {
+            try {
+                const response = await fetch(`${baseUrl}${path}`, {
+                    method,
+                    headers: this.getHeaders(),
+                    body: body ? JSON.stringify(body) : undefined,
+                });
+
+                if (!response.ok) {
+                    const errorBody = await response.json().catch(() => ({ message: 'Request failed' }));
+                    const message = errorBody.message || `HTTP ${response.status}`;
+
+                    if (response.status >= 500 && urlIndex < urls.length - 1) {
+                        attemptErrors.push(`${baseUrl}: ${message}`);
+                        continue;
+                    }
+
+                    const httpError = new Error(message);
+                    httpError.name = API_HTTP_ERROR_NAME;
+                    throw httpError;
+                }
+
+                return response.json();
+            } catch (error) {
+                if (error instanceof Error && error.name === API_HTTP_ERROR_NAME) {
+                    throw error;
+                }
+                const message = error instanceof Error ? error.message : 'Network request failed';
+                attemptErrors.push(`${baseUrl}: ${message}`);
+            }
         }
 
-        return response.json();
+        const fallbackMessage = attemptErrors.length > 0
+            ? `Unable to connect to BLITZR services. Tried: ${attemptErrors.join(' | ')}`
+            : 'Unable to connect to BLITZR services.';
+        throw new Error(fallbackMessage);
     }
 
     // === AUTH ===
