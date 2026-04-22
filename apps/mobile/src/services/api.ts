@@ -11,6 +11,7 @@ const DEFAULT_BASE_URL = Platform.select({
 
 const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '');
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
+const API_HTTP_ERROR_NAME = 'ApiHttpError';
 
 const getBaseUrls = (): string[] => {
     const urls: string[] = [];
@@ -57,8 +58,7 @@ class ApiClient {
         const urls = getBaseUrls();
         const attemptErrors: string[] = [];
 
-        for (let attemptIndex = 0; attemptIndex < urls.length; attemptIndex++) {
-            const baseUrl = urls[attemptIndex];
+        for (const [urlIndex, baseUrl] of urls.entries()) {
             try {
                 const response = await fetch(`${baseUrl}${path}`, {
                     method,
@@ -67,22 +67,22 @@ class ApiClient {
                 });
 
                 if (!response.ok) {
-                    const errorPayload = await response.json().catch(() => ({ message: 'Request failed' }));
-                    const message = errorPayload.message || `HTTP ${response.status}`;
+                    const errorBody = await response.json().catch(() => ({ message: 'Request failed' }));
+                    const message = errorBody.message || `HTTP ${response.status}`;
 
-                    if (response.status >= 500 && attemptIndex < urls.length - 1) {
+                    if (response.status >= 500 && urlIndex < urls.length - 1) {
                         attemptErrors.push(`${baseUrl}: ${message}`);
                         continue;
                     }
 
                     const httpError = new Error(message);
-                    httpError.name = 'ApiHttpError';
+                    httpError.name = API_HTTP_ERROR_NAME;
                     throw httpError;
                 }
 
                 return response.json();
             } catch (error) {
-                if (error instanceof Error && error.name === 'ApiHttpError') {
+                if (error instanceof Error && error.name === API_HTTP_ERROR_NAME) {
                     throw error;
                 }
                 const message = error instanceof Error ? error.message : 'Network request failed';
