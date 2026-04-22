@@ -12,6 +12,8 @@ import {
 import { AppNavigator } from './src/navigation/AppNavigator';
 import { wsService } from './src/services/websocket';
 import { Colors } from './src/theme';
+import { Feather } from '@expo/vector-icons';
+
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -25,7 +27,9 @@ function App(): React.JSX.Element | null {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    ...Feather.font,
   });
+
 
   const [fontError] = React.useState<Error | null>(null);
   const [useFallback, setUseFallback] = React.useState(false);
