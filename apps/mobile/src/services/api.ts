@@ -13,11 +13,22 @@ const DEFAULT_BASE_URL = Platform.select({
 const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '');
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 const API_HTTP_ERROR_NAME = 'ApiHttpError';
-const isLocalHostname = (hostname: string) =>
-    hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
+// Browsers can expose IPv6 hosts as bracketed strings (e.g. "[::1]"); strip brackets for consistent checks.
+const normalizeHostname = (hostname: string) => hostname.trim().toLowerCase().replace(/^\[(.*)\]$/, '$1');
+const isLocalHostname = (hostname: string) => {
+    const normalized = normalizeHostname(hostname);
+    return normalized === 'localhost'
+        || /^127\./.test(normalized)
+        || normalized === '::'
+        || normalized === '::1';
+};
 
 const getBaseUrls = (): string[] => {
     const urls: string[] = [];
+    const currentLocation = typeof window !== 'undefined' ? window.location : undefined;
+    const currentHostname = currentLocation?.hostname ? normalizeHostname(currentLocation.hostname) : undefined;
+    const isLocalWebHost = currentHostname ? isLocalHostname(currentHostname) : false;
+
     const add = (value?: string) => {
         if (!value) return;
         const normalized = normalizeBaseUrl(value);
@@ -28,17 +39,14 @@ const getBaseUrls = (): string[] => {
 
     add(configuredBaseUrl);
 
-    if (typeof window !== 'undefined' && window.location?.origin) {
-        const { origin, hostname } = window.location;
-        if (!isLocalHostname(hostname)) {
-            add(`${origin}/api/v1`);
-        }
+    if (currentLocation?.origin && !isLocalWebHost) {
+        add(`${currentLocation.origin}/api/v1`);
     }
 
     add(PRODUCTION_BASE_URL);
     add(DEFAULT_BASE_URL);
 
-    if (typeof window !== 'undefined' && window.location?.hostname && isLocalHostname(window.location.hostname)) {
+    if (isLocalWebHost) {
         add(LOCAL_DEV_BASE_URL);
     }
 
