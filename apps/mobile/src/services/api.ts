@@ -1,7 +1,7 @@
 import { useAuthStore } from '../store/useAuthStore';
 import { Platform } from 'react-native';
 
-const PRODUCTION_BASE_URL = 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1';
+const PRODUCTION_BASE_URL = 'https://monkfish-app-r5nxh.ondigitalocean.app/api/v1';
 const LOCAL_DEV_BASE_URL = 'http://localhost:3001/api/v1';
 const DEFAULT_BASE_URL = Platform.select({
     android: PRODUCTION_BASE_URL,
