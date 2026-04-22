@@ -2,16 +2,19 @@ import { useAuthStore } from '../store/useAuthStore';
 import { Platform } from 'react-native';
 
 const PRODUCTION_BASE_URL = 'https://monkfish-app-r6nxh.ondigitalocean.app/api/v1';
+const LOCAL_DEV_BASE_URL = 'http://localhost:3001/api/v1';
 const DEFAULT_BASE_URL = Platform.select({
     android: PRODUCTION_BASE_URL,
     ios: PRODUCTION_BASE_URL,
-    web: '/api/v1',
+    web: PRODUCTION_BASE_URL,
     default: PRODUCTION_BASE_URL,
 });
 
 const normalizeBaseUrl = (url: string) => url.replace(/\/+$/, '');
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
 const API_HTTP_ERROR_NAME = 'ApiHttpError';
+const isLocalHostname = (hostname: string) =>
+    hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1';
 
 const getBaseUrls = (): string[] => {
     const urls: string[] = [];
@@ -24,13 +27,21 @@ const getBaseUrls = (): string[] => {
     };
 
     add(configuredBaseUrl);
-    add(DEFAULT_BASE_URL);
 
     if (typeof window !== 'undefined' && window.location?.origin) {
-        add(`${window.location.origin}/api/v1`);
+        const { origin, hostname } = window.location;
+        if (!isLocalHostname(hostname)) {
+            add(`${origin}/api/v1`);
+        }
     }
 
     add(PRODUCTION_BASE_URL);
+    add(DEFAULT_BASE_URL);
+
+    if (typeof window !== 'undefined' && window.location?.hostname && isLocalHostname(window.location.hostname)) {
+        add(LOCAL_DEV_BASE_URL);
+    }
+
     return urls;
 };
 
