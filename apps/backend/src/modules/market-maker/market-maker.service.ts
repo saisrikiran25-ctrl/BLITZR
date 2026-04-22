@@ -11,6 +11,7 @@ import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { BondingCurveService } from '../ipo/bonding-curve.service';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { createRedisClient } from '../../config/redis.factory';
 
 /**
  * MarketMakerService (Ghost Town Defense)
@@ -35,7 +36,7 @@ export class MarketMakerService {
         private readonly configService: ConfigService,
     ) { 
         this.redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = new Redis(this.redisUrl);
+        this.redisClient = createRedisClient(this.redisUrl);
     }
 
     /**

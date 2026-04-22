@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { createRedisClient } from '../../config/redis.factory';
 import { BondingCurveService } from '../ipo/bonding-curve.service';
 import { NotificationService } from '../../common/services/notification.service';
 
@@ -28,7 +29,7 @@ export class MarketMonitorService implements OnModuleInit, OnModuleDestroy {
 
     onModuleInit() {
         const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = new Redis(redisUrl);
+        this.redisClient = createRedisClient(redisUrl);
     }
 
     onModuleDestroy() {

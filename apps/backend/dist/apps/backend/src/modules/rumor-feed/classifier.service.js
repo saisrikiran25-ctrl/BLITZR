@@ -17,7 +17,7 @@ exports.ClassifierService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const openai_1 = __importDefault(require("openai"));
-const ioredis_1 = __importDefault(require("ioredis"));
+const redis_factory_1 = require("../../config/redis.factory");
 let ClassifierService = ClassifierService_1 = class ClassifierService {
     constructor(configService) {
         this.configService = configService;
@@ -120,7 +120,7 @@ Return ONLY valid JSON: {"post_type": "...", "risk_score": 0.0}`,
     }
     getRedisClient() {
         if (!this.redisClient) {
-            this.redisClient = new ioredis_1.default(this.redisUrl);
+            this.redisClient = (0, redis_factory_1.createRedisClient)(this.redisUrl);
         }
         return this.redisClient;
     }

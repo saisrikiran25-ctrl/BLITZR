@@ -8,16 +8,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 var TradeQueueService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.TradeQueueService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
-const ioredis_1 = __importDefault(require("ioredis"));
 const trading_service_1 = require("./trading.service");
+const redis_factory_1 = require("../../config/redis.factory");
 /**
  * B12: TradeQueueService
  *
@@ -51,8 +48,8 @@ let TradeQueueService = TradeQueueService_1 = class TradeQueueService {
         this.idleShutdownSeconds = this.configService.get('TRADE_QUEUE_IDLE_SHUTDOWN_SECONDS', this.idleShutdownSeconds);
         this.popTimeoutSeconds = this.configService.get('TRADE_QUEUE_POP_TIMEOUT_SECONDS', this.popTimeoutSeconds);
         this.maxAttemptCount = this.configService.get('TRADE_QUEUE_MAX_RETRY_ATTEMPTS', this.maxAttemptCount);
-        this.redisEnqueue = new ioredis_1.default(redisUrl);
-        this.redisWorker = new ioredis_1.default(redisUrl);
+        this.redisEnqueue = (0, redis_factory_1.createRedisClient)(redisUrl);
+        this.redisWorker = (0, redis_factory_1.createRedisClient)(redisUrl);
         this.logger.log('Trade Queue Service initialised');
     }
     onModuleDestroy() {

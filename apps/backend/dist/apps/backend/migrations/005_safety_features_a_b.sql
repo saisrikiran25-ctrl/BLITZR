@@ -1,0 +1,12 @@
+-- apps/backend/migrations/005_safety_features_a_b.sql
+
+ALTER TYPE ticker_status ADD VALUE IF NOT EXISTS 'AUTO_FROZEN';
+ALTER TYPE ticker_status ADD VALUE IF NOT EXISTS 'PENDING';
+
+ALTER TABLE tickers
+ADD COLUMN IF NOT EXISTS frozen_until TIMESTAMPTZ;
+
+ALTER TYPE rumor_status ADD VALUE IF NOT EXISTS 'PENDING_REVIEW';
+
+ALTER TABLE rumors
+ADD COLUMN IF NOT EXISTS price_at_post JSONB;

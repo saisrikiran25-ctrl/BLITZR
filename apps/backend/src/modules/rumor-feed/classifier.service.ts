@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import Redis from 'ioredis';
+import { createRedisClient } from '../../config/redis.factory';
 
 export interface ClassificationResult {
     post_type: 'FACTUAL_CLAIM' | 'OPINION' | 'NEUTRAL';
@@ -138,7 +139,7 @@ Return ONLY valid JSON: {"post_type": "...", "risk_score": 0.0}`,
 
     private getRedisClient(): Redis {
         if (!this.redisClient) {
-            this.redisClient = new Redis(this.redisUrl);
+            this.redisClient = createRedisClient(this.redisUrl);
         }
         return this.redisClient;
     }

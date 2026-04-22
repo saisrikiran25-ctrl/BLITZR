@@ -8,9 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 var MarketMakerService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MarketMakerService = void 0;
@@ -21,7 +18,7 @@ const shared_1 = require("@blitzr/shared");
 const realtime_gateway_1 = require("../realtime/realtime.gateway");
 const bonding_curve_service_1 = require("../ipo/bonding-curve.service");
 const config_1 = require("@nestjs/config");
-const ioredis_1 = __importDefault(require("ioredis"));
+const redis_factory_1 = require("../../config/redis.factory");
 /**
  * MarketMakerService (Ghost Town Defense)
  *
@@ -39,7 +36,7 @@ let MarketMakerService = MarketMakerService_1 = class MarketMakerService {
         this.configService = configService;
         this.logger = new common_1.Logger(MarketMakerService_1.name);
         this.redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = new ioredis_1.default(this.redisUrl);
+        this.redisClient = (0, redis_factory_1.createRedisClient)(this.redisUrl);
     }
     /**
      * Ghost Town Defense — runs every 2 minutes.

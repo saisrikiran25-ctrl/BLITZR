@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { TradingService } from './trading.service';
+import { createRedisClient } from '../../config/redis.factory';
 
 type TradePayload = {
     user_id: string;
@@ -61,8 +62,8 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             this.maxAttemptCount,
         );
 
-        this.redisEnqueue = new Redis(redisUrl);
-        this.redisWorker = new Redis(redisUrl);
+        this.redisEnqueue = createRedisClient(redisUrl);
+        this.redisWorker = createRedisClient(redisUrl);
         this.logger.log('Trade Queue Service initialised');
     }
 

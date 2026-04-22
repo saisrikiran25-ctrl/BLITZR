@@ -11,9 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 var UnfreezeService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.UnfreezeService = void 0;
@@ -22,8 +19,8 @@ const schedule_1 = require("@nestjs/schedule");
 const typeorm_1 = require("@nestjs/typeorm");
 const typeorm_2 = require("typeorm");
 const ticker_entity_1 = require("../ipo/entities/ticker.entity");
-const ioredis_1 = __importDefault(require("ioredis"));
 const config_1 = require("@nestjs/config");
+const redis_factory_1 = require("../../config/redis.factory");
 let UnfreezeService = UnfreezeService_1 = class UnfreezeService {
     constructor(tickerRepo, configService) {
         this.tickerRepo = tickerRepo;
@@ -32,7 +29,7 @@ let UnfreezeService = UnfreezeService_1 = class UnfreezeService {
     }
     onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = new ioredis_1.default(redisUrl);
+        this.redisClient = (0, redis_factory_1.createRedisClient)(redisUrl);
     }
     onModuleDestroy() {
         this.redisClient?.disconnect();

@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 import { TickerEntity } from '../ipo/entities/ticker.entity';
 import Redis from 'ioredis';
 import { ConfigService } from '@nestjs/config';
+import { createRedisClient } from '../../config/redis.factory';
 
 @Injectable()
 export class UnfreezeService implements OnModuleInit, OnModuleDestroy {
@@ -19,7 +20,7 @@ export class UnfreezeService implements OnModuleInit, OnModuleDestroy {
 
     onModuleInit() {
         const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = new Redis(redisUrl);
+        this.redisClient = createRedisClient(redisUrl);
     }
 
     onModuleDestroy() {

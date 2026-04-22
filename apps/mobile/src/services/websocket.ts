@@ -3,7 +3,7 @@ import { useMarketStore } from '../store/useMarketStore';
 import { usePropStore } from '../store/usePropStore';
 import { useAuthStore } from '../store/useAuthStore';
 
-const WS_URL = 'http://localhost:3001/market';
+const WS_URL = 'wss://monkfish-app-r6nxh.ondigitalocean.app/market';
 
 /**
  * WebSocket service for real-time data.

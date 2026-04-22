@@ -11,9 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 var CrashProtectorService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.CrashProtectorService = void 0;
@@ -25,7 +22,7 @@ const ticker_entity_1 = require("../ipo/entities/ticker.entity");
 const bonding_curve_service_1 = require("../ipo/bonding-curve.service");
 const notification_service_1 = require("../../common/services/notification.service");
 const config_1 = require("@nestjs/config");
-const ioredis_1 = __importDefault(require("ioredis"));
+const redis_factory_1 = require("../../config/redis.factory");
 let CrashProtectorService = CrashProtectorService_1 = class CrashProtectorService {
     constructor(tickerRepo, dataSource, bondingCurve, notificationService, configService) {
         this.tickerRepo = tickerRepo;
@@ -37,7 +34,7 @@ let CrashProtectorService = CrashProtectorService_1 = class CrashProtectorServic
     }
     onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = new ioredis_1.default(redisUrl);
+        this.redisClient = (0, redis_factory_1.createRedisClient)(redisUrl);
     }
     onModuleDestroy() {
         this.redisClient?.disconnect();
