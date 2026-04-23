@@ -75,9 +75,36 @@ export const ArenaScreen: React.FC = () => {
     };
 
     const handleOpenBet = (event: any, outcome: 'YES' | 'NO') => {
+        if (event.time_remaining_ms <= 0) {
+            Alert.alert('TIME UP', 'This event has reached its duration limit. No further broadcasts or bets accepted.');
+            return;
+        }
         setSelectedEvent(event);
         setSelectedOutcome(outcome);
         setIsBetModalVisible(true);
+    };
+
+    const handleSettleEvent = (eventId: string, winningOutcome: 'YES' | 'NO') => {
+        Alert.alert(
+            'Final Verdict',
+            `Are you sure you want to resolve this market as ${winningOutcome}? This will distribute all prize pool Chips immediately.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: `Resolve ${winningOutcome}`,
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await api.settleEvent(eventId, winningOutcome);
+                            Alert.alert('Market Settled', 'All winners have been compensated and the market is archived.');
+                            fetchInitialData();
+                        } catch (error: any) {
+                            Alert.alert('Settlement Failed', error.message);
+                        }
+                    }
+                }
+            ]
+        );
     };
 
     const handlePlaceBet = async () => {
@@ -155,6 +182,8 @@ export const ArenaScreen: React.FC = () => {
         const yesPct = (item.yes_pool / totalPool) * 100;
         const noPct = (item.no_pool / totalPool) * 100;
         const isSettled = item.status === 'SETTLED';
+        const isMainModerator = email?.toLowerCase().trim() === 'saisrikiran_ipm25@iift.edu';
+        const isExpired = item.time_remaining_ms <= 0;
 
         return (
             <GlassCard style={styles.propCard} variant="default" intensity={10}>
@@ -212,10 +241,31 @@ export const ArenaScreen: React.FC = () => {
                 </View>
 
                 {/* Footer Stats */}
-                <View style={styles.cardFooter}>
+                <View style={[styles.cardFooter, isMainModerator && isExpired && !isSettled && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 8 }]}>
                     <Text style={styles.volumeText}>{formatCreds(totalPool)} Vol</Text>
-                    <Text style={styles.marketCount}>Live</Text>
+                    <Text style={styles.marketCount}>{isExpired ? 'Expired' : 'Live'}</Text>
                 </View>
+
+                {/* Moderator Settlement Console */}
+                {isMainModerator && isExpired && !isSettled && (
+                    <View style={styles.modSettleConsole}>
+                        <Text style={styles.modSettleTitle}>SETTLEMENT REQUIRED</Text>
+                        <View style={styles.modSettleButtons}>
+                            <TouchableOpacity
+                                style={[styles.miniSettleBtn, { borderColor: Colors.kineticGreen }]}
+                                onPress={() => handleSettleEvent(item.event_id, 'YES')}
+                            >
+                                <Text style={[styles.miniSettleText, { color: Colors.kineticGreen }]}>YES</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.miniSettleBtn, { borderColor: Colors.thermalRed }]}
+                                onPress={() => handleSettleEvent(item.event_id, 'NO')}
+                            >
+                                <Text style={[styles.miniSettleText, { color: Colors.thermalRed }]}>NO</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                )}
             </GlassCard>
         );
     };
@@ -821,6 +871,38 @@ const styles = StyleSheet.create({
         fontSize: 10,
         textAlign: 'center',
         lineHeight: 14,
+    },
+    // Mod Settle
+    modSettleConsole: {
+        marginTop: Spacing.md,
+        paddingTop: Spacing.sm,
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255,255,255,0.05)',
+    },
+    modSettleTitle: {
+        ...Typography.dataLabel,
+        color: Colors.activeGold,
+        fontSize: 9,
+        letterSpacing: 1.5,
+        marginBottom: Spacing.sm,
+    },
+    modSettleButtons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 4,
+    },
+    miniSettleBtn: {
+        paddingHorizontal: 24,
+        paddingVertical: 8,
+        borderRadius: 4,
+        borderWidth: 1,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+    },
+    miniSettleText: {
+        ...Typography.dataLabel,
+        fontSize: 10,
+        fontFamily: Fonts.bold,
     },
 });
 

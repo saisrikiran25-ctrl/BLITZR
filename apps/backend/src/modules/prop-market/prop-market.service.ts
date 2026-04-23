@@ -128,7 +128,13 @@ export class PropMarketService {
             );
 
             if (!event) throw new NotFoundException('Event not found');
-            if (event.status !== 'OPEN') throw new ForbiddenException('Event is not open for betting');
+            
+            // Check for expiration
+            const isExpired = new Date(event.expiry_timestamp).getTime() <= Date.now();
+            if (isExpired || event.status !== 'OPEN') {
+                throw new ForbiddenException('TIME UP: This event has reached its duration limit. No further broadcasts or bets accepted.');
+            }
+
             if (event.creator_id === userId) throw new ForbiddenException('Creators cannot bet on their own events');
 
             // Lock user balance
@@ -221,8 +227,17 @@ export class PropMarketService {
             if (event.status !== 'OPEN' && event.status !== 'CLOSED') {
                 throw new ForbiddenException('Event is already settled');
             }
-            if (event.creator_id !== settledBy && event.referee_id !== settledBy) {
-                throw new ForbiddenException('Only creator or referee can settle');
+
+            // Exclusive Permission Lock
+            const [moderator] = await queryRunner.query(
+                `SELECT email FROM users WHERE user_id = $1`,
+                [settledBy],
+            );
+            const userEmail = moderator?.email?.trim().toLowerCase();
+            const REQUIRED_SETTLER = 'saisrikiran_ipm25@iift.edu';
+
+            if (userEmail !== REQUIRED_SETTLER) {
+                throw new ForbiddenException(`UNAUTHORIZED: Only the primary moderator (${REQUIRED_SETTLER}) can issue a final verdict on market outcomes.`);
             }
 
             const totalPool = Number(event.yes_pool) + Number(event.no_pool);
