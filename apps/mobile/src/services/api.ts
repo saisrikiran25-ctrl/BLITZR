@@ -50,7 +50,7 @@ const getBaseUrls = (): string[] => {
     // Ignore localhost URLs on deployed web hosts so production doesn't try local dev APIs.
     if (configuredBaseUrl) {
         const configuredIsLocal = isLocalApiUrl(configuredBaseUrl, currentLocation?.origin);
-        if (!(configuredIsLocal && !isLocalWebHost)) {
+        if (!configuredIsLocal || isLocalWebHost) {
             add(configuredBaseUrl);
         } else {
             console.warn('[API] Ignoring local EXPO_PUBLIC_API_URL on non-local web host.');
