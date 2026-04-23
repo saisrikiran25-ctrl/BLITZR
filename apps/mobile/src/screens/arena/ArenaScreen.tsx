@@ -20,15 +20,28 @@ import { usePropStore } from '../../store/usePropStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { formatCreds, formatChips } from '../../utils/formatters';
 import { api } from '../../services/api';
+import { BIcon } from '../../components/common/BIcon';
+import { useAuthStore } from '../../store/useAuthStore';
 
 /**
  * ArenaScreen — High-Fidelity Prop Market
  * Aesthetic: Kinetic HUD / Industrial Glass
  */
 export const ArenaScreen: React.FC = () => {
+    const { email } = useAuthStore();
     const { tickerTapeItems } = useMarketStore();
     const { events, isLoading, fetchInitialData } = usePropStore();
     const { chipBalance } = usePortfolioStore();
+
+    const IIFT_ALLOWED_EMAILS = [
+        'saksham_ipm25@iift.edu',
+        'aarav_ipm25@iift.edu',
+        'saisrikiran_ipm25@iift.edu',
+    ];
+
+    const isAuthorizedToCreate = !email?.toLowerCase().endsWith('@iift.edu') || 
+                                IIFT_ALLOWED_EMAILS.includes(email.toLowerCase());
+
     const [selectedTab, setSelectedTab] = useState<'Active' | 'Settled'>('Active');
 
     // Betting Modal State
@@ -146,7 +159,7 @@ export const ArenaScreen: React.FC = () => {
                 {/* Category Header */}
                 <View style={styles.cardHeader}>
                     <View style={styles.categoryBadge}>
-                        <Text style={styles.categoryIcon}>🏛️</Text>
+                        <BIcon name="landmark" size={10} color={Colors.textSecondary} style={{ marginRight: 4 }} />
                         <Text style={styles.propCategory}>{item.category || 'Politics'}</Text>
                     </View>
                 </View>
@@ -247,7 +260,7 @@ export const ArenaScreen: React.FC = () => {
                 />
             )}
 
-            {selectedTab === 'Active' && (
+            {selectedTab === 'Active' && isAuthorizedToCreate && (
                 <TouchableOpacity
                     style={styles.fab}
                     activeOpacity={0.8}
@@ -259,7 +272,7 @@ export const ArenaScreen: React.FC = () => {
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
                     >
-                        <Text style={styles.fabText}>+</Text>
+                        <BIcon name="plus" size={32} color={Colors.obsidianBase} />
                     </LinearGradient>
                 </TouchableOpacity>
             )}

@@ -145,9 +145,10 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                             <Text style={styles.pinnedNoticeText}>Priority</Text>
                         </View>
                     )}
-                    {(item as Exclude<typeof item, never> & { post_type?: string }).post_type === 'FACTUAL_CLAIM' && (
+                    {(item as any).post_type === 'FACTUAL_CLAIM' && (
                         <View style={styles.factualNotice}>
-                            <Text style={styles.factualNoticeText}>⚠️ Factual Claim</Text>
+                            <BIcon name="alert-triangle" size={10} color={Colors.activeGold} style={{ marginRight: 4 }} />
+                            <Text style={styles.factualNoticeText}>Factual Claim</Text>
                         </View>
                     )}
                 </View>
@@ -188,14 +189,15 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                                             colors={[isUp ? 'rgba(0,255,65,0.2)' : 'rgba(0,255,65,0.05)', 'transparent']}
                                             style={styles.voteButtonBg}
                                         />
-                                        <Text style={styles.voteUp}>▲ {item.upvotes}</Text>
+                                        <BIcon name="chevron-up" size={16} color={Colors.kineticGreen} />
+                                        <Text style={styles.voteUp}>{item.upvotes}</Text>
                                     </TouchableOpacity>
                                     
                                     <TouchableOpacity
                                         style={styles.disputeButton}
                                         onPress={() => handleDispute(item.rumor_id)}
                                     >
-                                        <Text style={styles.disputeIcon}>🏴</Text>
+                                        <BIcon name="flag" size={14} color={Colors.textTertiary} />
                                     </TouchableOpacity>
                                 </>
                             );
@@ -253,7 +255,7 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                 >
-                    <Text style={styles.fabText}>+</Text>
+                    <BIcon name="plus" size={32} color={Colors.obsidianBase} />
                 </LinearGradient>
             </TouchableOpacity>
 

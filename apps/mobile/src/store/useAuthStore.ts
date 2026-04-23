@@ -6,13 +6,14 @@ interface AuthState {
     isAuthenticated: boolean;
     userId: string | null;
     username: string | null;
+    email: string | null;
     token: string | null;
     tosAccepted: boolean;
     isIpoActive: boolean;
     rumorDisclosureAccepted: boolean;
 
     // Actions
-    login: (userId: string, username: string, token: string, tosAccepted: boolean, isIpoActive: boolean, rumorDisclosureAccepted: boolean) => void;
+    login: (userId: string, username: string, email: string, token: string, tosAccepted: boolean, isIpoActive: boolean, rumorDisclosureAccepted: boolean) => void;
     acceptTos: () => void;
     updateProfile: (data: Partial<AuthState>) => void;
     logout: () => Promise<void>;
@@ -27,11 +28,12 @@ export const useAuthStore = create<AuthState>()(
             token: null,
             tosAccepted: false,
 
-            login: (userId, username, token, tosAccepted, isIpoActive, rumorDisclosureAccepted) =>
+            login: (userId, username, email, token, tosAccepted, isIpoActive, rumorDisclosureAccepted) =>
                 set({
                     isAuthenticated: true,
                     userId,
                     username,
+                    email,
                     token,
                     tosAccepted,
                     isIpoActive,

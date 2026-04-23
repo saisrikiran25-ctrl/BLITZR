@@ -52,7 +52,7 @@ export class PropMarketService {
             `SELECT name FROM institutions WHERE institution_id = $1`,
             [institutionId]
         );
-        const institutionName = instInfo?.name ?? '';
+        const institutionName = instInfo?.name?.trim() ?? '';
 
         const IIFT_ALLOWED_EMAILS = [
             'saksham_ipm25@iift.edu',
@@ -60,7 +60,7 @@ export class PropMarketService {
             'saisrikiran_ipm25@iift.edu'
         ];
 
-        if (institutionName === 'IIFT Kakinada' && !IIFT_ALLOWED_EMAILS.includes(creator.email.toLowerCase())) {
+        if (institutionName.toLowerCase() === 'iift kakinada' && !IIFT_ALLOWED_EMAILS.includes(creator.email.trim().toLowerCase())) {
             throw new ForbiddenException('STRICT POLICY: Only designated IIFT Kakinada moderators (Saksham, Aarav, SaiK) can create Arena questions.');
         }
 

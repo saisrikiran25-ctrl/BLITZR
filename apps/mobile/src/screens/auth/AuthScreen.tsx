@@ -255,6 +255,7 @@ export const AuthScreen: React.FC = () => {
             login(
                 result.user.user_id, 
                 result.user.username, 
+                result.user.email,
                 result.token, 
                 result.user.tos_accepted || false, 
                 result.user.is_ipo_active || false, 
@@ -307,7 +308,7 @@ export const AuthScreen: React.FC = () => {
                 result = await api.login(email, password);
             }
 
-            login(result.user.user_id, result.user.username, result.token, result.user.tos_accepted || false, result.user.is_ipo_active || false, result.user.rumor_disclosure_accepted || false);
+            login(result.user.user_id, result.user.username, result.user.email, result.token, result.user.tos_accepted || false, result.user.is_ipo_active || false, result.user.rumor_disclosure_accepted || false);
         } catch (error: any) {
             const msg = error?.message || 'Unknown error';
             const lowerMsg = String(msg).toLowerCase();
