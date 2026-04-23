@@ -28,7 +28,7 @@ export class AuthService {
             this.configService.get<string>('GOOGLE_IOS_CLIENT_ID'),
             this.configService.get<string>('GOOGLE_CLIENT_ID'), // Legacy fallback
             ...(googleClientIdsCsv
-                ? googleClientIdsCsv.split(',')
+                ? googleClientIdsCsv.split(',').map((value) => value.trim())
                 : []),
         ]
             .map((value) => value?.trim())

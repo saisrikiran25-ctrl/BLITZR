@@ -30,6 +30,7 @@ import { api } from '../../services/api';
 WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_REDIRECT_SCHEME = 'blitzrmobile';
 const GOOGLE_REDIRECT_PATH = 'auth';
+const GOOGLE_WEB_ORIGIN_FALLBACK = 'http://localhost:8081';
 type GooglePromptResultLike = {
     authentication?: {
         idToken?: string | null;
@@ -42,6 +43,20 @@ type GooglePromptResultLike = {
         message?: string;
     };
     type?: string;
+};
+
+const extractIdTokenFromWebResult = (
+    promptResult: GooglePromptResultLike | null | undefined,
+    responseResult: GooglePromptResultLike | null | undefined,
+): string | null => {
+    const idToken =
+        promptResult?.authentication?.idToken ||
+        promptResult?.params?.id_token ||
+        responseResult?.authentication?.idToken ||
+        responseResult?.params?.id_token ||
+        null;
+
+    return typeof idToken === 'string' && idToken.length > 0 ? idToken : null;
 };
 
 /**
@@ -100,7 +115,7 @@ export const AuthScreen: React.FC = () => {
             return `${baseMessage} Set these in your mobile env configuration and restart the app.`;
         }
 
-        const webOrigin = (globalThis as any)?.location?.origin || 'http://localhost:8081';
+        const webOrigin = (globalThis as any)?.location?.origin || GOOGLE_WEB_ORIGIN_FALLBACK;
         return `${baseMessage} Add ${webOrigin} as an Authorized JavaScript Origin and ${redirectUri} as an Authorized Redirect URI in Google Cloud Console, then restart the app.`;
     })();
 
@@ -172,20 +187,6 @@ export const AuthScreen: React.FC = () => {
     const handleFormChange = (setter: (v: string) => void, value: string) => {
         setter(value);
         if (authError) setAuthError(null);
-    };
-
-    const extractIdTokenFromWebResult = (
-        promptResult: GooglePromptResultLike | null | undefined,
-        responseResult: GooglePromptResultLike | null | undefined,
-    ): string | null => {
-        const idToken =
-            promptResult?.authentication?.idToken ||
-            promptResult?.params?.id_token ||
-            responseResult?.authentication?.idToken ||
-            responseResult?.params?.id_token ||
-            null;
-
-        return typeof idToken === 'string' && idToken.length > 0 ? idToken : null;
     };
 
     const handleGoogleSignIn = async () => {
