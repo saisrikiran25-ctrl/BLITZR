@@ -23,7 +23,7 @@ export class RumorEntity {
     @Column({ type: 'varchar', length: 20 })
     ghost_id: string;
 
-    @Column({ type: 'text', name: 'content' })
+    @Column({ type: 'text', name: 'text' })
     text: string;
 
     // Array of $TICKER references parsed from content
