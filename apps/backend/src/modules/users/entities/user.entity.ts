@@ -61,6 +61,12 @@ export class UserEntity {
     tos_accepted_at: Date;
 
     @Column({ type: 'boolean', default: false })
+    rumor_disclosure_accepted: boolean;
+
+    @Column({ type: 'timestamptz', nullable: true })
+    rumor_disclosure_accepted_at: Date;
+
+    @Column({ type: 'boolean', default: false })
     email_verified: boolean;
 
     @Column({ type: 'text', nullable: true })

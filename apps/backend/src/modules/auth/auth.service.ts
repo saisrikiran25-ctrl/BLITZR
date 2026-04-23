@@ -126,7 +126,18 @@ export class AuthService {
 
             // Generate token including institution code for easy access
             const token = this.generateToken(user.user_id, institution.short_code);
-            return { user: { user_id: user.user_id, username: user.username }, token };
+            return { 
+                user: { 
+                    user_id: user.user_id, 
+                    username: user.username,
+                    email: user.email,
+                    tos_accepted: user.tos_accepted,
+                    is_ipo_active: user.is_ipo_active,
+                    rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
+                    credibility_score: user.credibility_score,
+                }, 
+                token 
+            };
         } catch (error: any) {
             console.error('[CRITICAL ERROR] Registration failed:', error);
             throw error;
@@ -161,7 +172,10 @@ export class AuthService {
             user: {
                 user_id: user.user_id,
                 username: user.username,
+                email: user.email,
                 tos_accepted: user.tos_accepted,
+                is_ipo_active: user.is_ipo_active,
+                rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
                 credibility_score: user.credibility_score,
             },
             token,
@@ -254,11 +268,14 @@ export class AuthService {
                 user: {
                     user_id: user.user_id,
                     username: user.username,
+                    email: user.email,
                     tos_accepted: user.tos_accepted,
+                    is_ipo_active: user.is_ipo_active,
+                    rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
                     credibility_score: user.credibility_score,
-                    isNewUser,
                 },
                 token,
+                isNewUser,
             };
         } catch (error: any) {
             if (error instanceof BadRequestException || error instanceof UnauthorizedException) {

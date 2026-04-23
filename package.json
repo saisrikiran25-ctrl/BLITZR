@@ -16,6 +16,9 @@
     "start": "node main.js"
   },
   "dependencies": {
+    "expo-auth-session": "~55.0.15",
+    "expo-crypto": "~55.0.14",
+    "expo-web-browser": "~55.0.14",
     "pg": "^8.20.0"
   },
   "engines": {
