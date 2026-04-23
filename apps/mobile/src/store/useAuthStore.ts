@@ -25,8 +25,11 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             userId: null,
             username: null,
+            email: null,
             token: null,
             tosAccepted: false,
+            isIpoActive: false,
+            rumorDisclosureAccepted: false,
 
             login: (userId, username, email, token, tosAccepted, isIpoActive, rumorDisclosureAccepted) =>
                 set({
