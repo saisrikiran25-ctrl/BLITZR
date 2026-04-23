@@ -214,8 +214,12 @@ let AuthService = class AuthService {
             if (error instanceof common_1.BadRequestException || error instanceof common_1.UnauthorizedException) {
                 throw error;
             }
-            console.error('[CRITICAL ERROR] Google Login failed:', error);
-            throw new common_1.InternalServerErrorException('Authentication failed');
+            console.error('[CRITICAL ERROR] Google Login failed. Details:', {
+                error: error.message,
+                stack: error.stack,
+                clientId: this.configService.get('GOOGLE_CLIENT_ID') ? 'Set' : 'Not Set'
+            });
+            throw new common_1.InternalServerErrorException(`Authentication failed: ${error.message}`);
         }
     }
     generateToken(userId, collegeDomain) {

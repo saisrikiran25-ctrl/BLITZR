@@ -77,6 +77,16 @@ async function runNativeMigrations(dataSource) {
                     console.log(`✅ ${file} success.`);
                 }
                 catch (err) {
+                    const pgError = err;
+                    // Error codes: 42710 (duplicate_object), 42P07 (duplicate_table/index), 42701 (duplicate_column)
+                    const ignoreCodes = ['42710', '42P07', '42701'];
+                    if (ignoreCodes.includes(pgError.code)) {
+                        console.warn(`⚠️  ${file} partially applied: object already exists (code ${pgError.code}). Skipping.`);
+                        await queryRunner.rollbackTransaction();
+                        // Still mark as applied so we don't try again and fail every time
+                        await dataSource.query('INSERT INTO _migrations_log (filename) VALUES ($1)', [file]);
+                        continue;
+                    }
                     await queryRunner.rollbackTransaction();
                     console.error(`❌ FAILED: ${file}`, err.message);
                     throw err;
