@@ -66,7 +66,7 @@ export const TickerTape: React.FC<TickerTapeProps> = ({
                 {displayItems.map((item, index) => (
                     <View key={`${item.ticker_id}-${index}`} style={styles.item}>
                         <Text style={styles.tickerName}>
-                            {item.ticker_id.length > 10 ? `${item.ticker_id.substring(0, 10)}...` : item.ticker_id}
+                            {item.ticker_id.length > 6 ? `${item.ticker_id.substring(0, 6)}..` : item.ticker_id}
                         </Text>
                         <Text
                             style={[
