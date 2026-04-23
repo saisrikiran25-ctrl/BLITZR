@@ -33,7 +33,7 @@ __decorate([
     __metadata("design:type", String)
 ], RumorEntity.prototype, "ghost_id", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ type: 'text', name: 'content' }),
+    (0, typeorm_1.Column)({ type: 'text', name: 'text' }),
     __metadata("design:type", String)
 ], RumorEntity.prototype, "text", void 0);
 __decorate([
