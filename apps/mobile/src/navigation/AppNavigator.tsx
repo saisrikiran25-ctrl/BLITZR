@@ -1,9 +1,8 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StyleSheet, View, Image, Platform, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
 
-import { Feather } from '@expo/vector-icons';
 import { Colors, Typography, Spacing } from '../theme';
 import { Fonts } from '../theme/typography';
 
