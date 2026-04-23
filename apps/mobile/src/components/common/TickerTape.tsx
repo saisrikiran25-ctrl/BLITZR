@@ -74,7 +74,7 @@ export const TickerTape: React.FC<TickerTapeProps> = ({
             >
                 {displayItems.map((item, index) => (
                     <View key={`${item.ticker_id}-${index}`} style={styles.item}>
-                        <Text style={styles.tickerName}>
+                        <Text style={styles.tickerName} numberOfLines={1}>
                             {formatTicker(item.ticker_id)}
                         </Text>
                         <Text style={styles.change}>
@@ -110,10 +110,12 @@ const styles = StyleSheet.create({
     tickerName: {
         ...Typography.tickerTape,
         color: Colors.textPrimary,
-        marginRight: Spacing.xs,
+        flexShrink: 1,
+        marginRight: 6,
     },
     change: {
         ...Typography.tickerTape,
         color: Colors.textPrimary,
+        flexShrink: 0,
     },
 });
