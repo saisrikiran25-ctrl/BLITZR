@@ -9,6 +9,7 @@ import {
     Platform,
     Pressable,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import * as AuthSession from 'expo-auth-session';
 import * as GoogleAuth from 'expo-auth-session/providers/google';
@@ -146,9 +147,10 @@ export const AuthScreen: React.FC = () => {
             transform: [
                 { scale: withSpring(1 + hoverProgress.value * 0.05, { damping: 10, stiffness: 200 }) }
             ],
-            textShadowRadius: withTiming(hoverProgress.value * 25, { duration: 150 }),
+            textShadowRadius: withTiming(15 + hoverProgress.value * 15, { duration: 150 }),
             textShadowColor: Colors.kineticGreen,
             textShadowOffset: { width: 0, height: 0 },
+            opacity: withTiming(0.8 + hoverProgress.value * 0.2, { duration: 150 }),
         };
     });
 
@@ -250,55 +252,68 @@ export const AuthScreen: React.FC = () => {
 
 
     return (
-        <KeyboardAvoidingView
+        <LinearGradient
+            colors={Gradients.obsidianDeep}
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-            <View style={styles.content}>
-                <View style={styles.logoSection}>
-                    <Pressable
-                        onHoverIn={() => { hoverProgress.value = 1; }}
-                        onHoverOut={() => { hoverProgress.value = 0; }}
-                        style={styles.logoPressable}
-                    >
-                        <Animated.Text style={[styles.logoText, animatedLogoStyle]}>
-                            BLITZR
-                        </Animated.Text>
-                    </Pressable>
-                    <Text style={styles.tagline}>CAMPUS SOCIAL-EQUITY EXCHANGE</Text>
-                    <View style={styles.logoLine} />
-                </View>
+            <KeyboardAvoidingView
+                style={{ flex: 1 }}
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            >
+                <View style={styles.content}>
+                    <View style={styles.logoSection}>
+                        <Pressable
+                            onHoverIn={() => { hoverProgress.value = 1; }}
+                            onHoverOut={() => { hoverProgress.value = 0; }}
+                            style={styles.logoPressable}
+                        >
+                            <Animated.Text style={[styles.logoText, animatedLogoStyle]}>
+                                BLITZR
+                            </Animated.Text>
+                        </Pressable>
+                        <Text style={styles.tagline}>CAMPUS SOCIAL-EQUITY EXCHANGE</Text>
+                        <View style={styles.logoLine} />
+                    </View>
 
-                {/* Form */}
-                <GlassCard style={styles.formCard}>
-                    <Text style={styles.formTitle}>
-                        AUTHENTICATION
-                    </Text>
-
-                    {authError && (
-                        <View style={styles.errorContainer}>
-                            <Text style={styles.errorText}>{authError}</Text>
+                    {/* Form */}
+                    <GlassCard style={styles.formCard}>
+                        <View style={styles.authHeader}>
+                            <View style={styles.authPulse} />
+                            <Text style={styles.formTitle}>SECURE TERMINAL ACCESS</Text>
                         </View>
-                    )}
 
-                    <Button
-                        title="SIGN IN WITH GOOGLE"
-                        variant="secondary"
-                        size="lg"
-                        fullWidth
-                        loading={googleLoading}
-                        disabled={googleLoading || !!googleConfigError}
-                        onPress={handleGoogleSignIn}
-                        style={styles.googleButton}
-                    />
-                </GlassCard>
+                        {authError && (
+                            <View style={styles.errorContainer}>
+                                <Text style={styles.errorText}>{authError}</Text>
+                            </View>
+                        )}
 
-                {/* Footer */}
-                <Text style={styles.footer}>
-                    Information is the ultimate campus currency.
-                </Text>
-            </View>
-        </KeyboardAvoidingView>
+                        <Button
+                            title="SIGN IN WITH GOOGLE"
+                            variant="secondary"
+                            size="lg"
+                            fullWidth
+                            loading={googleLoading}
+                            disabled={googleLoading || !!googleConfigError}
+                            onPress={handleGoogleSignIn}
+                            style={styles.googleButton}
+                        />
+                    </GlassCard>
+
+                    {/* Footer */}
+                    <View style={styles.footerContainer}>
+                        <Text style={styles.footer}>
+                            Information is the ultimate campus currency.
+                        </Text>
+                        <View style={styles.promoContainer}>
+                            <View style={styles.promoLine} />
+                            <Text style={styles.promoText}>BUILT BY SAI KIRAN</Text>
+                            <View style={styles.promoLine} />
+                        </View>
+                    </View>
+                </View>
+            </KeyboardAvoidingView>
+        </LinearGradient>
     );
 };
 
@@ -334,11 +349,28 @@ const styles = StyleSheet.create({
         marginTop: Spacing.sm,
     },
     logoLine: {
-        width: 60,
-        height: 2,
+        width: 80,
+        height: 1,
         backgroundColor: Colors.kineticGreen,
         marginTop: Spacing.md,
-        opacity: 0.6,
+        opacity: 0.4,
+    },
+    // Form Header
+    authHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: Spacing.xl,
+    },
+    authPulse: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: Colors.kineticGreen,
+        marginRight: Spacing.md,
+        shadowColor: Colors.kineticGreen,
+        shadowRadius: 10,
+        shadowOpacity: 1,
     },
     // Form
     formCard: {
@@ -376,5 +408,29 @@ const styles = StyleSheet.create({
     googleButton: {
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderColor: Colors.glassBorder,
+        marginTop: Spacing.md,
+    },
+    footerContainer: {
+        marginTop: Spacing.xxxl,
+        alignItems: 'center',
+    },
+    promoContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: Spacing.xl,
+        opacity: 0.5,
+    },
+    promoText: {
+        ...Typography.caption,
+        color: Colors.kineticGreen,
+        fontSize: 10,
+        fontWeight: 'bold',
+        letterSpacing: 2,
+        marginHorizontal: Spacing.md,
+    },
+    promoLine: {
+        width: 20,
+        height: 1,
+        backgroundColor: Colors.kineticGreen,
     },
 });
