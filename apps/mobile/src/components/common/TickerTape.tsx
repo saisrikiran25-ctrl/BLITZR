@@ -68,12 +68,7 @@ export const TickerTape: React.FC<TickerTapeProps> = ({
                         <Text style={styles.tickerName}>
                             {item.ticker_id.length > 6 ? `${item.ticker_id.substring(0, 6)}..` : item.ticker_id}
                         </Text>
-                        <Text
-                            style={[
-                                styles.change,
-                                item.change_pct >= 0 ? styles.positive : styles.negative,
-                            ]}
-                        >
+                        <Text style={styles.change}>
                             {item.change_pct >= 0 ? '+' : ''}
                             {item.change_pct.toFixed(1)}%
                         </Text>
@@ -87,10 +82,10 @@ export const TickerTape: React.FC<TickerTapeProps> = ({
 const styles = StyleSheet.create({
     container: {
         height: 24,
-        backgroundColor: Colors.obsidianBase,
+        backgroundColor: Colors.pureBlack,
         overflow: 'hidden',
         borderBottomWidth: 0.5,
-        borderBottomColor: Colors.cardBorder,
+        borderBottomColor: 'transparent',
     },
     scrollContainer: {
         flexDirection: 'row',
@@ -110,11 +105,6 @@ const styles = StyleSheet.create({
     },
     change: {
         ...Typography.tickerTape,
-    },
-    positive: {
-        color: Colors.kineticGreen,
-    },
-    negative: {
-        color: Colors.thermalRed,
+        color: Colors.textPrimary,
     },
 });
