@@ -13,7 +13,7 @@
     "backend:build": "npm run build --workspace=apps/backend",
     "backend:test": "npm run test --workspace=apps/backend",
     "shared:build": "npm run build --workspace=packages/shared",
-    "start": "node main.js"
+    "start": "node apps/backend/deploy-migrate.js && node main.js"
   },
   "dependencies": {
     "expo-auth-session": "~55.0.15",
