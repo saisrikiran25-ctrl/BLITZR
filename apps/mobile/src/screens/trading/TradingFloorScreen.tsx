@@ -17,7 +17,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useMarketStore } from '../../store/useMarketStore';
 import { GlassCard } from '../../components/common/GlassCard';
-import { TickerTape } from '../../components/common/TickerTape';
+import { MasterTickerTape } from '../../components/common/TickerTape';
 import { SkeletonCard } from '../../components/common/SkeletonScreen';
 import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
 import { formatPrice, formatPctChange, formatCompact } from '../../utils/formatters';
@@ -94,7 +94,7 @@ export const TradingFloorScreen: React.FC<{ navigation: any }> = ({ navigation }
             />
 
             {/* Ticker Tape Marquee */}
-            <TickerTape items={tickerTapeItems} />
+            <MasterTickerTape items={tickerTapeItems} />
 
             {/* Global Market Cap Hero */}
             <View style={styles.heroSection}>

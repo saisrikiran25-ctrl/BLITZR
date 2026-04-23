@@ -18,7 +18,7 @@ interface TickerTapeProps {
  * No truncation. No percentages. Pure Monochromatic HUD.
  * Vertical Pipe separator " | " marks the new version.
  */
-export const TickerTape: React.FC<TickerTapeProps> = ({ items, speed = 40 }) => {
+export const MasterTickerTape: React.FC<TickerTapeProps> = ({ items, speed = 40 }) => {
     const scrollX = useRef(new Animated.Value(0)).current;
 
     // Use RAW ticker_id only. Convert to uppercase for HUD aesthetic.
@@ -73,7 +73,7 @@ export const TickerTape: React.FC<TickerTapeProps> = ({ items, speed = 40 }) => 
 const styles = StyleSheet.create({
     container: {
         height: 24,
-        backgroundColor: '#000000', // Forced Pure Black
+        backgroundColor: 'red', // NUCLEAR TEST COLOR
         overflow: 'hidden',
         borderBottomWidth: 0.5,
         borderBottomColor: 'transparent',

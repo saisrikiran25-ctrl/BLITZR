@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { audioService } from '../../services/AudioService';
 import { useFeedStore } from '../../store/useFeedStore';
 import { GlassCard } from '../../components/common/GlassCard';
-import { TickerTape } from '../../components/common/TickerTape';
+import { MasterTickerTape } from '../../components/common/TickerTape';
 import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
 import { useMarketStore } from '../../store/useMarketStore';
 import { formatTimeAgo } from '../../utils/formatters';
@@ -212,7 +212,7 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             <StatusBar barStyle="light-content" />
             <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill as any} />
 
-            <TickerTape items={tickerTapeItems} />
+            <MasterTickerTape items={tickerTapeItems} />
 
             <View style={styles.feedHeader}>
                 <Text style={styles.feedTitle}>Intelligence Stream</Text>

@@ -13,7 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Button } from '../../components/common/Button';
-import { TickerTape } from '../../components/common/TickerTape';
+import { MasterTickerTape } from '../../components/common/TickerTape';
 import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
 import { useMarketStore } from '../../store/useMarketStore';
 import { usePropStore } from '../../store/usePropStore';
@@ -276,7 +276,7 @@ export const ArenaScreen: React.FC = () => {
             <StatusBar barStyle="light-content" />
             <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill as any} />
 
-            <TickerTape items={tickerTapeItems} />
+            <MasterTickerTape items={tickerTapeItems} />
 
             <View style={styles.tabBar}>
                 {['Active', 'Settled'].map((tab: any) => (
