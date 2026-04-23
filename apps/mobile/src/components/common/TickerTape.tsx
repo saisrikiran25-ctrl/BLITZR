@@ -23,7 +23,7 @@ interface TickerTapeProps {
     speed?: number;
 }
 
-const ITEM_WIDTH = 160;
+const ITEM_WIDTH = 240;
 
 const formatTicker = (id: string) => {
     if (!id) return '';
