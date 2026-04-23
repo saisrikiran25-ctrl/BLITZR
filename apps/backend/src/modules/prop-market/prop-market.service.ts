@@ -60,14 +60,20 @@ export class PropMarketService {
             'saisrikiran_ipm25@iift.edu'
         ];
 
-        if (creator.email.trim().toLowerCase().endsWith('@iift.edu') && !IIFT_ALLOWED_EMAILS.includes(creator.email.trim().toLowerCase())) {
+        const userEmail = creator.email.trim().toLowerCase();
+        const isIIFTUser = userEmail.endsWith('@iift.edu');
+        const isAllowedModerator = IIFT_ALLOWED_EMAILS.includes(userEmail);
+
+        if (isIIFTUser && !isAllowedModerator) {
             throw new ForbiddenException('STRICT POLICY: Only designated IIFT moderators (Saksham, Aarav, SaiK) can create Arena questions.');
         }
 
         const totalCost = listingFee + (initialLiquidity * 2); // Liquidity must seed BOTH sides 50/50
 
-        // Deduct listing fee + initial liquidity if user-created
-        if (totalCost > 0) {
+        // Exempt allowed moderators from the cost check
+        const shouldDeductCost = totalCost > 0 && !isAllowedModerator;
+
+        if (shouldDeductCost) {
             const [user] = await this.dataSource.query(
                 `SELECT chip_balance FROM users WHERE user_id = $1`,
                 [creatorId],
