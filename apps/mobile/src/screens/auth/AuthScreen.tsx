@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import RNPickerSelect from 'react-native-picker-select';
+
 import {
     View,
     Text,
-    TextInput,
     StyleSheet,
     Alert,
     KeyboardAvoidingView,
@@ -66,15 +65,7 @@ const extractIdTokenFromWebResult = (
  * Dark industrial design matching the trading terminal aesthetic.
  */
 export const AuthScreen: React.FC = () => {
-    const [isRegistering, setIsRegistering] = useState(false);
-    const [email, setEmail] = useState('');
-    const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-    const [campuses, setCampuses] = useState<string[]>([]);
-    const [selectedCampus, setSelectedCampus] = useState<string | undefined>(undefined);
     const [authError, setAuthError] = useState<string | null>(null);
-    const [tosChecked, setTosChecked] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const login = useAuthStore((s) => s.login);
     const isWeb = Platform.OS === 'web';
@@ -145,34 +136,7 @@ export const AuthScreen: React.FC = () => {
         });
     }, [googleAndroidClientId, googleConfigError, googleIosClientId, googleWebClientId, isWeb]);
 
-    // Fetch strict campuses on email domain change (debounced)
-    useEffect(() => {
-        if (!isRegistering) {
-            setCampuses([]);
-            setSelectedCampus(undefined);
-            return;
-        }
 
-        const match = email.match(/@([^@\s]+)$/);
-        if (match && match[1]) {
-            const domain = match[1];
-            const timer = setTimeout(async () => {
-                try {
-                    const data = await api.getCampuses(domain);
-                    setCampuses(data.campuses || []);
-                    if (!data.campuses || data.campuses.length === 0) {
-                        setSelectedCampus(undefined);
-                    }
-                } catch (err) {
-                    console.log('Failed to fetch campuses', err);
-                }
-            }, 500);
-            return () => clearTimeout(timer);
-        } else {
-            setCampuses([]);
-            setSelectedCampus(undefined);
-        }
-    }, [email, isRegistering]);
 
     // Interactive Hover Physics
     const hoverProgress = useSharedValue(0);
@@ -188,13 +152,10 @@ export const AuthScreen: React.FC = () => {
         };
     });
 
-    const handleFormChange = (setter: (v: string) => void, value: string) => {
-        setter(value);
-        if (authError) setAuthError(null);
-    };
+
 
     const handleGoogleSignIn = async () => {
-        if (googleLoading || isLoading) {
+        if (googleLoading) {
             return;
         }
 
@@ -286,48 +247,7 @@ export const AuthScreen: React.FC = () => {
         }
     };
 
-    const handleSubmit = async () => {
-        if (isRegistering && !tosChecked) {
-            Alert.alert('Terms of Service', 'You must understand that BLITZR operates with virtual credits to create an account.');
-            return;
-        }
 
-        setIsLoading(true);
-        setAuthError(null);
-        try {
-            let result: any;
-            if (isRegistering) {
-                if (!username) {
-                    setAuthError('Username is required.');
-                    setIsLoading(false);
-                    return;
-                }
-                if (campuses.length > 0 && !selectedCampus) {
-                    setAuthError('Please select your Campus from the dropdown.');
-                    setIsLoading(false);
-                    return;
-                }
-                result = await api.register(email, username, password, selectedCampus);
-            } else {
-                result = await api.login(email, password);
-            }
-
-            login(result.user.user_id, result.user.username, result.user.email, result.token, result.user.tos_accepted || false, result.user.is_ipo_active || false, result.user.rumor_disclosure_accepted || false);
-        } catch (error: any) {
-            const msg = error?.message || 'Unknown error';
-            const lowerMsg = String(msg).toLowerCase();
-
-            if (lowerMsg.includes('waitlist')) {
-                setAuthError(msg);
-            } else if (lowerMsg.includes('already registered') || lowerMsg.includes('conflict')) {
-                setAuthError('Account Exists: This email is already registered. Please Login.');
-            } else {
-                setAuthError(msg);
-            }
-        } finally {
-            setIsLoading(false);
-        }
-    };
 
     return (
         <KeyboardAvoidingView
@@ -352,7 +272,7 @@ export const AuthScreen: React.FC = () => {
                 {/* Form */}
                 <GlassCard style={styles.formCard}>
                     <Text style={styles.formTitle}>
-                        {isRegistering ? 'CREATE ACCOUNT' : 'LOGIN'}
+                        AUTHENTICATION
                     </Text>
 
                     {authError && (
@@ -361,103 +281,13 @@ export const AuthScreen: React.FC = () => {
                         </View>
                     )}
 
-                    <TextInput
-                        style={styles.input}
-                        value={email}
-                        onChangeText={(v) => handleFormChange(setEmail, v)}
-                        placeholder="Email (.edu)"
-                        placeholderTextColor={Colors.textTertiary}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                    />
-
-                    {isRegistering && campuses.length > 0 && (
-                        <View style={styles.pickerContainer}>
-                            <RNPickerSelect
-                                onValueChange={(value) => {
-                                    setSelectedCampus(value || undefined);
-                                    if (authError) setAuthError(null);
-                                }}
-                                items={campuses.map(c => ({ label: `${c} Campus`, value: c }))}
-                                placeholder={{ label: 'Select Your Campus...', value: '' }}
-                                value={selectedCampus || ''}
-                                style={pickerSelectStyles}
-                                useNativeAndroidPickerStyle={false}
-                            />
-                        </View>
-                    )}
-
-                    {isRegistering && (
-                        <TextInput
-                            style={styles.input}
-                            value={username}
-                            onChangeText={(v) => handleFormChange(setUsername, v)}
-                            placeholder="Username (your $TICKER name)"
-                            placeholderTextColor={Colors.textTertiary}
-                            autoCapitalize="none"
-                        />
-                    )}
-
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={(v) => handleFormChange(setPassword, v)}
-                        placeholder="Password"
-                        placeholderTextColor={Colors.textTertiary}
-                        secureTextEntry
-                    />
-
-                    {isRegistering && (
-                        <Pressable 
-                            style={styles.checkboxContainer} 
-                            onPress={() => setTosChecked(!tosChecked)}
-                        >
-                            <View style={[styles.checkbox, tosChecked && styles.checkboxActive]}>
-                                {tosChecked && <Text style={styles.checkmark}>✓</Text>}
-                            </View>
-                            <Text style={styles.checkboxText}>
-                                I understand that Creds and Chips are virtual game currency with no real-world monetary value.
-                            </Text>
-                        </Pressable>
-                    )}
-
-                    <Button
-                        title={isRegistering ? 'REGISTER' : 'LOGIN'}
-                        variant="buy"
-                        size="lg"
-                        fullWidth
-                        loading={isLoading}
-                        disabled={isRegistering && !tosChecked}
-                        onPress={handleSubmit}
-                        style={{ marginTop: Spacing.sm }}
-                    />
-
-                    <Button
-                        title={isRegistering ? 'Already have an account? LOGIN' : 'New? CREATE ACCOUNT'}
-                        variant="secondary"
-                        size="sm"
-                        fullWidth
-                        onPress={() => {
-                            setIsRegistering(!isRegistering);
-                            setAuthError(null);
-                            setGoogleLoading(false);
-                        }}
-                        style={{ marginTop: Spacing.md }}
-                    />
-
-                    <View style={styles.dividerContainer}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>IDENTITY VERIFICATION</Text>
-                        <View style={styles.dividerLine} />
-                    </View>
-
                     <Button
                         title="SIGN IN WITH GOOGLE"
                         variant="secondary"
                         size="lg"
                         fullWidth
                         loading={googleLoading}
-                        disabled={googleLoading || isLoading || !!googleConfigError}
+                        disabled={googleLoading || !!googleConfigError}
                         onPress={handleGoogleSignIn}
                         style={styles.googleButton}
                     />

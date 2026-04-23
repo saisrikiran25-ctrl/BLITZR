@@ -147,22 +147,6 @@ class ApiClient {
     }
 
     // === AUTH ===
-    async getCampuses(domain: string) {
-        return this.request<{ campuses: string[] }>('GET', `/auth/campuses?domain=${domain}`);
-    }
-
-    async register(email: string, username: string, password: string, campus?: string) {
-        return this.request<{ user: any; token: string }>('POST', '/auth/register', {
-            email, username, password, campus
-        });
-    }
-
-    async login(email: string, password: string) {
-        return this.request<{ user: any; token: string }>('POST', '/auth/login', {
-            email, password,
-        });
-    }
-
     async googleLogin(idToken: string) {
         return this.request<{ user: any; token: string; isNewUser: boolean }>('POST', '/auth/google', {
             idToken,
