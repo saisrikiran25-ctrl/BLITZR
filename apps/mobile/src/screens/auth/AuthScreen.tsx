@@ -81,11 +81,11 @@ export const AuthScreen: React.FC = () => {
     const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
     const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
     const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
-    const redirectUri = AuthSession.makeRedirectUri(
-        Platform.OS === 'web'
-            ? {} // On web, Expo auto-uses window.location.origin — no scheme needed
-            : { scheme: GOOGLE_REDIRECT_SCHEME, path: GOOGLE_REDIRECT_PATH }
-    );
+    const redirectUri = Platform.OS === 'web'
+        ? (typeof window !== 'undefined'
+            ? `${window.location.origin}/auth`
+            : 'https://monkfish-app-r6nxh.ondigitalocean.app/auth')
+        : AuthSession.makeRedirectUri({ scheme: GOOGLE_REDIRECT_SCHEME, path: GOOGLE_REDIRECT_PATH });
 
     const [webRequest, webResponse, promptWebGoogleAuth] = GoogleAuth.useIdTokenAuthRequest({
         webClientId: googleWebClientId || undefined,
