@@ -21,20 +21,32 @@ export class AuthService {
     }
 
     private getGoogleClientAudiences(): string[] {
+        const googleClientIdsCsv = this.configService.get<string>('GOOGLE_CLIENT_IDS');
         const configuredAudiences = [
             this.configService.get<string>('GOOGLE_WEB_CLIENT_ID'),
             this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID'),
             this.configService.get<string>('GOOGLE_IOS_CLIENT_ID'),
             this.configService.get<string>('GOOGLE_CLIENT_ID'), // Legacy fallback
-            ...(this.configService
-                .get<string>('GOOGLE_CLIENT_IDS')
-                ?.split(',')
-                .map((value) => value.trim()) || []),
+            ...(googleClientIdsCsv
+                ? googleClientIdsCsv.split(',').map((value) => value.trim())
+                : []),
         ]
             .map((value) => value?.trim())
             .filter((value): value is string => Boolean(value));
 
         return Array.from(new Set(configuredAudiences));
+    }
+
+    private isGoogleTokenVerificationError(message: string): boolean {
+        const normalized = message.toLowerCase();
+        return (
+            normalized.includes('wrong recipient') ||
+            normalized.includes('invalid token') ||
+            normalized.includes('token used too early') ||
+            normalized.includes('token used too late') ||
+            normalized.includes('jwt malformed') ||
+            normalized.includes('audience')
+        );
     }
 
     async getCampuses(domain: string) {
@@ -254,7 +266,7 @@ export class AuthService {
             }
 
             const message = String(error?.message || '');
-            if (/audience|recipient|token|jwt|malformed|invalid/i.test(message)) {
+            if (this.isGoogleTokenVerificationError(message)) {
                 throw new UnauthorizedException('Invalid Google token or audience.');
             }
 

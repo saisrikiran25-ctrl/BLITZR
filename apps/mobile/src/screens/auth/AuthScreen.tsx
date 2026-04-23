@@ -28,6 +28,21 @@ import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 
 WebBrowser.maybeCompleteAuthSession();
+const GOOGLE_REDIRECT_SCHEME = 'blitzrmobile';
+const GOOGLE_REDIRECT_PATH = 'auth';
+type GooglePromptResultLike = {
+    authentication?: {
+        idToken?: string | null;
+    };
+    params?: {
+        id_token?: string;
+        error?: string;
+    };
+    error?: {
+        message?: string;
+    };
+    type?: string;
+};
 
 /**
  * AuthScreen — Login / Register flow
@@ -51,7 +66,7 @@ export const AuthScreen: React.FC = () => {
     const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
     const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
     const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
-    const redirectUri = AuthSession.makeRedirectUri({ scheme: 'blitzrmobile', path: 'auth' });
+    const redirectUri = AuthSession.makeRedirectUri({ scheme: GOOGLE_REDIRECT_SCHEME, path: GOOGLE_REDIRECT_PATH });
 
     const [webRequest, webResponse, promptWebGoogleAuth] = GoogleAuth.useIdTokenAuthRequest({
         webClientId: googleWebClientId || undefined,
@@ -85,7 +100,7 @@ export const AuthScreen: React.FC = () => {
             return `${baseMessage} Set these in your mobile env configuration and restart the app.`;
         }
 
-        const webOrigin = (globalThis as any)?.location?.origin || 'your web origin';
+        const webOrigin = (globalThis as any)?.location?.origin || 'http://localhost:<port> or your deployed web domain';
         return `${baseMessage} Add ${webOrigin} as an Authorized JavaScript Origin and ${redirectUri} as an Authorized Redirect URI in Google Cloud Console, then restart the app.`;
     })();
 
@@ -159,6 +174,20 @@ export const AuthScreen: React.FC = () => {
         if (authError) setAuthError(null);
     };
 
+    const extractIdTokenFromWebResult = (
+        promptResult: GooglePromptResultLike | null | undefined,
+        responseResult: GooglePromptResultLike | null | undefined,
+    ): string | null => {
+        const idToken =
+            promptResult?.authentication?.idToken ||
+            promptResult?.params?.id_token ||
+            responseResult?.authentication?.idToken ||
+            responseResult?.params?.id_token ||
+            null;
+
+        return typeof idToken === 'string' && idToken.length > 0 ? idToken : null;
+    };
+
     const handleGoogleSignIn = async () => {
         if (googleLoading || isLoading) {
             return;
@@ -181,7 +210,8 @@ export const AuthScreen: React.FC = () => {
 
                 const promptResult = await promptWebGoogleAuth();
                 if (promptResult.type !== 'success') {
-                    const providerError = String((promptResult as any)?.params?.error || (promptResult as any)?.error?.message || '');
+                    const typedPromptResult = promptResult as GooglePromptResultLike;
+                    const providerError = String(typedPromptResult?.params?.error || typedPromptResult?.error?.message || '');
 
                     if (promptResult.type === 'dismiss' || promptResult.type === 'cancel') {
                         throw new Error('Google Sign-In was cancelled.');
@@ -198,12 +228,10 @@ export const AuthScreen: React.FC = () => {
                     throw new Error('Google Sign-In did not complete. Please try again.');
                 }
 
-                idToken =
-                    (promptResult as any)?.authentication?.idToken ||
-                    (promptResult as any)?.params?.id_token ||
-                    (webResponse as any)?.authentication?.idToken ||
-                    (webResponse as any)?.params?.id_token ||
-                    null;
+                idToken = extractIdTokenFromWebResult(
+                    promptResult as GooglePromptResultLike,
+                    webResponse as GooglePromptResultLike,
+                );
             } else {
                 await GoogleSignin.hasPlayServices();
                 const userInfo = await GoogleSignin.signIn();
