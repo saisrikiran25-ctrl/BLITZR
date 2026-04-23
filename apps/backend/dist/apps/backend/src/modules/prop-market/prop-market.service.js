@@ -95,11 +95,8 @@ let PropMarketService = class PropMarketService {
                  FOR UPDATE`, [eventId, institutionId]);
             if (!event)
                 throw new common_1.NotFoundException('Event not found');
-            // Check for expiration
-            const isExpired = new Date(event.expiry_timestamp).getTime() <= Date.now();
-            if (isExpired || event.status !== 'OPEN') {
-                throw new common_1.ForbiddenException('TIME UP: This event has reached its duration limit. No further broadcasts or bets accepted.');
-            }
+            if (event.status !== 'OPEN')
+                throw new common_1.ForbiddenException('Event is not open for betting');
             if (event.creator_id === userId)
                 throw new common_1.ForbiddenException('Creators cannot bet on their own events');
             // Lock user balance
@@ -154,12 +151,8 @@ let PropMarketService = class PropMarketService {
             if (event.status !== 'OPEN' && event.status !== 'CLOSED') {
                 throw new common_1.ForbiddenException('Event is already settled');
             }
-            // Exclusive Permission Lock
-            const [moderator] = await queryRunner.query(`SELECT email FROM users WHERE user_id = $1`, [settledBy]);
-            const userEmail = moderator?.email?.trim().toLowerCase();
-            const REQUIRED_SETTLER = 'saisrikiran_ipm25@iift.edu';
-            if (userEmail !== REQUIRED_SETTLER) {
-                throw new common_1.ForbiddenException(`UNAUTHORIZED: Only the primary moderator (${REQUIRED_SETTLER}) can issue a final verdict on market outcomes.`);
+            if (event.creator_id !== settledBy && event.referee_id !== settledBy) {
+                throw new common_1.ForbiddenException('Only creator or referee can settle');
             }
             const totalPool = Number(event.yes_pool) + Number(event.no_pool);
             const winningSidePool = winningOutcome === 'YES'

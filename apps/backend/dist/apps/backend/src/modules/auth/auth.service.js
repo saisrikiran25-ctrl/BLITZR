@@ -89,6 +89,101 @@ let AuthService = class AuthService {
         console.log(`[DEBUG] Found ${res.length} campuses for domain: "${domain}"`, res);
         return { campuses: res.map((r) => r.name) };
     }
+    async register(email, username, password, displayName, campusName, institutionId) {
+        try {
+            // 1. Extract domain from email
+            const baseDomain = email.split('@')[1];
+            // 2. Check if specific institution exists
+            let institution;
+            if (institutionId) {
+                const res = await this.dataSource.query('SELECT * FROM institutions WHERE institution_id = $1 AND verified = true', [institutionId]);
+                institution = res[0];
+            }
+            else if (campusName) {
+                const res = await this.dataSource.query('SELECT * FROM institutions WHERE email_domain = $1 AND name = $2 AND verified = true', [baseDomain, campusName]);
+                institution = res[0];
+            }
+            if (!institution) {
+                const res = await this.dataSource.query('SELECT * FROM institutions WHERE email_domain = $1 AND verified = true', [baseDomain]);
+                institution = res[0];
+            }
+            console.log(`[DEBUG] Institution found:`, institution);
+            // 3. If no institution found, add to waitlist and reject
+            if (!institution) {
+                await this.dataSource.query('INSERT INTO waitlist (email, email_domain) VALUES ($1, $2) ON CONFLICT DO NOTHING', [email, baseDomain]);
+                throw new common_1.BadRequestException('Your college is not yet on BLITZR. You have been added to the waitlist.');
+            }
+            const existingEmail = await this.usersService.findByEmail(email);
+            if (existingEmail) {
+                throw new common_1.ConflictException('Email already registered');
+            }
+            const usernameTaken = await this.usersService.isUsernameTaken(username, institution.institution_id);
+            if (usernameTaken) {
+                throw new common_1.ConflictException('Username already taken in this institution');
+            }
+            const salt = await bcrypt.genSalt(12);
+            const passwordHash = await bcrypt.hash(password, salt);
+            // 4. Create user with institution_id linked
+            const user = await this.usersService.create({
+                email,
+                username,
+                display_name: displayName || username,
+                password_hash: passwordHash,
+                institution_id: institution.institution_id,
+                credibility_score: 50, // base score for verified college email
+                tos_accepted: false,
+            });
+            // Generate token including institution code for easy access
+            const token = this.generateToken(user.user_id, institution.short_code);
+            return {
+                user: {
+                    user_id: user.user_id,
+                    username: user.username,
+                    email: user.email,
+                    tos_accepted: user.tos_accepted,
+                    is_ipo_active: user.is_ipo_active,
+                    rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
+                    credibility_score: user.credibility_score,
+                },
+                token
+            };
+        }
+        catch (error) {
+            console.error('[CRITICAL ERROR] Registration failed:', error);
+            throw error;
+        }
+    }
+    async login(email, password) {
+        const user = await this.usersService.findByEmail(email);
+        if (!user) {
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        const isValid = await bcrypt.compare(password, user.password_hash);
+        if (!isValid) {
+            throw new common_1.UnauthorizedException('Invalid credentials');
+        }
+        // Fetch institution code
+        let shortCode = 'UNKNOWN';
+        if (user.institution_id) {
+            const res = await this.dataSource.query('SELECT short_code FROM institutions WHERE institution_id = $1', [user.institution_id]);
+            if (res.length > 0) {
+                shortCode = res[0].short_code;
+            }
+        }
+        const token = this.generateToken(user.user_id, shortCode);
+        return {
+            user: {
+                user_id: user.user_id,
+                username: user.username,
+                email: user.email,
+                tos_accepted: user.tos_accepted,
+                is_ipo_active: user.is_ipo_active,
+                rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
+                credibility_score: user.credibility_score,
+            },
+            token,
+        };
+    }
     async acceptTos(userId) {
         await this.dataSource.query('UPDATE users SET tos_accepted = true, tos_accepted_at = NOW() WHERE user_id = $1', [userId]);
         return { success: true };
