@@ -23,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Button } from '../../components/common/Button';
-import { Colors, Typography, Spacing, BorderRadius } from '../../theme';
+import { Colors, Typography, Spacing, BorderRadius, Gradients } from '../../theme';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
 
