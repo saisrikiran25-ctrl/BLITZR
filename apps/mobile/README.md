@@ -4,6 +4,19 @@ This is a new [**React Native**](https://reactnative.dev) project, bootstrapped 
 
 > **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
 
+## Google OAuth Configuration (Web + Native)
+
+Google Sign-In in this app requires these environment variables:
+
+- `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`
+- `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`
+- `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`
+
+For web OAuth to work, configure your Google Cloud OAuth client with:
+
+- Authorized JavaScript origins: your deployed web origin(s)
+- Authorized redirect URI: the app redirect URI generated from scheme `blitzrmobile` and path `auth`
+
 ## Step 1: Start Metro
 
 First, you will need to run **Metro**, the JavaScript build tool for React Native.

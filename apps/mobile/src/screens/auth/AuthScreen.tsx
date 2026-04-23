@@ -11,6 +11,9 @@ import {
     Pressable,
 } from 'react-native';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import * as AuthSession from 'expo-auth-session';
+import * as GoogleAuth from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 
 import Animated, {
     useSharedValue,
@@ -23,6 +26,38 @@ import { Button } from '../../components/common/Button';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
+
+WebBrowser.maybeCompleteAuthSession();
+const GOOGLE_REDIRECT_SCHEME = 'blitzrmobile';
+const GOOGLE_REDIRECT_PATH = 'auth';
+const GOOGLE_WEB_ORIGIN_FALLBACK = 'http://localhost:8081';
+type GooglePromptResultLike = {
+    authentication?: {
+        idToken?: string | null;
+    };
+    params?: {
+        id_token?: string;
+        error?: string;
+    };
+    error?: {
+        message?: string;
+    };
+    type?: string;
+};
+
+const extractIdTokenFromWebResult = (
+    promptResult: GooglePromptResultLike | null | undefined,
+    responseResult: GooglePromptResultLike | null | undefined,
+): string | null => {
+    const idToken =
+        promptResult?.authentication?.idToken ||
+        promptResult?.params?.id_token ||
+        responseResult?.authentication?.idToken ||
+        responseResult?.params?.id_token ||
+        null;
+
+    return typeof idToken === 'string' && idToken.length > 0 ? idToken : null;
+};
 
 /**
  * AuthScreen — Login / Register flow
@@ -42,16 +77,69 @@ export const AuthScreen: React.FC = () => {
     const [tosChecked, setTosChecked] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const login = useAuthStore((s) => s.login);
+    const isWeb = Platform.OS === 'web';
+    const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
+    const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
+    const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
+    const redirectUri = AuthSession.makeRedirectUri({ scheme: GOOGLE_REDIRECT_SCHEME, path: GOOGLE_REDIRECT_PATH });
+
+    const [webRequest, webResponse, promptWebGoogleAuth] = GoogleAuth.useIdTokenAuthRequest({
+        webClientId: googleWebClientId || undefined,
+        androidClientId: googleAndroidClientId || undefined,
+        iosClientId: googleIosClientId || undefined,
+        redirectUri,
+        selectAccount: true,
+    });
+
+    const googleConfigError = (() => {
+        const missingEnvVars: string[] = [];
+
+        if (!googleWebClientId) {
+            missingEnvVars.push('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
+        }
+
+        if (Platform.OS === 'android' && !googleAndroidClientId) {
+            missingEnvVars.push('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID');
+        }
+
+        if (Platform.OS === 'ios' && !googleIosClientId) {
+            missingEnvVars.push('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
+        }
+
+        if (missingEnvVars.length === 0) {
+            return null;
+        }
+
+        const baseMessage = `Google Sign-In is not configured for ${Platform.OS}. Missing: ${missingEnvVars.join(', ')}.`;
+        if (!isWeb) {
+            return `${baseMessage} Set these in your mobile env configuration and restart the app.`;
+        }
+
+        const webOrigin = (globalThis as any)?.location?.origin || GOOGLE_WEB_ORIGIN_FALLBACK;
+        return `${baseMessage} Add ${webOrigin} as an Authorized JavaScript Origin and ${redirectUri} as an Authorized Redirect URI in Google Cloud Console, then restart the app.`;
+    })();
 
     useEffect(() => {
+        if (googleConfigError) {
+            setAuthError(googleConfigError);
+        }
+    }, [googleConfigError]);
+
+    useEffect(() => {
+        if (isWeb || googleConfigError) {
+            return;
+        }
+
         // The Web Client ID is required for identity verification on the backend.
         // It should be provided by the environment configuration.
         GoogleSignin.configure({
-            webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || 'PENDING_EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID',
+            webClientId: googleWebClientId,
+            androidClientId: googleAndroidClientId || undefined,
+            iosClientId: googleIosClientId || undefined,
             offlineAccess: true,
             forceCodeForRefreshToken: true,
         });
-    }, []);
+    }, [googleAndroidClientId, googleConfigError, googleIosClientId, googleWebClientId, isWeb]);
 
     // Fetch strict campuses on email domain change (debounced)
     useEffect(() => {
@@ -102,17 +190,60 @@ export const AuthScreen: React.FC = () => {
     };
 
     const handleGoogleSignIn = async () => {
+        if (googleLoading || isLoading) {
+            return;
+        }
+
+        if (googleConfigError) {
+            setAuthError(googleConfigError);
+            return;
+        }
+
         setGoogleLoading(true);
         setAuthError(null);
         try {
-            await GoogleSignin.hasPlayServices();
-            const userInfo = await GoogleSignin.signIn();
-            
-            if (!userInfo.idToken) {
+            let idToken: string | null = null;
+
+            if (isWeb) {
+                if (!webRequest) {
+                    throw new Error('Google Sign-In is still initializing. Please try again.');
+                }
+
+                const promptResult = await promptWebGoogleAuth();
+                if (promptResult.type !== 'success') {
+                    const typedPromptResult = promptResult as GooglePromptResultLike;
+                    const providerError = String(typedPromptResult?.params?.error || typedPromptResult?.error?.message || '');
+
+                    if (promptResult.type === 'dismiss' || promptResult.type === 'cancel') {
+                        throw new Error('Google Sign-In was cancelled.');
+                    }
+
+                    if (/popup|block/i.test(providerError)) {
+                        throw new Error('Google Sign-In popup was blocked. Enable popups for this site and try again.');
+                    }
+
+                    if (promptResult.type === 'error') {
+                        throw new Error(providerError || 'Google Sign-In failed due to an OAuth error.');
+                    }
+
+                    throw new Error('Google Sign-In did not complete. Please try again.');
+                }
+
+                idToken = extractIdTokenFromWebResult(
+                    promptResult as GooglePromptResultLike,
+                    webResponse as GooglePromptResultLike,
+                );
+            } else {
+                await GoogleSignin.hasPlayServices();
+                const userInfo = await GoogleSignin.signIn();
+                idToken = userInfo.idToken || null;
+            }
+
+            if (!idToken) {
                 throw new Error('Google Sign-In failed: No ID Token received.');
             }
 
-            const result = await api.googleLogin(userInfo.idToken);
+            const result = await api.googleLogin(idToken);
 
             if (result.isNewUser) {
                 // If it's a new user, they might need to set a custom username
@@ -131,7 +262,20 @@ export const AuthScreen: React.FC = () => {
             );
         } catch (error: any) {
             console.log('Google Sign-In Error:', error);
-            setAuthError(error.message || 'Google Authentication failed.');
+            const rawMessage = String(error?.message || 'Google Authentication failed.');
+            const normalized = rawMessage.toLowerCase();
+
+            if (normalized.includes('cancel')) {
+                setAuthError('Google Sign-In was cancelled.');
+            } else if (normalized.includes('popup') || normalized.includes('block')) {
+                setAuthError('Google Sign-In popup was blocked. Enable popups for this site and try again.');
+            } else if (normalized.includes('network') || normalized.includes('unable to connect')) {
+                setAuthError('Network error during Google authentication. Check your connection and try again.');
+            } else if (normalized.includes('token')) {
+                setAuthError('Google authentication failed because no valid token was returned.');
+            } else {
+                setAuthError(rawMessage);
+            }
         } finally {
             setGoogleLoading(false);
         }
@@ -291,6 +435,7 @@ export const AuthScreen: React.FC = () => {
                         onPress={() => {
                             setIsRegistering(!isRegistering);
                             setAuthError(null);
+                            setGoogleLoading(false);
                         }}
                         style={{ marginTop: Spacing.md }}
                     />
@@ -307,6 +452,7 @@ export const AuthScreen: React.FC = () => {
                         size="lg"
                         fullWidth
                         loading={googleLoading}
+                        disabled={googleLoading || isLoading || !!googleConfigError}
                         onPress={handleGoogleSignIn}
                         style={styles.googleButton}
                     />

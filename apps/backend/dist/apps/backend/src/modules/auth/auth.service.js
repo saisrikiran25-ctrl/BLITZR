@@ -56,7 +56,32 @@ let AuthService = class AuthService {
         this.jwtService = jwtService;
         this.configService = configService;
         this.dataSource = dataSource;
-        this.googleClient = new google_auth_library_1.OAuth2Client(this.configService.get('GOOGLE_CLIENT_ID'));
+        const audiences = this.getGoogleClientAudiences();
+        this.googleClient = new google_auth_library_1.OAuth2Client(audiences[0]);
+    }
+    getGoogleClientAudiences() {
+        const googleClientIdsCsv = this.configService.get('GOOGLE_CLIENT_IDS');
+        const configuredAudiences = [
+            this.configService.get('GOOGLE_WEB_CLIENT_ID'),
+            this.configService.get('GOOGLE_ANDROID_CLIENT_ID'),
+            this.configService.get('GOOGLE_IOS_CLIENT_ID'),
+            this.configService.get('GOOGLE_CLIENT_ID'), // Legacy fallback
+            ...(googleClientIdsCsv
+                ? googleClientIdsCsv.split(',').map((value) => value.trim())
+                : []),
+        ]
+            .map((value) => value?.trim())
+            .filter((value) => Boolean(value));
+        return Array.from(new Set(configuredAudiences));
+    }
+    isGoogleTokenVerificationError(message) {
+        const normalized = message.toLowerCase();
+        return (normalized.includes('wrong recipient') ||
+            normalized.includes('invalid token') ||
+            normalized.includes('token used too early') ||
+            normalized.includes('token used too late') ||
+            normalized.includes('jwt malformed') ||
+            normalized.includes('audience'));
     }
     async getCampuses(domain) {
         console.log(`[DEBUG] getCampuses called for domain: "${domain}"`);
@@ -151,9 +176,13 @@ let AuthService = class AuthService {
     }
     async googleLogin(idToken) {
         try {
+            const audiences = this.getGoogleClientAudiences();
+            if (audiences.length === 0) {
+                throw new common_1.InternalServerErrorException('Google authentication is not configured on the server.');
+            }
             const ticket = await this.googleClient.verifyIdToken({
                 idToken,
-                audience: this.configService.get('GOOGLE_CLIENT_ID'),
+                audience: audiences,
             });
             const payload = ticket.getPayload();
             if (!payload || !payload.email) {
@@ -214,8 +243,16 @@ let AuthService = class AuthService {
             if (error instanceof common_1.BadRequestException || error instanceof common_1.UnauthorizedException) {
                 throw error;
             }
-            console.error('[CRITICAL ERROR] Google Login failed:', error);
-            throw new common_1.InternalServerErrorException('Authentication failed');
+            const message = String(error?.message || '');
+            if (this.isGoogleTokenVerificationError(message)) {
+                throw new common_1.UnauthorizedException('Invalid Google token or audience.');
+            }
+            console.error('[CRITICAL ERROR] Google Login failed. Details:', {
+                error: error.message,
+                stack: error.stack,
+                googleAudiencesConfigured: this.getGoogleClientAudiences().length
+            });
+            throw new common_1.InternalServerErrorException(`Authentication failed: ${error.message}`);
         }
     }
     generateToken(userId, collegeDomain) {

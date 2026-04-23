@@ -34,7 +34,7 @@ let CrashProtectorService = CrashProtectorService_1 = class CrashProtectorServic
     }
     onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = (0, redis_factory_1.createRedisClient)(redisUrl);
+        this.redisClient = (0, redis_factory_1.createRedisClient)(redisUrl, 'CrashProtector');
     }
     onModuleDestroy() {
         this.redisClient?.disconnect();

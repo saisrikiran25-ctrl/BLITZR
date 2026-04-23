@@ -9,6 +9,8 @@ export declare class AuthService {
     private readonly dataSource;
     private googleClient;
     constructor(usersService: UsersService, jwtService: JwtService, configService: ConfigService, dataSource: DataSource);
+    private getGoogleClientAudiences;
+    private isGoogleTokenVerificationError;
     getCampuses(domain: string): Promise<{
         campuses: any;
     }>;
