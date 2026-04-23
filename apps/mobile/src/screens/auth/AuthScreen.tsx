@@ -147,9 +147,6 @@ export const AuthScreen: React.FC = () => {
             transform: [
                 { scale: withSpring(1 + hoverProgress.value * 0.05, { damping: 10, stiffness: 200 }) }
             ],
-            textShadowRadius: withTiming(15 + hoverProgress.value * 15, { duration: 150 }),
-            textShadowColor: Colors.kineticGreen,
-            textShadowOffset: { width: 0, height: 0 },
             opacity: withTiming(0.8 + hoverProgress.value * 0.2, { duration: 150 }),
         };
     });
@@ -311,7 +308,7 @@ export const AuthScreen: React.FC = () => {
                             />
 
                             <Text style={styles.securityNote}>
-                                <Text style={{ color: Colors.kineticGreen }}>[AUTH_LEVEL_01]</Text> Institutional Verification Required
+                                Institutional Verification Required
                             </Text>
                         </View>
                     </GlassCard>
@@ -363,11 +360,6 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         color: Colors.kineticGreen,
         letterSpacing: 12,
-        // Heavy bloom effect
-        shadowColor: Colors.kineticGreen,
-        shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.8,
-        shadowRadius: 20,
     },
     tagline: {
         ...Typography.dataLabel,
