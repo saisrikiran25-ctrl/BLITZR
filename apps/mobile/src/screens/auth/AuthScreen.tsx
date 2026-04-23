@@ -100,7 +100,7 @@ export const AuthScreen: React.FC = () => {
             return `${baseMessage} Set these in your mobile env configuration and restart the app.`;
         }
 
-        const webOrigin = (globalThis as any)?.location?.origin || 'http://localhost:8081 or your deployed web domain';
+        const webOrigin = (globalThis as any)?.location?.origin || 'http://localhost:8081';
         return `${baseMessage} Add ${webOrigin} as an Authorized JavaScript Origin and ${redirectUri} as an Authorized Redirect URI in Google Cloud Console, then restart the app.`;
     })();
 
