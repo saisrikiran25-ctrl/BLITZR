@@ -23,6 +23,14 @@ const isLocalHostname = (hostname: string) => {
         || normalized === '::'
         || normalized === '::1';
 };
+const isLocalApiUrl = (url: string, currentOrigin?: string): boolean => {
+    try {
+        const parsed = currentOrigin ? new URL(url, currentOrigin) : new URL(url);
+        return isLocalHostname(parsed.hostname);
+    } catch {
+        return false;
+    }
+};
 
 const getBaseUrls = (): string[] => {
     const urls: string[] = [];
@@ -39,7 +47,15 @@ const getBaseUrls = (): string[] => {
     };
 
     // 1. First priority: Explicitly configured API URL
-    add(configuredBaseUrl);
+    // Ignore localhost URLs on deployed web hosts so production doesn't try local dev APIs.
+    if (configuredBaseUrl) {
+        const configuredIsLocal = isLocalApiUrl(configuredBaseUrl, currentLocation?.origin);
+        if (!configuredIsLocal || isLocalWebHost) {
+            add(configuredBaseUrl);
+        } else {
+            console.warn('[API] Ignoring local EXPO_PUBLIC_API_URL on non-local web host.');
+        }
+    }
 
     // 2. Second priority: If running on a non-local web host, try its own origin
     if (currentLocation?.origin && !isLocalWebHost) {
