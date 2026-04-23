@@ -131,13 +131,13 @@ export const ArenaScreen: React.FC = () => {
     const handleCreateEvent = async () => {
         const hours = parseInt(newEventExpiryHours);
         const liquidity = parseInt(newEventLiquidity);
-        const finalCategory = newEventCategory === 'OTHER' ? customCategory.trim().toUpperCase() : newEventCategory;
+        const finalCategory = newEventCategory === 'Other' ? customCategory.trim().toUpperCase() : newEventCategory.toUpperCase();
 
         if (!newEventTitle || newEventTitle.length < 5) {
             Alert.alert('Invalid Title', 'Please enter a clear proposition title.');
             return;
         }
-        if (newEventCategory === 'OTHER' && (!finalCategory || finalCategory.length < 3)) {
+        if (newEventCategory === 'Other' && (!finalCategory || finalCategory.length < 3)) {
             Alert.alert('Invalid Category', 'Please enter a valid custom category (min 3 chars).');
             return;
         }
@@ -457,7 +457,7 @@ export const ArenaScreen: React.FC = () => {
                                         </TouchableOpacity>
                                     ))}
                                 </View>
-                                {newEventCategory === 'OTHER' && (
+                                {newEventCategory === 'Other' && (
                                     <View style={{ marginTop: Spacing.md }}>
                                         <TextInput
                                             style={[styles.textInput, { minHeight: 40, paddingBottom: 4, fontSize: 12 }]}
