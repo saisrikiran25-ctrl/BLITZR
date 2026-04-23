@@ -304,7 +304,7 @@ export const ArenaScreen: React.FC = () => {
                             <View style={styles.outcomeDivider} />
                             <View style={styles.outcomeBlock}>
                                 <Text style={styles.outcomeLabel}>Estimated Return</Text>
-                                <Text style={styles.outcomeValue}>
+                                <Text style={[styles.outcomeValue, selectedOutcome === 'YES' ? styles.green : styles.red]}>
                                     {(() => {
                                         const amount = parseInt(betAmount) || 0;
                                         if (amount <= 0 || !selectedEvent) return formatChips(0);
