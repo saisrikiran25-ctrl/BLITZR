@@ -25,6 +25,15 @@ interface TickerTapeProps {
 
 const ITEM_WIDTH = 160;
 
+const formatTicker = (id: string) => {
+    if (!id) return '';
+    if (id.length <= 4) return id;
+    const hasPrefix = id.startsWith('$');
+    const start = hasPrefix ? id.substring(0, 2) : id.substring(0, 1);
+    const end = id.slice(-2);
+    return `${start}${end}`;
+};
+
 export const TickerTape: React.FC<TickerTapeProps> = ({
     items,
     speed = 50,
@@ -66,7 +75,7 @@ export const TickerTape: React.FC<TickerTapeProps> = ({
                 {displayItems.map((item, index) => (
                     <View key={`${item.ticker_id}-${index}`} style={styles.item}>
                         <Text style={styles.tickerName}>
-                            {item.ticker_id.length > 6 ? `${item.ticker_id.substring(0, 6)}..` : item.ticker_id}
+                            {formatTicker(item.ticker_id)}
                         </Text>
                         <Text style={styles.change}>
                             {item.change_pct >= 0 ? '+' : ''}
