@@ -19,6 +19,8 @@ export declare class UsersController {
         credibility_score: number;
         tos_accepted: boolean;
         tos_accepted_at: Date;
+        rumor_disclosure_accepted: boolean;
+        rumor_disclosure_accepted_at: Date;
         email_verified: boolean;
         avatar_url: string;
         last_active_at: Date;
@@ -43,6 +45,8 @@ export declare class UsersController {
         credibility_score: number;
         tos_accepted: boolean;
         tos_accepted_at: Date;
+        rumor_disclosure_accepted: boolean;
+        rumor_disclosure_accepted_at: Date;
         email_verified: boolean;
         avatar_url: string;
         last_active_at: Date;
@@ -68,6 +72,8 @@ export declare class UsersController {
         credibility_score: number;
         tos_accepted: boolean;
         tos_accepted_at: Date;
+        rumor_disclosure_accepted: boolean;
+        rumor_disclosure_accepted_at: Date;
         email_verified: boolean;
         avatar_url: string;
         last_active_at: Date;

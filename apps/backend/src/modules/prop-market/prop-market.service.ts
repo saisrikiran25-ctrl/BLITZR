@@ -60,8 +60,8 @@ export class PropMarketService {
             'saisrikiran_ipm25@iift.edu'
         ];
 
-        if (institutionName.toLowerCase() === 'iift kakinada' && !IIFT_ALLOWED_EMAILS.includes(creator.email.trim().toLowerCase())) {
-            throw new ForbiddenException('STRICT POLICY: Only designated IIFT Kakinada moderators (Saksham, Aarav, SaiK) can create Arena questions.');
+        if (creator.email.trim().toLowerCase().endsWith('@iift.edu') && !IIFT_ALLOWED_EMAILS.includes(creator.email.trim().toLowerCase())) {
+            throw new ForbiddenException('STRICT POLICY: Only designated IIFT moderators (Saksham, Aarav, SaiK) can create Arena questions.');
         }
 
         const totalCost = listingFee + (initialLiquidity * 2); // Liquidity must seed BOTH sides 50/50

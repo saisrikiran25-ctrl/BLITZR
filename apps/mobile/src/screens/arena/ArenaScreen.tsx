@@ -39,8 +39,10 @@ export const ArenaScreen: React.FC = () => {
         'saisrikiran_ipm25@iift.edu',
     ];
 
-    const isAuthorizedToCreate = !email?.toLowerCase().endsWith('@iift.edu') || 
-                                IIFT_ALLOWED_EMAILS.includes(email.toLowerCase());
+    const isAuthorizedToCreate = !!email && (
+        !email.toLowerCase().endsWith('@iift.edu') || 
+        IIFT_ALLOWED_EMAILS.includes(email.toLowerCase().trim())
+    );
 
     const [selectedTab, setSelectedTab] = useState<'Active' | 'Settled'>('Active');
 

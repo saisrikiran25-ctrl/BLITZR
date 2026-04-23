@@ -11,6 +11,11 @@ export declare class AuthController {
         user: {
             user_id: string;
             username: string;
+            email: string;
+            tos_accepted: boolean;
+            is_ipo_active: boolean;
+            rumor_disclosure_accepted: any;
+            credibility_score: number;
         };
         token: string;
     }>;
@@ -18,7 +23,10 @@ export declare class AuthController {
         user: {
             user_id: string;
             username: string;
+            email: string;
             tos_accepted: boolean;
+            is_ipo_active: boolean;
+            rumor_disclosure_accepted: any;
             credibility_score: number;
         };
         token: string;
@@ -27,11 +35,14 @@ export declare class AuthController {
         user: {
             user_id: string;
             username: string;
+            email: string;
             tos_accepted: boolean;
+            is_ipo_active: boolean;
+            rumor_disclosure_accepted: any;
             credibility_score: number;
-            isNewUser: boolean;
         };
         token: string;
+        isNewUser: boolean;
     }>;
     acceptTos(req: any): Promise<{
         success: boolean;

@@ -77,6 +77,14 @@ __decorate([
 __decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: false }),
     __metadata("design:type", Boolean)
+], UserEntity.prototype, "rumor_disclosure_accepted", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'timestamptz', nullable: true }),
+    __metadata("design:type", Date)
+], UserEntity.prototype, "rumor_disclosure_accepted_at", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
 ], UserEntity.prototype, "email_verified", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'text', nullable: true }),
