@@ -29,7 +29,7 @@ export class MarketMonitorService implements OnModuleInit, OnModuleDestroy {
 
     onModuleInit() {
         const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = createRedisClient(redisUrl);
+        this.redisClient = createRedisClient(redisUrl, 'MarketMonitor');
     }
 
     onModuleDestroy() {

@@ -99,7 +99,7 @@ export class AuthService {
             // Generate token including institution code for easy access
             const token = this.generateToken(user.user_id, institution.short_code);
             return { user: { user_id: user.user_id, username: user.username }, token };
-        } catch (error) {
+        } catch (error: any) {
             console.error('[CRITICAL ERROR] Registration failed:', error);
             throw error;
         }
@@ -227,12 +227,16 @@ export class AuthService {
                 },
                 token,
             };
-        } catch (error) {
+        } catch (error: any) {
             if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
                 throw error;
             }
-            console.error('[CRITICAL ERROR] Google Login failed:', error);
-            throw new InternalServerErrorException('Authentication failed');
+            console.error('[CRITICAL ERROR] Google Login failed. Details:', {
+                error: error.message,
+                stack: error.stack,
+                clientId: this.configService.get<string>('GOOGLE_CLIENT_ID') ? 'Set' : 'Not Set'
+            });
+            throw new InternalServerErrorException(`Authentication failed: ${error.message}`);
         }
     }
 

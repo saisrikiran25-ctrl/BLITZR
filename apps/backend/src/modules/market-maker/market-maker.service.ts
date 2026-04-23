@@ -36,7 +36,7 @@ export class MarketMakerService {
         private readonly configService: ConfigService,
     ) { 
         this.redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = createRedisClient(this.redisUrl);
+        this.redisClient = createRedisClient(this.redisUrl, 'MarketMaker');
     }
 
     /**

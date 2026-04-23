@@ -62,8 +62,8 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             this.maxAttemptCount,
         );
 
-        this.redisEnqueue = createRedisClient(redisUrl);
-        this.redisWorker = createRedisClient(redisUrl);
+        this.redisEnqueue = createRedisClient(redisUrl, 'TradeQueue-Enqueue');
+        this.redisWorker = createRedisClient(redisUrl, 'TradeQueue-Worker');
         this.logger.log('Trade Queue Service initialised');
     }
 

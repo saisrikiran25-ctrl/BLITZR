@@ -5,13 +5,24 @@ import Redis from 'ioredis';
  * Handles TLS for DigitalOcean Managed Valkey (rediss://) which uses
  * self-signed certificates that require rejectUnauthorized: false.
  */
-export function createRedisClient(url: string): Redis {
+export function createRedisClient(url: string, name: string = 'Redis'): Redis {
     const isTls = url.startsWith('rediss://');
-    return new Redis(url, {
+    const client = new Redis(url, {
         tls: isTls ? { rejectUnauthorized: false } : undefined,
         maxRetriesPerRequest: 3,
         connectTimeout: 10000,
         enableOfflineQueue: false,
         lazyConnect: false,
     });
+
+    // CRITICAL: Prevent "Unhandled error event" crashes
+    client.on('error', (err) => {
+        console.warn(`⚠️ [${name}] Connection Error:`, err.message);
+    });
+
+    client.on('connect', () => {
+        console.log(`📡 [${name}] Connected to Redis`);
+    });
+
+    return client;
 }

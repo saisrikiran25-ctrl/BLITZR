@@ -139,7 +139,7 @@ Return ONLY valid JSON: {"post_type": "...", "risk_score": 0.0}`,
 
     private getRedisClient(): Redis {
         if (!this.redisClient) {
-            this.redisClient = createRedisClient(this.redisUrl);
+            this.redisClient = createRedisClient(this.redisUrl, 'Classifier');
         }
         return this.redisClient;
     }

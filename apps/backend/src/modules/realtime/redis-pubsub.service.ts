@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
+import { createRedisClient } from '../../config/redis.factory';
 
 /**
  * RedisPubSubService
@@ -16,13 +17,30 @@ export class RedisPubSubService implements OnModuleInit, OnModuleDestroy {
     constructor(private readonly configService: ConfigService) { }
 
     onModuleInit() {
+        const redisUrl = this.configService.get<string>('REDIS_URL');
         const host = this.configService.get<string>('REDIS_HOST', 'localhost');
         const port = this.configService.get<number>('REDIS_PORT', 6379);
 
-        this.publisher = new Redis({ host, port });
-        this.subscriber = new Redis({ host, port });
+        const options: any = {
+            maxRetriesPerRequest: 3,
+            retryStrategy: (times: number) => {
+                if (times > 3) return null; // stop retrying after 3 attempts
+                return Math.min(times * 50, 2000);
+            }
+        };
 
-        console.log(`📡 Redis Pub/Sub connected to ${host}:${port}`);
+        try {
+            if (redisUrl) {
+                this.publisher = createRedisClient(redisUrl, 'PubSub-Publisher');
+                this.subscriber = createRedisClient(redisUrl, 'PubSub-Subscriber');
+            } else {
+                const url = `redis://${host}:${port}`;
+                this.publisher = createRedisClient(url, 'PubSub-Publisher');
+                this.subscriber = createRedisClient(url, 'PubSub-Subscriber');
+            }
+        } catch (error) {
+            console.error('❌ Redis Init Failure:', error);
+        }
     }
 
     onModuleDestroy() {
