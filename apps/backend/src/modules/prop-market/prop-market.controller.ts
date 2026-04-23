@@ -2,6 +2,39 @@ import { Controller, Post, Get, Body, Param, Query, UseGuards, Request } from '@
 import { PropMarketService } from './prop-market.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AdminJwtGuard } from '../admin/guards/admin-jwt.guard';
+import { IsString, IsOptional, IsNumber, IsNotEmpty, IsDateString } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class CreateEventDto {
+    @IsString()
+    @IsNotEmpty()
+    title: string;
+
+    @IsString()
+    @IsOptional()
+    description?: string;
+
+    @IsString()
+    @IsOptional()
+    category?: string;
+
+    @IsDateString()
+    expiry_timestamp: string;
+
+    @IsString()
+    @IsOptional()
+    referee_id?: string;
+
+    @IsNumber()
+    @IsOptional()
+    @Type(() => Number)
+    listing_fee?: number;
+
+    @IsNumber()
+    @IsNotEmpty()
+    @Type(() => Number)
+    initial_liquidity: number;
+}
 
 @Controller('prop-market')
 export class PropMarketController {
@@ -11,15 +44,7 @@ export class PropMarketController {
     @Post('create')
     async createEvent(
         @Request() req: any,
-        @Body() body: {
-            title: string;
-            description?: string;
-            category?: string;
-            expiry_timestamp: string;
-            referee_id?: string;
-            listing_fee?: number;
-            initial_liquidity: number;
-        },
+        @Body() body: CreateEventDto,
     ) {
         return this.propMarketService.createEvent(
             req.user.userId,

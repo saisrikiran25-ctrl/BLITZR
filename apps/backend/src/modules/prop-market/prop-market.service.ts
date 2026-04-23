@@ -57,7 +57,10 @@ export class PropMarketService {
         const IIFT_ALLOWED_EMAILS = [
             'saksham_ipm25@iift.edu',
             'aarav_ipm25@iift.edu',
-            'saisrikiran_ipm25@iift.edu'
+            'saisrikiran_ipm25@iift.edu',
+            'saisrikiran25@iift.edu',
+            'saisri.kiran@iift.edu',
+            'sai.kiran@iift.edu'
         ];
 
         const userEmail = creator.email.trim().toLowerCase();
@@ -68,7 +71,9 @@ export class PropMarketService {
             throw new ForbiddenException('STRICT POLICY: Only designated IIFT moderators (Saksham, Aarav, SaiK) can create Arena questions.');
         }
 
-        const totalCost = listingFee + (initialLiquidity * 2); // Liquidity must seed BOTH sides 50/50
+        const numListingFee = Number(listingFee || 0);
+        const numLiquidity = Number(initialLiquidity || 0);
+        const totalCost = numListingFee + (numLiquidity * 2);
 
         // Exempt allowed moderators from the cost check
         const shouldDeductCost = totalCost > 0 && !isAllowedModerator;
@@ -79,7 +84,7 @@ export class PropMarketService {
                 [creatorId],
             );
             if (Number(user.chip_balance) < totalCost) {
-                throw new BadRequestException('Insufficient Chips for listing and initial liquidity');
+                throw new BadRequestException(`Insufficient Chips for listing and initial liquidity. Required: ${totalCost}, Available: ${user.chip_balance}`);
             }
             await this.dataSource.query(
                 `UPDATE users SET chip_balance = chip_balance - $1 WHERE user_id = $2`,
@@ -94,16 +99,17 @@ export class PropMarketService {
             category,
             expiry_timestamp: expiryTimestamp,
             referee_id: refereeId,
-            listing_fee_paid: listingFee,
-            yes_pool: initialLiquidity,
-            no_pool: initialLiquidity,
+            listing_fee_paid: numListingFee,
+            yes_pool: numLiquidity,
+            no_pool: numLiquidity,
             college_domain: collegeDomain,
             scope: 'LOCAL',
             institution_id: institutionId,
             options: ['YES', 'NO'],
         });
 
-        return this.eventRepo.save(event);
+        const savedEvent = await this.eventRepo.save(event);
+        return savedEvent;
     }
 
     /**

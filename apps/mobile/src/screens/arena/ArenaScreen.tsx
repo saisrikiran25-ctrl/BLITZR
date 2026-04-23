@@ -37,6 +37,9 @@ export const ArenaScreen: React.FC = () => {
         'saksham_ipm25@iift.edu',
         'aarav_ipm25@iift.edu',
         'saisrikiran_ipm25@iift.edu',
+        'saisrikiran25@iift.edu',
+        'saisri.kiran@iift.edu',
+        'sai.kiran@iift.edu',
     ];
 
     const isAuthorizedToCreate = !!email && (
