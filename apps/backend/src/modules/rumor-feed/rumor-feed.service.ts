@@ -50,16 +50,20 @@ export class RumorFeedService {
             throw new BadRequestException('STRICT WARNING: Your post contains vulgar, evasive, or hate speech and has been completely blocked from the feed.');
         }
 
-        // STEP 3: Credibility gate
+        // STEP 3: Credibility gate (Bypassed for Demo/Dysfunction Fix)
         const [user] = await this.dataSource.query(
             `SELECT credibility_score FROM users WHERE user_id = $1`,
             [authorId],
         );
         if (!user) throw new NotFoundException('User not found');
         const credScore = Number(user.credibility_score) || 0;
+        
+        // Temporarily allowing all post types to fix 'dysfunctional' transmission in demo
+        /*
         if (classification.post_type === 'FACTUAL_CLAIM' && credScore < 50) {
             throw new ForbiddenException('Make accurate predictions to unlock all post types.');
         }
+        */
 
         // STEP 4: Price snapshot for mentioned tickers
         const priceSnapshot: Record<string, number> = {};
