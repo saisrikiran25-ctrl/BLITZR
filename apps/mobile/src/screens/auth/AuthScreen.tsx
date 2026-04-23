@@ -351,49 +351,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginBottom: Spacing.xl,
     },
-    input: {
-        ...Typography.body,
-        color: Colors.textPrimary,
-        backgroundColor: Colors.obsidianBase,
-        borderWidth: 1,
-        borderColor: Colors.glassBorder,
-        borderRadius: BorderRadius.card,
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
-        marginBottom: Spacing.md,
-    },
-    checkboxContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: Spacing.lg,
-        paddingHorizontal: Spacing.xs,
-    },
-    checkbox: {
-        width: 20,
-        height: 20,
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: Colors.glassBorder,
-        backgroundColor: Colors.obsidianBase,
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginRight: Spacing.md,
-    },
-    checkboxActive: {
-        backgroundColor: Colors.kineticGreen,
-        borderColor: Colors.kineticGreen,
-    },
-    checkmark: {
-        color: Colors.obsidianBase,
-        fontSize: 12,
-        fontWeight: 'bold',
-    },
-    checkboxText: {
-        ...Typography.caption,
-        color: Colors.textSecondary,
-        flex: 1,
-        lineHeight: 16,
-    },
     // Footer
     footer: {
         ...Typography.caption,
@@ -401,14 +358,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         marginTop: Spacing.xxl,
         fontStyle: 'italic',
-    },
-    pickerContainer: {
-        backgroundColor: Colors.obsidianBase,
-        borderWidth: 1,
-        borderColor: Colors.glassBorder,
-        borderRadius: BorderRadius.card,
-        marginBottom: Spacing.md,
-        // Overflow hidden if we wanted it, but let's keep it clean
     },
     errorContainer: {
         backgroundColor: '#440000',
@@ -424,43 +373,8 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         fontWeight: 'bold',
     },
-    dividerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: Spacing.xl,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: Colors.glassBorder,
-        opacity: 0.5,
-    },
-    dividerText: {
-        ...Typography.caption,
-        color: Colors.textTertiary,
-        marginHorizontal: Spacing.md,
-        letterSpacing: 1.5,
-    },
     googleButton: {
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         borderColor: Colors.glassBorder,
-    },
-});
-
-const pickerSelectStyles = StyleSheet.create({
-    inputIOS: {
-        ...Typography.body,
-        color: Colors.kineticGreen,
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
-    },
-    inputAndroid: {
-        ...Typography.body,
-        color: Colors.kineticGreen,
-        paddingHorizontal: Spacing.lg,
-        paddingVertical: Spacing.md,
-    },
-    placeholder: {
-        color: Colors.textTertiary,
     },
 });
