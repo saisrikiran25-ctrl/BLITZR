@@ -275,42 +275,59 @@ export const AuthScreen: React.FC = () => {
                         <View style={styles.logoLine} />
                     </View>
 
-                    {/* Form */}
-                    <GlassCard style={styles.formCard}>
-                        <View style={styles.authHeader}>
-                            <View style={styles.authPulse} />
-                            <Text style={styles.formTitle}>SECURE TERMINAL ACCESS</Text>
+                <View style={styles.terminalContainer}>
+                    <GlassCard style={styles.formCard} intensity={40}>
+                        {/* Terminal Header Decor */}
+                        <View style={styles.terminalHeader}>
+                            <View style={styles.terminalDots}>
+                                <View style={[styles.dot, { backgroundColor: '#FF5F56' }]} />
+                                <View style={[styles.dot, { backgroundColor: '#FFBD2E' }]} />
+                                <View style={[styles.dot, { backgroundColor: '#27C93F' }]} />
+                            </View>
+                            <Text style={styles.terminalHeaderText}>AUTH_MODULE.SH</Text>
                         </View>
 
-                        {authError && (
-                            <View style={styles.errorContainer}>
-                                <Text style={styles.errorText}>{authError}</Text>
+                        <View style={styles.authBody}>
+                            <View style={styles.authHeader}>
+                                <View style={styles.authPulse} />
+                                <Text style={styles.formTitle}>ENCRYPTED ACCESS</Text>
                             </View>
-                        )}
 
-                        <Button
-                            title="SIGN IN WITH GOOGLE"
-                            variant="secondary"
-                            size="lg"
-                            fullWidth
-                            loading={googleLoading}
-                            disabled={googleLoading || !!googleConfigError}
-                            onPress={handleGoogleSignIn}
-                            style={styles.googleButton}
-                        />
+                            {authError && (
+                                <View style={styles.errorContainer}>
+                                    <Text style={styles.errorText}>{authError}</Text>
+                                </View>
+                            )}
+
+                            <Button
+                                title="CONTINUE WITH GOOGLE"
+                                variant="buy"
+                                size="xl"
+                                fullWidth
+                                loading={googleLoading}
+                                disabled={googleLoading || !!googleConfigError}
+                                onPress={handleGoogleSignIn}
+                                style={styles.googleButton}
+                            />
+
+                            <Text style={styles.securityNote}>
+                                <Text style={{ color: Colors.kineticGreen }}>[AUTH_LEVEL_01]</Text> Institutional Verification Required
+                            </Text>
+                        </View>
                     </GlassCard>
 
-                    {/* Footer */}
+                    {/* Footer / Credits */}
                     <View style={styles.footerContainer}>
-                        <Text style={styles.footer}>
+                        <Text style={styles.footerText}>
                             Information is the ultimate campus currency.
                         </Text>
-                        <View style={styles.promoContainer}>
-                            <View style={styles.promoLine} />
-                            <Text style={styles.promoText}>BUILT BY SAI KIRAN</Text>
-                            <View style={styles.promoLine} />
+                        
+                        <View style={styles.promoBadge}>
+                            <Text style={styles.promoPrefix}>CORE DEV</Text>
+                            <Text style={styles.promoName}>SAI KIRAN</Text>
                         </View>
                     </View>
+                </View>
                 </View>
             </KeyboardAvoidingView>
         </LinearGradient>
@@ -325,7 +342,12 @@ const styles = StyleSheet.create({
     content: {
         flex: 1,
         justifyContent: 'center',
-        padding: Spacing.xxl,
+        alignItems: 'center',
+        padding: Spacing.xl,
+    },
+    terminalContainer: {
+        width: '100%',
+        maxWidth: 420,
     },
     // Logo
     logoSection: {
@@ -337,100 +359,161 @@ const styles = StyleSheet.create({
     },
     logoText: {
         fontFamily: 'monospace',
-        fontSize: 48,
+        fontSize: 56,
         fontWeight: '900',
         color: Colors.kineticGreen,
-        letterSpacing: 8,
+        letterSpacing: 12,
+        // Heavy bloom effect
+        shadowColor: Colors.kineticGreen,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 20,
     },
     tagline: {
         ...Typography.dataLabel,
-        color: Colors.textTertiary,
-        letterSpacing: 3,
-        marginTop: Spacing.sm,
+        color: Colors.textSecondary,
+        fontSize: 10,
+        letterSpacing: 4,
+        marginTop: Spacing.md,
+        opacity: 0.8,
     },
     logoLine: {
-        width: 80,
+        width: 100,
         height: 1,
         backgroundColor: Colors.kineticGreen,
-        marginTop: Spacing.md,
-        opacity: 0.4,
+        marginTop: Spacing.lg,
+        opacity: 0.3,
+    },
+    // Terminal Decor
+    terminalHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+        paddingHorizontal: Spacing.lg,
+        paddingVertical: Spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.glassBorder,
+    },
+    terminalDots: {
+        flexDirection: 'row',
+        gap: 6,
+    },
+    dot: {
+        width: 10,
+        height: 10,
+        borderRadius: 5,
+        opacity: 0.7,
+    },
+    terminalHeaderText: {
+        ...Typography.caption,
+        color: Colors.textTertiary,
+        fontSize: 10,
+        fontFamily: 'monospace',
+        marginLeft: Spacing.lg,
+        letterSpacing: 1,
+    },
+    authBody: {
+        padding: Spacing.xxl,
     },
     // Form Header
     authHeader: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: Spacing.xl,
+        marginBottom: Spacing.xxl,
     },
     authPulse: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
+        width: 6,
+        height: 6,
+        borderRadius: 3,
         backgroundColor: Colors.kineticGreen,
         marginRight: Spacing.md,
         shadowColor: Colors.kineticGreen,
-        shadowRadius: 10,
+        shadowRadius: 8,
         shadowOpacity: 1,
     },
     // Form
     formCard: {
-        padding: Spacing.xxl,
+        width: '100%',
+        padding: 0, // Let body handle padding
+        backgroundColor: 'rgba(5, 5, 12, 0.95)',
     },
     formTitle: {
-        ...Typography.h3,
+        ...Typography.bodyMedium,
         color: Colors.textPrimary,
-        letterSpacing: 2,
+        fontWeight: 'bold',
+        letterSpacing: 3,
         textAlign: 'center',
-        marginBottom: Spacing.xl,
     },
-    // Footer
-    footer: {
+    securityNote: {
         ...Typography.caption,
         color: Colors.textTertiary,
         textAlign: 'center',
-        marginTop: Spacing.xxl,
+        marginTop: Spacing.xl,
+        fontSize: 10,
+        letterSpacing: 1,
+    },
+    // Footer
+    footerContainer: {
+        marginTop: Spacing.xxxl,
+        alignItems: 'center',
+        width: '100%',
+    },
+    footerText: {
+        ...Typography.caption,
+        color: Colors.textTertiary,
+        textAlign: 'center',
         fontStyle: 'italic',
+        opacity: 0.7,
+    },
+    promoBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 250, 154, 0.05)',
+        borderWidth: 1,
+        borderColor: 'rgba(0, 250, 154, 0.2)',
+        borderRadius: 100,
+        paddingLeft: Spacing.md,
+        paddingRight: Spacing.lg,
+        paddingVertical: Spacing.xs,
+        marginTop: Spacing.xl,
+    },
+    promoPrefix: {
+        fontSize: 8,
+        fontWeight: '900',
+        color: Colors.obsidianBase,
+        backgroundColor: Colors.kineticGreen,
+        paddingHorizontal: 4,
+        paddingVertical: 2,
+        borderRadius: 2,
+        marginRight: Spacing.sm,
+    },
+    promoName: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: Colors.kineticGreen,
+        letterSpacing: 1,
     },
     errorContainer: {
-        backgroundColor: '#440000',
+        backgroundColor: 'rgba(255, 51, 102, 0.1)',
         padding: Spacing.md,
         borderRadius: BorderRadius.card,
         marginBottom: Spacing.xl,
         borderWidth: 1,
-        borderColor: '#ff0000',
+        borderColor: 'rgba(255, 51, 102, 0.4)',
     },
     errorText: {
         ...Typography.caption,
-        color: '#ffffff',
+        color: Colors.thermalRed,
         textAlign: 'center',
         fontWeight: 'bold',
     },
     googleButton: {
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        borderColor: Colors.glassBorder,
-        marginTop: Spacing.md,
-    },
-    footerContainer: {
-        marginTop: Spacing.xxxl,
-        alignItems: 'center',
-    },
-    promoContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginTop: Spacing.xl,
-        opacity: 0.5,
-    },
-    promoText: {
-        ...Typography.caption,
-        color: Colors.kineticGreen,
-        fontSize: 10,
-        fontWeight: 'bold',
-        letterSpacing: 2,
-        marginHorizontal: Spacing.md,
-    },
-    promoLine: {
-        width: 20,
-        height: 1,
-        backgroundColor: Colors.kineticGreen,
+        height: 56,
+        borderRadius: 12,
+        shadowColor: Colors.kineticGreen,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
     },
 });
