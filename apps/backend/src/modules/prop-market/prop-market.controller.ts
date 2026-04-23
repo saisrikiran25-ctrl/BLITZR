@@ -44,7 +44,7 @@ export class PropMarketController {
     @Post('create')
     async createEvent(
         @Request() req: any,
-        @Body() body: CreateEventDto,
+        @Body() body: any,
     ) {
         return this.propMarketService.createEvent(
             req.user.userId,

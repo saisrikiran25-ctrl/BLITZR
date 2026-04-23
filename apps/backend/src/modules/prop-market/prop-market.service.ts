@@ -57,10 +57,7 @@ export class PropMarketService {
         const IIFT_ALLOWED_EMAILS = [
             'saksham_ipm25@iift.edu',
             'aarav_ipm25@iift.edu',
-            'saisrikiran_ipm25@iift.edu',
-            'saisrikiran25@iift.edu',
-            'saisri.kiran@iift.edu',
-            'sai.kiran@iift.edu'
+            'saisrikiran_ipm25@iift.edu'
         ];
 
         const userEmail = creator.email.trim().toLowerCase();
@@ -71,8 +68,8 @@ export class PropMarketService {
             throw new ForbiddenException('STRICT POLICY: Only designated IIFT moderators (Saksham, Aarav, SaiK) can create Arena questions.');
         }
 
-        const numListingFee = Number(listingFee || 0);
-        const numLiquidity = Number(initialLiquidity || 0);
+        const numListingFee = Number(listingFee) || 0;
+        const numLiquidity = Number(initialLiquidity) || 0;
         const totalCost = numListingFee + (numLiquidity * 2);
 
         // Exempt allowed moderators from the cost check
@@ -83,8 +80,10 @@ export class PropMarketService {
                 `SELECT chip_balance FROM users WHERE user_id = $1`,
                 [creatorId],
             );
-            if (Number(user.chip_balance) < totalCost) {
-                throw new BadRequestException(`Insufficient Chips for listing and initial liquidity. Required: ${totalCost}, Available: ${user.chip_balance}`);
+            
+            const currentBalance = Number(user?.chip_balance || 0);
+            if (currentBalance < totalCost) {
+                throw new BadRequestException(`Insufficient Chips. Required: ${totalCost}, Available: ${currentBalance}`);
             }
             await this.dataSource.query(
                 `UPDATE users SET chip_balance = chip_balance - $1 WHERE user_id = $2`,
@@ -94,22 +93,22 @@ export class PropMarketService {
 
         const event = this.eventRepo.create({
             creator_id: creatorId,
-            title,
-            description,
-            category,
+            title: title.trim(),
+            description: description || 'No additional details provided.',
+            category: (category || 'OPINION').toUpperCase(),
             expiry_timestamp: expiryTimestamp,
-            referee_id: refereeId,
+            referee_id: (refereeId && refereeId.length > 10) ? refereeId : null,
             listing_fee_paid: numListingFee,
             yes_pool: numLiquidity,
             no_pool: numLiquidity,
-            college_domain: collegeDomain,
+            college_domain: collegeDomain || 'iift.edu',
             scope: 'LOCAL',
             institution_id: institutionId,
             options: ['YES', 'NO'],
         });
 
-        const savedEvent = await this.eventRepo.save(event);
-        return savedEvent;
+        console.log(`[ARENA] Deploying market: "${title}" by ${userEmail}`);
+        return this.eventRepo.save(event);
     }
 
     /**
