@@ -13,11 +13,20 @@ interface TickerTapeProps {
     speed?: number;
 }
 
+const formatTicker = (id: string) => {
+    if (!id) return '';
+    if (id.length <= 4) return id;
+    const hasPrefix = id.startsWith('$');
+    const start = hasPrefix ? id.substring(0, 2) : id.substring(0, 1);
+    const end = id.slice(-2);
+    return `${start}${end}`;
+};
+
 export const TickerTape: React.FC<TickerTapeProps> = ({ items, speed = 40 }) => {
     const scrollX = useRef(new Animated.Value(0)).current;
 
-    // Build flat label array: ticker name + separator
-    const labels: string[] = items.map((item) => item.ticker_id);
+    // Build flat label array: formatted initials + separator
+    const labels: string[] = items.map((item) => formatTicker(item.ticker_id));
     // Each label rendered as its own Text node with a separator
     const displayLabels = [...labels, ...labels]; // duplicate for seamless loop
 
