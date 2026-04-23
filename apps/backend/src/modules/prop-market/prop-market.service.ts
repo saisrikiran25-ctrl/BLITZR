@@ -122,8 +122,8 @@ export class PropMarketService {
             const [event] = await queryRunner.query(
                 `SELECT event_id, status, yes_pool, no_pool, platform_fee_rate, creator_id, expiry_timestamp
                  FROM prop_events
-                  WHERE event_id = $1 AND (institution_id = $2 OR institution_id IS NULL)
-                  FOR UPDATE`,
+                 WHERE event_id = $1 AND (institution_id = $2 OR institution_id IS NULL)
+                 FOR UPDATE`,
                 [eventId, institutionId],
             );
 
