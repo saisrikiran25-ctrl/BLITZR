@@ -6,6 +6,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { TosGuard } from './common/guards/tos.guard';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import { existsSync } from 'fs';
 
 // Feature Modules
 import { AuthModule } from './modules/auth/auth.module';
@@ -25,6 +26,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 // Database config
 import { getDatabaseConfig } from './config/database.config';
 
+const CLIENT_DIST_PATH = join(__dirname, '..', '..', '..', 'client');
+const hasClientBuild = existsSync(join(CLIENT_DIST_PATH, 'index.html'));
+
 @Module({
     imports: [
         // Configuration (env vars)
@@ -33,11 +37,15 @@ import { getDatabaseConfig } from './config/database.config';
             envFilePath: '.env',
         }),
 
-        // Static Frontend
-        ServeStaticModule.forRoot({
-            rootPath: join(__dirname, '..', '..', '..', 'client'),
-            exclude: ['/api(.*)'],
-        }),
+        // Static Frontend (optional in backend-only deployments)
+        ...(hasClientBuild
+            ? [
+                ServeStaticModule.forRoot({
+                    rootPath: CLIENT_DIST_PATH,
+                    exclude: ['/api(.*)'],
+                }),
+            ]
+            : []),
 
         // PostgreSQL via TypeORM
         TypeOrmModule.forRootAsync({

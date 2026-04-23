@@ -15,6 +15,7 @@ const core_1 = require("@nestjs/core");
 const tos_guard_1 = require("./common/guards/tos.guard");
 const serve_static_1 = require("@nestjs/serve-static");
 const path_1 = require("path");
+const fs_1 = require("fs");
 // Feature Modules
 const auth_module_1 = require("./modules/auth/auth.module");
 const users_module_1 = require("./modules/users/users.module");
@@ -31,6 +32,8 @@ const leaderboard_module_1 = require("./modules/leaderboard/leaderboard.module")
 const notifications_module_1 = require("./modules/notifications/notifications.module");
 // Database config
 const database_config_1 = require("./config/database.config");
+const CLIENT_DIST_PATH = (0, path_1.join)(__dirname, '..', '..', '..', 'client');
+const hasClientBuild = (0, fs_1.existsSync)((0, path_1.join)(CLIENT_DIST_PATH, 'index.html'));
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -42,11 +45,15 @@ exports.AppModule = AppModule = __decorate([
                 isGlobal: true,
                 envFilePath: '.env',
             }),
-            // Static Frontend
-            serve_static_1.ServeStaticModule.forRoot({
-                rootPath: (0, path_1.join)(__dirname, '..', '..', '..', 'client'),
-                exclude: ['/api(.*)'],
-            }),
+            // Static Frontend (optional in backend-only deployments)
+            ...(hasClientBuild
+                ? [
+                    serve_static_1.ServeStaticModule.forRoot({
+                        rootPath: CLIENT_DIST_PATH,
+                        exclude: ['/api(.*)'],
+                    }),
+                ]
+                : []),
             // PostgreSQL via TypeORM
             typeorm_1.TypeOrmModule.forRootAsync({
                 imports: [config_1.ConfigModule],
