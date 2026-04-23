@@ -4,4 +4,4 @@ import Redis from 'ioredis';
  * Handles TLS for DigitalOcean Managed Valkey (rediss://) which uses
  * self-signed certificates that require rejectUnauthorized: false.
  */
-export declare function createRedisClient(url: string, name?: string): Redis;
+export declare function createRedisClient(url: string): Redis;

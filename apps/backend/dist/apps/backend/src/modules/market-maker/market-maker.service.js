@@ -36,7 +36,7 @@ let MarketMakerService = MarketMakerService_1 = class MarketMakerService {
         this.configService = configService;
         this.logger = new common_1.Logger(MarketMakerService_1.name);
         this.redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = (0, redis_factory_1.createRedisClient)(this.redisUrl, 'MarketMaker');
+        this.redisClient = (0, redis_factory_1.createRedisClient)(this.redisUrl);
     }
     /**
      * Ghost Town Defense — runs every 2 minutes.

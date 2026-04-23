@@ -35,18 +35,8 @@ let PropMarketService = class PropMarketService {
      * Create a new prop event.
      */
     async createEvent(creatorId, collegeDomain, title, description, category, expiryTimestamp, refereeId, listingFee = 0, initialLiquidity = 0) {
-        const [creator] = await this.dataSource.query(`SELECT institution_id, email FROM users WHERE user_id = $1`, [creatorId]);
+        const [creator] = await this.dataSource.query(`SELECT institution_id FROM users WHERE user_id = $1`, [creatorId]);
         const institutionId = creator?.institution_id ?? null;
-        // IIFT Kakinada Strict Moderator Check
-        const IIFT_KAKINADA_ID = 'd1ea203d-ae80-4b86-9fb2-5a6e3b2e9bb8';
-        const IIFT_ALLOWED_EMAILS = [
-            'saksham_ipm25@iift.edu',
-            'aarav_ipm25@iift.edu',
-            'saisrikiran_ipm25@iift.edu'
-        ];
-        if (institutionId === IIFT_KAKINADA_ID && !IIFT_ALLOWED_EMAILS.includes(creator.email)) {
-            throw new common_1.ForbiddenException('STRICT POLICY: Only designated IIFT Kakinada moderators can create Arena questions.');
-        }
         const totalCost = listingFee + (initialLiquidity * 2); // Liquidity must seed BOTH sides 50/50
         // Deduct listing fee + initial liquidity if user-created
         if (totalCost > 0) {

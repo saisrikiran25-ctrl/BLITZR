@@ -28,7 +28,7 @@ let MarketMonitorService = MarketMonitorService_1 = class MarketMonitorService {
     }
     onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
-        this.redisClient = (0, redis_factory_1.createRedisClient)(redisUrl, 'MarketMonitor');
+        this.redisClient = (0, redis_factory_1.createRedisClient)(redisUrl);
     }
     onModuleDestroy() {
         this.redisClient?.disconnect();

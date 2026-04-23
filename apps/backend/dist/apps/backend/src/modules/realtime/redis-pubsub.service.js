@@ -8,11 +8,14 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RedisPubSubService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
-const redis_factory_1 = require("../../config/redis.factory");
+const ioredis_1 = __importDefault(require("ioredis"));
 /**
  * RedisPubSubService
  *
@@ -24,31 +27,11 @@ let RedisPubSubService = class RedisPubSubService {
         this.configService = configService;
     }
     onModuleInit() {
-        const redisUrl = this.configService.get('REDIS_URL');
         const host = this.configService.get('REDIS_HOST', 'localhost');
         const port = this.configService.get('REDIS_PORT', 6379);
-        const options = {
-            maxRetriesPerRequest: 3,
-            retryStrategy: (times) => {
-                if (times > 3)
-                    return null; // stop retrying after 3 attempts
-                return Math.min(times * 50, 2000);
-            }
-        };
-        try {
-            if (redisUrl) {
-                this.publisher = (0, redis_factory_1.createRedisClient)(redisUrl, 'PubSub-Publisher');
-                this.subscriber = (0, redis_factory_1.createRedisClient)(redisUrl, 'PubSub-Subscriber');
-            }
-            else {
-                const url = `redis://${host}:${port}`;
-                this.publisher = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Publisher');
-                this.subscriber = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Subscriber');
-            }
-        }
-        catch (error) {
-            console.error('❌ Redis Init Failure:', error);
-        }
+        this.publisher = new ioredis_1.default({ host, port });
+        this.subscriber = new ioredis_1.default({ host, port });
+        console.log(`📡 Redis Pub/Sub connected to ${host}:${port}`);
     }
     onModuleDestroy() {
         this.publisher?.disconnect();

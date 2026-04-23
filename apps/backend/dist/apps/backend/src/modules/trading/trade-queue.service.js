@@ -48,8 +48,8 @@ let TradeQueueService = TradeQueueService_1 = class TradeQueueService {
         this.idleShutdownSeconds = this.configService.get('TRADE_QUEUE_IDLE_SHUTDOWN_SECONDS', this.idleShutdownSeconds);
         this.popTimeoutSeconds = this.configService.get('TRADE_QUEUE_POP_TIMEOUT_SECONDS', this.popTimeoutSeconds);
         this.maxAttemptCount = this.configService.get('TRADE_QUEUE_MAX_RETRY_ATTEMPTS', this.maxAttemptCount);
-        this.redisEnqueue = (0, redis_factory_1.createRedisClient)(redisUrl, 'TradeQueue-Enqueue');
-        this.redisWorker = (0, redis_factory_1.createRedisClient)(redisUrl, 'TradeQueue-Worker');
+        this.redisEnqueue = (0, redis_factory_1.createRedisClient)(redisUrl);
+        this.redisWorker = (0, redis_factory_1.createRedisClient)(redisUrl);
         this.logger.log('Trade Queue Service initialised');
     }
     onModuleDestroy() {

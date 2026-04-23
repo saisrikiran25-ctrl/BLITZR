@@ -16,9 +16,25 @@ export class AuthService {
         private readonly configService: ConfigService,
         private readonly dataSource: DataSource,
     ) {
-        this.googleClient = new OAuth2Client(
-            this.configService.get<string>('GOOGLE_CLIENT_ID')
-        );
+        const audiences = this.getGoogleClientAudiences();
+        this.googleClient = new OAuth2Client(audiences[0]);
+    }
+
+    private getGoogleClientAudiences(): string[] {
+        const configuredAudiences = [
+            this.configService.get<string>('GOOGLE_WEB_CLIENT_ID'),
+            this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID'),
+            this.configService.get<string>('GOOGLE_IOS_CLIENT_ID'),
+            this.configService.get<string>('GOOGLE_CLIENT_ID'), // Legacy fallback
+            ...(this.configService
+                .get<string>('GOOGLE_CLIENT_IDS')
+                ?.split(',')
+                .map((value) => value.trim()) || []),
+        ]
+            .map((value) => value?.trim())
+            .filter((value): value is string => Boolean(value));
+
+        return Array.from(new Set(configuredAudiences));
     }
 
     async getCampuses(domain: string) {
@@ -150,9 +166,14 @@ export class AuthService {
 
     async googleLogin(idToken: string) {
         try {
+            const audiences = this.getGoogleClientAudiences();
+            if (audiences.length === 0) {
+                throw new InternalServerErrorException('Google authentication is not configured on the server.');
+            }
+
             const ticket = await this.googleClient.verifyIdToken({
                 idToken,
-                audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+                audience: audiences,
             });
 
             const payload = ticket.getPayload();
@@ -231,10 +252,16 @@ export class AuthService {
             if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
                 throw error;
             }
+
+            const message = String(error?.message || '');
+            if (/audience|recipient|token|jwt|malformed|invalid/i.test(message)) {
+                throw new UnauthorizedException('Invalid Google token or audience.');
+            }
+
             console.error('[CRITICAL ERROR] Google Login failed. Details:', {
                 error: error.message,
                 stack: error.stack,
-                clientId: this.configService.get<string>('GOOGLE_CLIENT_ID') ? 'Set' : 'Not Set'
+                googleAudiencesConfigured: this.getGoogleClientAudiences().length
             });
             throw new InternalServerErrorException(`Authentication failed: ${error.message}`);
         }

@@ -4,6 +4,7 @@
   "expo": {
     "name": "BlitzrMobile",
     "slug": "blitzr-mobile",
+    "scheme": "blitzrmobile",
     "version": "1.0.0",
     "platforms": [
       "ios",
