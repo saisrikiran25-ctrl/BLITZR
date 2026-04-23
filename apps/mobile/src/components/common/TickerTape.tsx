@@ -2,16 +2,6 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
 import { Colors, Typography, Spacing } from '../../theme';
 
-/**
- * TickerTape — Kinetic Scrolling Marquee
- * 
- * At the very top of every screen (except Vault).
- * 24px high, monospaced white text on Obsidian.
- * Seamlessly scrolls real-time price changes.
- * 
- * Per Design Doc §2.2
- */
-
 interface TickerItem {
     ticker_id: string;
     price: number;
@@ -23,37 +13,41 @@ interface TickerTapeProps {
     speed?: number;
 }
 
-const ITEM_WIDTH = 200;
-
-export const TickerTape: React.FC<TickerTapeProps> = ({
-    items,
-    speed = 50,
-}) => {
+export const TickerTape: React.FC<TickerTapeProps> = ({ items, speed = 40 }) => {
     const scrollX = useRef(new Animated.Value(0)).current;
-    const totalWidth = items.length * ITEM_WIDTH;
+
+    // Build flat label array: ticker name + separator
+    const labels: string[] = items.map((item) => item.ticker_id);
+    // Each label rendered as its own Text node with a separator
+    const displayLabels = [...labels, ...labels]; // duplicate for seamless loop
+
+    // Measure total width: we won't use fixed ITEM_WIDTH at all.
+    // Instead render everything in one long Animated.View and let text be natural width.
+    // To get seamless loop we duplicate and translate by half.
+    const SEPARATOR = '   ·   ';
+    const fullString = displayLabels.join(SEPARATOR);
+
+    // Since we can't measure before render, we use a large fixed scroll distance
+    // based on character count — safe for a marquee.
+    const estimatedWidth = fullString.length * 9; // ~9px per char at tickerTape font size
+    const halfWidth = estimatedWidth / 2;
 
     useEffect(() => {
         if (items.length === 0) return;
-
-        const duration = (totalWidth / speed) * 1000;
-
+        scrollX.setValue(0);
         const animation = Animated.loop(
             Animated.timing(scrollX, {
-                toValue: -totalWidth,
-                duration,
+                toValue: -halfWidth,
+                duration: (halfWidth / speed) * 1000,
                 easing: Easing.linear,
                 useNativeDriver: true,
             }),
         );
         animation.start();
-
         return () => animation.stop();
-    }, [items.length, totalWidth, speed, scrollX]);
+    }, [items.length, halfWidth, speed, scrollX]);
 
     if (items.length === 0) return null;
-
-    // Duplicate items for seamless loop
-    const displayItems = [...items, ...items];
 
     return (
         <View style={styles.container}>
@@ -63,13 +57,9 @@ export const TickerTape: React.FC<TickerTapeProps> = ({
                     { transform: [{ translateX: scrollX }] },
                 ]}
             >
-                {displayItems.map((item, index) => (
-                    <View key={`${item.ticker_id}-${index}`} style={styles.item}>
-                        <Text style={styles.tickerName} numberOfLines={1}>
-                            {item.ticker_id}
-                        </Text>
-                    </View>
-                ))}
+                <Text style={styles.tape} numberOfLines={1}>
+                    {fullString}
+                </Text>
             </Animated.View>
         </View>
     );
@@ -82,20 +72,15 @@ const styles = StyleSheet.create({
         overflow: 'hidden',
         borderBottomWidth: 0.5,
         borderBottomColor: 'transparent',
+        justifyContent: 'center',
     },
     scrollContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        height: 24,
     },
-    item: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        width: ITEM_WIDTH,
-        paddingHorizontal: Spacing.sm,
-    },
-    tickerName: {
+    tape: {
         ...Typography.tickerTape,
         color: Colors.textPrimary,
+        whiteSpace: 'nowrap',
     },
 });
