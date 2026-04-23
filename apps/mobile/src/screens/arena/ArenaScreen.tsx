@@ -250,6 +250,7 @@ export const ArenaScreen: React.FC = () => {
                 {isMainModerator && isExpired && !isSettled && (
                     <View style={styles.modSettleConsole}>
                         <Text style={styles.modSettleTitle}>SETTLEMENT REQUIRED</Text>
+                        <Text style={styles.modSettleSubtitle}>What is the right bet?</Text>
                         <View style={styles.modSettleButtons}>
                             <TouchableOpacity
                                 style={[styles.miniSettleBtn, { borderColor: Colors.kineticGreen }]}
@@ -887,6 +888,11 @@ const styles = StyleSheet.create({
         letterSpacing: 1.5,
         marginBottom: Spacing.sm,
     },
+    modSettleSubtitle: {
+        ...Typography.bodyMedium,
+        color: Colors.textPrimary,
+        fontSize: 11,
+    },
     modSettleButtons: {
         flexDirection: 'row',
         gap: 12,
@@ -905,4 +911,3 @@ const styles = StyleSheet.create({
         fontFamily: Fonts.bold,
     },
 });
-

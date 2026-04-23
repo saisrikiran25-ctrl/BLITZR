@@ -120,7 +120,7 @@ export class PropMarketService {
 
             // Lock the event
             const [event] = await queryRunner.query(
-                `SELECT event_id, status, yes_pool, no_pool, platform_fee_rate, creator_id 
+                `SELECT event_id, status, yes_pool, no_pool, platform_fee_rate, creator_id, expiry_timestamp
                  FROM prop_events
                  WHERE event_id = $1 AND (institution_id = $2 OR institution_id IS NULL)
                  FOR UPDATE`,
@@ -238,6 +238,11 @@ export class PropMarketService {
 
             if (userEmail !== REQUIRED_SETTLER) {
                 throw new ForbiddenException(`UNAUTHORIZED: Only the primary moderator (${REQUIRED_SETTLER}) can issue a final verdict on market outcomes.`);
+            }
+
+            const isExpired = new Date(event.expiry_timestamp).getTime() <= Date.now();
+            if (!isExpired) {
+                throw new ForbiddenException('Settlement is locked until the event duration expires.');
             }
 
             const totalPool = Number(event.yes_pool) + Number(event.no_pool);

@@ -226,6 +226,13 @@ class ApiClient {
         });
     }
 
+    async settleEvent(eventId: string, winningOutcome: 'YES' | 'NO') {
+        return this.request('POST', '/prop-market/settle', {
+            event_id: eventId,
+            winning_outcome: winningOutcome,
+        });
+    }
+
     async createPropEvent(title: string, expiryTimestamp: string, description?: string, category?: string, initialLiquidity: number = 0) {
         return this.request('POST', '/prop-market/create', {
             title, description, category, expiry_timestamp: expiryTimestamp, initial_liquidity: initialLiquidity,
