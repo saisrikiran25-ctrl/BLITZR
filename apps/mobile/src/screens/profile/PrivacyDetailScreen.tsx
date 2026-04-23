@@ -9,7 +9,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { BIcon } from '../../components/common/BIcon';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -60,7 +60,7 @@ export const PrivacyDetailScreen: React.FC = () => {
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Feather name="chevron-left" size={24} color={Colors.textPrimary} />
+                    <BIcon name="chevron-left" size={24} color={Colors.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Privacy Protocol</Text>
                 <View style={{ width: 40 }} />
@@ -69,7 +69,7 @@ export const PrivacyDetailScreen: React.FC = () => {
             <ScrollView contentContainerStyle={styles.content}>
                 <GlassCard style={styles.heroCard} variant="default" intensity={20}>
                     <View style={styles.iconBox}>
-                        <Feather name={feature.icon} size={32} color={Colors.kineticGreen} />
+                        <BIcon name={feature.icon} size={32} color={Colors.kineticGreen} />
                     </View>
                     <Text style={styles.featureTitle}>{feature.title}</Text>
                     <Text style={styles.featureDescription}>{feature.description}</Text>
@@ -82,7 +82,7 @@ export const PrivacyDetailScreen: React.FC = () => {
 
                 {feature.details.map((detail: string, index: number) => (
                     <View key={index} style={styles.detailRow}>
-                        <Feather name="check-circle" size={14} color={Colors.kineticGreen} />
+                        <BIcon name="check-circle" size={14} color={Colors.kineticGreen} />
                         <Text style={styles.detailText}>{detail}</Text>
                     </View>
                 ))}

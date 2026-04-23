@@ -29,7 +29,7 @@ import { api } from '../../services/api';
 import { Button } from '../../components/common/Button';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useAuthStore } from '../../store/useAuthStore';
-import { Feather } from '@expo/vector-icons';
+import { BIcon } from '../../components/common/BIcon';
 
 /**
  * RumorFeedScreen — High-Fidelity Intelligence Feed
@@ -338,7 +338,7 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 <View style={styles.modalOverlay}>
                     <GlassCard style={styles.modalContent} variant="elevated" intensity={60}>
                         <View style={styles.modalHeader}>
-                            <Feather name="shield" size={32} color={Colors.kineticGreen} />
+                            <BIcon name="shield" size={32} color={Colors.kineticGreen} />
                             <Text style={[styles.modalTitle, { marginTop: Spacing.md }]}>Identity Disclosure</Text>
                             <View style={styles.modalLine} />
                         </View>

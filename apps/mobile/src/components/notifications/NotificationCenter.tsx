@@ -10,7 +10,7 @@ import {
     RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { BIcon } from '../common/BIcon';
 import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
 import { useNotificationsStore } from '../../store/useNotificationsStore';
@@ -48,7 +48,7 @@ export const NotificationCenter: React.FC = () => {
         >
             <View style={styles.notificationLeft}>
                 <View style={[styles.iconBox, { borderColor: getIconColor(item.type) + '33' }]}>
-                    <Feather name={getIcon(item.type) as any} size={16} color={getIconColor(item.type)} />
+                    <BIcon name={getIcon(item.type) as any} size={16} color={getIconColor(item.type)} />
                 </View>
                 <View style={styles.notificationText}>
                     <View style={styles.notificationHeader}>
@@ -71,11 +71,11 @@ export const NotificationCenter: React.FC = () => {
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Feather name="chevron-left" size={24} color={Colors.textPrimary} />
+                    <BIcon name="chevron-left" size={24} color={Colors.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Notifications</Text>
                 <TouchableOpacity onPress={markAllAsRead} style={styles.markAllButton}>
-                    <Feather name="check-square" size={20} color={Colors.textSecondary} />
+                    <BIcon name="check-square" size={20} color={Colors.textSecondary} />
                 </TouchableOpacity>
             </View>
 
@@ -93,7 +93,7 @@ export const NotificationCenter: React.FC = () => {
                 }
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
-                        <Feather name="bell-off" size={48} color={Colors.textTertiary} opacity={0.2} />
+                        <BIcon name="bell-off" size={48} color={Colors.textTertiary} style={{ opacity: 0.2 }} />
                         <Text style={styles.emptyText}>No Transmissions</Text>
                         <Text style={styles.emptySubtext}>Awaiting market activity</Text>
                     </View>

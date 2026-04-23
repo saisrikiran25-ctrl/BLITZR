@@ -10,7 +10,7 @@ import {
     Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { BIcon } from '../../components/common/BIcon';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -178,7 +178,7 @@ export const DossierScreen: React.FC = () => {
                             style={styles.notificationBell} 
                             onPress={() => navigation.navigate('NotificationCenter')}
                         >
-                            <Feather name="bell" size={20} color={Colors.textPrimary} />
+                            <BIcon name="bell" size={20} color={Colors.textPrimary} />
                             {unreadCount > 0 && (
                                 <View style={styles.badge}>
                                     <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -246,7 +246,7 @@ export const DossierScreen: React.FC = () => {
                         <GlassCard style={styles.accountCard} variant="default" intensity={20}>
                             <View style={styles.accountRow}>
                                 <View style={styles.accountRowLeft}>
-                                    <Feather name="at-sign" size={16} color={Colors.kineticGreen} />
+                                    <BIcon name="at-sign" size={16} color={Colors.kineticGreen} />
                                     <View>
                                         <Text style={styles.accountLabel}>Username</Text>
                                         <Text style={styles.accountValue}>{username ?? 'Unknown'}</Text>
@@ -258,7 +258,7 @@ export const DossierScreen: React.FC = () => {
 
                             <View style={styles.accountRow}>
                                 <View style={styles.accountRowLeft}>
-                                    <Feather name="hash" size={16} color={Colors.activeGold} />
+                                    <BIcon name="hash" size={16} color={Colors.activeGold} />
                                     <View>
                                         <Text style={styles.accountLabel}>Account ID</Text>
                                         <Text style={styles.accountValue}>{userId ?? 'N/A'}</Text>
@@ -270,7 +270,7 @@ export const DossierScreen: React.FC = () => {
 
                             <View style={styles.accountRow}>
                                 <View style={styles.accountRowLeft}>
-                                    <Feather name="shield" size={16} color={Colors.textSecondary} />
+                                    <BIcon name="shield" size={16} color={Colors.textSecondary} />
                                     <View>
                                         <Text style={styles.accountLabel}>Terms Status</Text>
                                         <Text style={styles.accountValue}>{tosAccepted ? 'Accepted' : 'Pending'}</Text>
@@ -282,26 +282,26 @@ export const DossierScreen: React.FC = () => {
                         <View style={styles.accountActions}>
                             <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('EditProfile')}>
                                 <View style={styles.actionLeft}>
-                                    <Feather name="user" size={16} color={Colors.textSecondary} />
+                                    <BIcon name="user" size={16} color={Colors.textSecondary} />
                                     <Text style={styles.actionText}>Edit Profile</Text>
                                 </View>
-                                <Feather name="chevron-right" size={16} color={Colors.textTertiary} />
+                                <BIcon name="chevron-right" size={16} color={Colors.textTertiary} />
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('Privacy')}>
                                 <View style={styles.actionLeft}>
-                                    <Feather name="lock" size={16} color={Colors.textSecondary} />
+                                    <BIcon name="lock" size={16} color={Colors.textSecondary} />
                                     <Text style={styles.actionText}>Privacy</Text>
                                 </View>
-                                <Feather name="chevron-right" size={16} color={Colors.textTertiary} />
+                                <BIcon name="chevron-right" size={16} color={Colors.textTertiary} />
                             </TouchableOpacity>
 
                             <TouchableOpacity style={styles.actionRow} onPress={() => navigation.navigate('Notifications')}>
                                 <View style={styles.actionLeft}>
-                                    <Feather name="bell" size={16} color={Colors.textSecondary} />
+                                    <BIcon name="bell" size={16} color={Colors.textSecondary} />
                                     <Text style={styles.actionText}>Notifications</Text>
                                 </View>
-                                <Feather name="chevron-right" size={16} color={Colors.textTertiary} />
+                                <BIcon name="chevron-right" size={16} color={Colors.textTertiary} />
                             </TouchableOpacity>
                         </View>
 

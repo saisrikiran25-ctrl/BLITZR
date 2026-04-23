@@ -9,7 +9,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { BIcon } from '../../components/common/BIcon';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
@@ -58,13 +58,13 @@ export const PrivacyScreen: React.FC = () => {
             onPress={() => navigation.navigate('PrivacyDetail', { featureId })}
         >
             <View style={styles.settingLeft}>
-                <Feather name={icon} size={20} color={Colors.textSecondary} />
+                <BIcon name={icon} size={20} color={Colors.textSecondary} />
                 <View style={styles.settingText}>
                     <Text style={styles.settingTitle}>{title}</Text>
                     <Text style={styles.settingDescription}>{description}</Text>
                 </View>
             </View>
-            <Feather name="chevron-right" size={16} color={Colors.textTertiary} />
+            <BIcon name="chevron-right" size={16} color={Colors.textTertiary} />
         </TouchableOpacity>
     );
 
@@ -75,7 +75,7 @@ export const PrivacyScreen: React.FC = () => {
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Feather name="chevron-left" size={24} color={Colors.textPrimary} />
+                    <BIcon name="chevron-left" size={24} color={Colors.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Privacy</Text>
                 <View style={{ width: 40 }} />
@@ -107,7 +107,7 @@ export const PrivacyScreen: React.FC = () => {
                     <Text style={[styles.dangerText, isConfirmingErase && styles.dangerTextConfirm]}>
                         {isConfirmingErase ? "CONFIRM ERASE ALL DATA (IRREVERSIBLE)" : "Erase All Data"}
                     </Text>
-                    {!isConfirmingErase && <Feather name="trash-2" size={16} color={Colors.thermalRed} />}
+                    {!isConfirmingErase && <BIcon name="trash-2" size={16} color={Colors.thermalRed} />}
                 </TouchableOpacity>
             </ScrollView>
         </View>

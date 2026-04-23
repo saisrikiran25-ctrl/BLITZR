@@ -12,7 +12,7 @@ import {
     ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { BIcon } from '../../components/common/BIcon';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useNotificationsStore } from '../../store/useNotificationsStore';
 import { GlassCard } from '../../components/common/GlassCard';
@@ -119,7 +119,7 @@ export const EditProfileScreen: React.FC = () => {
             >
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                        <Feather name="chevron-left" size={24} color={Colors.textPrimary} />
+                        <BIcon name="chevron-left" size={24} color={Colors.textPrimary} />
                     </TouchableOpacity>
                     <Text style={styles.title}>Edit Profile</Text>
                     <View style={{ width: 40 }} />
@@ -135,7 +135,7 @@ export const EditProfileScreen: React.FC = () => {
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Username</Text>
                             <View style={styles.inputWrapper}>
-                                <Feather name="at-sign" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
+                                <BIcon name="at-sign" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     value={username}
@@ -160,7 +160,7 @@ export const EditProfileScreen: React.FC = () => {
                         <View style={styles.inputGroup}>
                             <Text style={styles.label}>Current Password</Text>
                             <View style={styles.inputWrapper}>
-                                <Feather name="lock" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
+                                <BIcon name="lock" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     value={currentPassword}
@@ -177,7 +177,7 @@ export const EditProfileScreen: React.FC = () => {
                         <View style={[styles.inputGroup, { marginTop: Spacing.md }]}>
                             <Text style={styles.label}>New Password</Text>
                             <View style={styles.inputWrapper}>
-                                <Feather name="shield" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
+                                <BIcon name="shield" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     value={newPassword}
@@ -194,7 +194,7 @@ export const EditProfileScreen: React.FC = () => {
                         <View style={[styles.inputGroup, { marginTop: Spacing.md }]}>
                             <Text style={styles.label}>Confirm New Password</Text>
                             <View style={styles.inputWrapper}>
-                                <Feather name="check-circle" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
+                                <BIcon name="check-circle" size={16} color={Colors.kineticGreen} style={styles.inputIcon} />
                                 <TextInput
                                     style={styles.input}
                                     value={confirmPassword}

@@ -10,7 +10,7 @@ import {
     Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { BIcon } from '../../components/common/BIcon';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Colors, Typography, Spacing, Gradients } from '../../theme';
 import { useNavigation } from '@react-navigation/native';
@@ -27,7 +27,7 @@ export const NotificationsScreen: React.FC = () => {
     const renderToggle = (icon: any, title: string, value: boolean, onToggle: (v: boolean) => void) => (
         <View style={styles.toggleRow}>
             <View style={styles.toggleLeft}>
-                <Feather name={icon} size={20} color={value ? Colors.kineticGreen : Colors.textSecondary} />
+                <BIcon name={icon} size={20} color={value ? Colors.kineticGreen : Colors.textSecondary} />
                 <Text style={styles.toggleTitle}>{title}</Text>
             </View>
             <Switch
@@ -46,7 +46,7 @@ export const NotificationsScreen: React.FC = () => {
 
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                    <Feather name="chevron-left" size={24} color={Colors.textPrimary} />
+                    <BIcon name="chevron-left" size={24} color={Colors.textPrimary} />
                 </TouchableOpacity>
                 <Text style={styles.title}>Notifications</Text>
                 <View style={{ width: 40 }} />
@@ -67,7 +67,7 @@ export const NotificationsScreen: React.FC = () => {
                 </GlassCard>
 
                 <View style={styles.infoBox}>
-                    <Feather name="info" size={14} color={Colors.textTertiary} />
+                    <BIcon name="info" size={14} color={Colors.textTertiary} />
                     <Text style={styles.infoText}>
                         System alerts remain active by default
                     </Text>
