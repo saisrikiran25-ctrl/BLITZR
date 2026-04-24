@@ -27,11 +27,10 @@ export class TradingController {
         @Request() req: any,
         @Body() body: { ticker_id: string; shares: number },
     ) {
-        return this.tradeQueue.enqueueTrade(
+        return this.tradingService.executeBuy(
             req.user.userId,
             req.user.collegeDomain,
             body.ticker_id,
-            'BUY',
             body.shares,
         );
     }
@@ -45,11 +44,10 @@ export class TradingController {
         @Request() req: any,
         @Body() body: { ticker_id: string; shares: number },
     ) {
-        return this.tradeQueue.enqueueTrade(
+        return this.tradingService.executeSell(
             req.user.userId,
             req.user.collegeDomain,
             body.ticker_id,
-            'SELL',
             body.shares,
         );
     }
