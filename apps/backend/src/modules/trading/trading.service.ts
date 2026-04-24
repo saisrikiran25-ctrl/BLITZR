@@ -108,6 +108,13 @@ export class TradingService {
         const sharesToBuy = Math.floor(Number(sharesToBuyInput));
         if (sharesToBuy <= 0) throw new BadRequestException('Must buy at least 1 share');
 
+        // Safety: Normalize domain if it's a short_code (fallback for old JWTs)
+        let normalizedDomain = collegeDomain;
+        if (!collegeDomain.includes('.')) {
+            const inst = await this.dataSource.query('SELECT email_domain FROM institutions WHERE short_code = $1', [collegeDomain]);
+            if (inst[0]) normalizedDomain = inst[0].email_domain;
+        }
+
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -119,7 +126,7 @@ export class TradingService {
                  FROM tickers 
                  WHERE ticker_id = $1 AND college_domain = $2
                  FOR UPDATE`,
-                [tickerId, collegeDomain],
+                [tickerId, normalizedDomain],
             );
 
             if (!tickerRows || tickerRows.length === 0) {
@@ -170,7 +177,7 @@ export class TradingService {
                      human_trades_1h = human_trades_1h + 1,
                      updated_at = NOW()
                  WHERE ticker_id = $3 AND college_domain = $4`,
-                [sharesToBuy, grossCost, tickerId, collegeDomain],
+                [sharesToBuy, grossCost, tickerId, normalizedDomain],
             );
 
             // Step 5: Deduct Creds from buyer
@@ -267,6 +274,13 @@ export class TradingService {
         const sharesToSell = Math.floor(Number(sharesToSellInput));
         if (sharesToSell <= 0) throw new BadRequestException('Must sell at least 1 share');
 
+        // Safety: Normalize domain if it's a short_code (fallback for old JWTs)
+        let normalizedDomain = collegeDomain;
+        if (!collegeDomain.includes('.')) {
+            const inst = await this.dataSource.query('SELECT email_domain FROM institutions WHERE short_code = $1', [collegeDomain]);
+            if (inst[0]) normalizedDomain = inst[0].email_domain;
+        }
+
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
@@ -275,7 +289,7 @@ export class TradingService {
             // Lock ticker (Join on ID only to bypass domain-sync blockers)
             const tickerRows = await queryRunner.query(
                 `SELECT current_supply, owner_id, status, price_open, college_domain, frozen_until FROM tickers WHERE ticker_id = $1 AND college_domain = $2 FOR UPDATE`,
-                [tickerId, collegeDomain],
+                [tickerId, normalizedDomain],
             );
 
             if (!tickerRows || tickerRows.length === 0) throw new NotFoundException(`Ticker ${tickerId} not found`);
@@ -320,7 +334,7 @@ export class TradingService {
                      human_trades_1h = human_trades_1h + 1,
                      updated_at = NOW()
                  WHERE ticker_id = $3 AND college_domain = $4`,
-                [sharesToSell, grossValue, tickerId, collegeDomain],
+                [sharesToSell, grossValue, tickerId, normalizedDomain],
             );
 
             // Credit Creds to seller (net of fees)

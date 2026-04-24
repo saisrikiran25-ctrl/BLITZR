@@ -10,6 +10,9 @@ if (!connectionString) {
   process.exit(1);
 }
 
+// 0. Manual Override Switch
+const FORCE_REAPPLY = process.env.FORCE_REAPPLY_MIGRATIONS === 'true';
+
 const client = new Client({
   connectionString: connectionString,
   ssl: {
@@ -44,8 +47,9 @@ async function runMigrations() {
     for (const file of files) {
       const { rows } = await client.query('SELECT 1 FROM _migrations_log WHERE filename = $1', [file]);
       
-      if (rows.length === 0) {
-        console.log(`Applying migration: ${file}...`);
+      if (rows.length === 0 || FORCE_REAPPLY) {
+        if (FORCE_REAPPLY) console.log(`[FORCE] Re-applying migration: ${file}...`);
+        else console.log(`Applying migration: ${file}...`);
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
         
         await client.query('BEGIN');

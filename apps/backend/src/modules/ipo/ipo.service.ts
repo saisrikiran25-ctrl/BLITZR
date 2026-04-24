@@ -54,13 +54,21 @@ export class IpoService {
 
         // Create the ticker with initial supply = 1
         const startingPrice = this.bondingCurve.getPrice(INITIAL_SUPPLY);
+        
+        // Safety: Normalize domain if it's a short_code (fallback for old JWTs)
+        let normalizedDomain = collegeDomain;
+        if (!collegeDomain.includes('.')) {
+            const inst = await this.dataSource.query('SELECT email_domain FROM institutions WHERE short_code = $1', [collegeDomain]);
+            if (inst[0]) normalizedDomain = inst[0].email_domain;
+        }
+
         const ticker = this.tickerRepo.create({
             ticker_id: tickerId,
             owner_id: userId,
             current_supply: INITIAL_SUPPLY,
             price_open: startingPrice,   // Session open = IPO price
             category,
-            college_domain: collegeDomain,
+            college_domain: normalizedDomain,
             status: 'ACTIVE',
         });
 
