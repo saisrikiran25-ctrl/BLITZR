@@ -22,6 +22,12 @@ export class AuthController {
         return this.authService.googleLogin(body.idToken);
     }
 
+    @Public()
+    @Post('select-campus')
+    async selectCampus(@Body() body: { idToken: string, institutionId: string }) {
+        return this.authService.selectCampus(body.idToken, body.institutionId);
+    }
+
     @UseGuards(JwtAuthGuard)
     @Post('accept-tos')
     async acceptTos(@Request() req: any) {

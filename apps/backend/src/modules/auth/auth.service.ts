@@ -87,14 +87,13 @@ export class AuthService {
             const { email, name, hd } = payload; // hd is the hosted domain (institution)
             const domain = hd || email.split('@')[1];
 
-            // 1. Validate domain against institutions
-            const res = await this.dataSource.query(
-                'SELECT * FROM institutions WHERE email_domain = $1 AND verified = true',
+            // 1. Find all institutions for this domain
+            const institutions = await this.dataSource.query(
+                'SELECT institution_id, name, short_code, email_domain FROM institutions WHERE email_domain = $1 AND verified = true',
                 [domain]
             );
-            const institution = res[0];
 
-            if (!institution) {
+            if (institutions.length === 0) {
                 // Add to waitlist just like manual registration
                 await this.dataSource.query(
                     'INSERT INTO waitlist (email, email_domain) VALUES ($1, $2) ON CONFLICT DO NOTHING',
@@ -107,41 +106,48 @@ export class AuthService {
 
             // 2. Find or Create User
             let user = await this.usersService.findByEmail(email);
-            let isNewUser = false;
 
-            if (!user) {
-                isNewUser = true;
-                // For Google login, we generate a random temporary password or leave it empty
-                // as the user is authenticated via Google.
-                const tempPassword = Math.random().toString(36).slice(-16);
-                const salt = await bcrypt.genSalt(12);
-                const passwordHash = await bcrypt.hash(tempPassword, salt);
-
-                // We don't have a username yet, so we use email prefix as a placeholder
-                // The frontend/user will be prompted to change this.
-                let baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-                let username = baseUsername;
-                let counter = 1;
-                
-                // Ensure unique username
-                while (await this.usersService.isUsernameTaken(username, institution.institution_id)) {
-                    username = `${baseUsername}${counter++}`;
-                }
-
-                user = await this.usersService.create({
-                    email,
-                    username,
-                    display_name: name || username,
-                    password_hash: passwordHash,
-                    institution_id: institution.institution_id,
-                    credibility_score: 60, // Bonus for verified Google account
-                    tos_accepted: false,
-                });
+            // If user exists, we already know their campus
+            if (user) {
+                const userInst = institutions.find(i => i.institution_id === user.institution_id);
+                // JWT uses short_code for campus-based Floor (e.g. 'IIFT-D')
+                const token = this.generateToken(user.user_id, userInst ? userInst.short_code : institutions[0].short_code);
+                return {
+                    status: 'SUCCESS',
+                    user: {
+                        user_id: user.user_id,
+                        username: user.username,
+                        email: user.email,
+                        tos_accepted: user.tos_accepted,
+                        is_ipo_active: user.is_ipo_active,
+                        rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
+                        credibility_score: user.credibility_score,
+                    },
+                    token,
+                    isNewUser: false,
+                };
             }
 
-            const token = this.generateToken(user.user_id, institution.email_domain);
+            // 3. New User Flow - CHECK FOR MULTIPLE CAMPUSES
+            if (institutions.length > 1) {
+                return {
+                    status: 'REQUIRES_CAMPUS_SELECTION',
+                    campuses: institutions.map(i => ({ 
+                        id: i.institution_id, 
+                        name: i.name, 
+                        short_code: i.short_code 
+                    })),
+                    tempToken: idToken // Frontend sends this back to selectCampus
+                };
+            }
+
+            // 4. Single Campus Flow - AUTO-SELECT
+            const institution = institutions[0];
+            user = await this.createGoogleUser(email, name, institution.institution_id);
+            const token = this.generateToken(user.user_id, institution.short_code);
 
             return {
+                status: 'SUCCESS',
                 user: {
                     user_id: user.user_id,
                     username: user.username,
@@ -152,8 +158,75 @@ export class AuthService {
                     credibility_score: user.credibility_score,
                 },
                 token,
-                isNewUser,
+                isNewUser: true,
             };
+        } catch (error) {
+            console.error('Google Login Error:', error);
+            throw new UnauthorizedException('Authentication failed');
+        }
+    }
+
+    /**
+     * Step 2 of Google Login: Finalize with campus selection
+     */
+    async selectCampus(idToken: string, institutionId: string) {
+        const ticket = await this.googleClient.verifyIdToken({
+            idToken,
+            audience: this.getGoogleClientAudiences(),
+        });
+        const payload = ticket.getPayload();
+        if (!payload || !payload.email) throw new UnauthorizedException('Invalid Token');
+
+        const { email, name } = payload;
+        
+        // Ensure institution is valid for this domain
+        const domain = email.split('@')[1];
+        const instRes = await this.dataSource.query(
+            'SELECT short_code FROM institutions WHERE institution_id = $1 AND email_domain = $2',
+            [institutionId, domain]
+        );
+        if (!instRes.length) throw new BadRequestException('Invalid campus selection for your email domain');
+
+        const user = await this.createGoogleUser(email, name, institutionId);
+        const token = this.generateToken(user.user_id, instRes[0].short_code);
+
+        return {
+            status: 'SUCCESS',
+            user: {
+                user_id: user.user_id,
+                username: user.username,
+                email: user.email,
+                tos_accepted: user.tos_accepted,
+                is_ipo_active: user.is_ipo_active,
+            },
+            token,
+            isNewUser: true
+        };
+    }
+
+    private async createGoogleUser(email: string, name: string, institutionId: string) {
+        // Generate random placeholder password for OAuth accounts
+        const tempPassword = Math.random().toString(36).slice(-16);
+        const salt = await bcrypt.genSalt(12);
+        const passwordHash = await bcrypt.hash(tempPassword, salt);
+
+        let baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        let username = baseUsername;
+        let counter = 1;
+        while (await this.usersService.isUsernameTaken(username, institutionId)) {
+            username = `${baseUsername}${counter++}`;
+        }
+
+        return this.usersService.create({
+            email,
+            username,
+            display_name: name || username,
+            password_hash: passwordHash,
+            institution_id: institutionId,
+            credibility_score: 60,
+            tos_accepted: false,
+        });
+    }
         } catch (error: any) {
             if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
                 throw error;
