@@ -83,7 +83,18 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         tickerId: string,
         action: 'BUY' | 'SELL',
         quantity: number,
-    ): Promise<{ status: 'QUEUED'; message: string }> {
+    ): Promise<{ status: 'QUEUED' | 'DIRECT'; message: string }> {
+        // Safety: If Redis is down, fall back to DIRECT execution (zero lag)
+        if (this.redisEnqueue.status !== 'ready') {
+            this.logger.warn(`Redis DOWN. Falling back to DIRECT execution for ${tickerId}`);
+            if (action === 'BUY') {
+                await this.tradingService.executeBuy(userId, collegeDomain, tickerId, quantity);
+            } else {
+                await this.tradingService.executeSell(userId, collegeDomain, tickerId, quantity);
+            }
+            return { status: 'DIRECT', message: 'Trade processed directly via secondary atomic path.' };
+        }
+
         const payload = JSON.stringify({
             user_id: userId,
             college_domain: collegeDomain,

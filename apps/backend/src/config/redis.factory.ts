@@ -9,15 +9,31 @@ export function createRedisClient(url: string, name: string = 'Redis'): Redis {
     const isTls = url.startsWith('rediss://');
     const client = new Redis(url, {
         tls: isTls ? { rejectUnauthorized: false } : undefined,
-        maxRetriesPerRequest: 3,
-        connectTimeout: 10000,
-        enableOfflineQueue: false,
-        lazyConnect: false,
+        maxRetriesPerRequest: null, // Critical: Don't kill the process on request failure
+        connectTimeout: 20000,
+        enableOfflineQueue: true, // Allow commands to be queued while reconnecting
+        lazyConnect: true,
+        retryStrategy(times) {
+            const delay = Math.min(times * 100, 3000);
+            return delay;
+        },
+        reconnectOnError(err) {
+            const targetError = 'READONLY';
+            if (err.message.includes(targetError)) {
+                return true;
+            }
+            return false;
+        },
     });
 
     // CRITICAL: Prevent "Unhandled error event" crashes
     client.on('error', (err) => {
-        console.warn(`⚠️ [${name}] Connection Error:`, err.message);
+        // Log sparingly to avoid log flooding
+        if (err.message.includes('ETIMEDOUT') || err.message.includes('ECONNREFUSED')) {
+            console.warn(`📡 [${name}] Redis is currently unreachable. Retrying in background...`);
+        } else {
+            console.error(`⚠️ [${name}] Redis Error:`, err.message);
+        }
     });
 
     client.on('connect', () => {

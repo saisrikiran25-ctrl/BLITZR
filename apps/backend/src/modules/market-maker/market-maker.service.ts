@@ -65,6 +65,13 @@ export class MarketMakerService {
                 
                 // L3 Volume Cap: Bot must not exceed 5% of session volume
                 const botVolKey = `bot:vol:${ticker.ticker_id}:${new Date().toISOString().split('T')[0]}`;
+                
+                // Safety: Skip if Redis is down
+                if (this.redisClient.status !== 'ready') {
+                    this.logger.warn(`Redis [${this.redisClient.status}]. Skipping bot logic for ${ticker.ticker_id}`);
+                    continue;
+                }
+                
                 const botSharesTraded = Number(await this.redisClient.get(botVolKey)) || 0;
                 const totalSessionVolume = Number(ticker.total_volume) || 1; // Avoid div by zero
                 
