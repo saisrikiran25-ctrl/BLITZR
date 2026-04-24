@@ -113,19 +113,34 @@ export class TradingService {
         await queryRunner.startTransaction();
 
         try {
-            // Step 1: Lock the ticker row (Surgical Precision: Join on ID ONLY for global uniqueness)
+            // Step 1: Lock the ticker row (Join-insensitive lock by ID)
             const tickerRows = await queryRunner.query(
-                `SELECT current_supply, owner_id, status, price_open, college_domain, frozen_until 
-                 FROM tickers 
-                 WHERE ticker_id = $1 AND college_domain = $2
-                 FOR UPDATE`,
-                [tickerId, collegeDomain],
+                `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, i.short_code as owner_campus
+                 FROM tickers t
+                 JOIN users u ON t.owner_id = u.user_id
+                 JOIN institutions i ON u.institution_id = i.institution_id
+                 WHERE t.ticker_id = $1 
+                 FOR UPDATE OF t`,
+                [tickerId],
             );
 
             if (!tickerRows || tickerRows.length === 0) {
                 throw new NotFoundException(`Ticker ${tickerId} not found in exchange database`);
             }
             const ticker = tickerRows[0];
+
+            // DOMAIN SILO ENFORCEMENT & HEALING
+            // If the ticker is in a different domain, we check if it's a legacy mismatch
+            if (ticker.college_domain !== collegeDomain) {
+                if (ticker.owner_campus === collegeDomain) {
+                    // HEALING: Both are from the same campus, but ticker was stuck on a legacy domain.
+                    // Silently migrate it to the campus silo.
+                    await queryRunner.query('UPDATE tickers SET college_domain = $1 WHERE ticker_id = $2', [collegeDomain, tickerId]);
+                    ticker.college_domain = collegeDomain;
+                } else {
+                    throw new ForbiddenException(`This IPO belongs to ${ticker.owner_campus} and cannot be traded on the ${collegeDomain} floor.`);
+                }
+            }
             
             // L3 Circuit Breaker Check
             if (ticker.status === 'AUTO_FROZEN' || ticker.status === 'FROZEN') {
@@ -274,12 +289,27 @@ export class TradingService {
         try {
             // Lock ticker (Join on ID only to bypass domain-sync blockers)
             const tickerRows = await queryRunner.query(
-                `SELECT current_supply, owner_id, status, price_open, college_domain, frozen_until FROM tickers WHERE ticker_id = $1 AND college_domain = $2 FOR UPDATE`,
-                [tickerId, collegeDomain],
+                `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, i.short_code as owner_campus
+                 FROM tickers t
+                 JOIN users u ON t.owner_id = u.user_id
+                 JOIN institutions i ON u.institution_id = i.institution_id
+                 WHERE t.ticker_id = $1 
+                 FOR UPDATE OF t`,
+                [tickerId],
             );
 
             if (!tickerRows || tickerRows.length === 0) throw new NotFoundException(`Ticker ${tickerId} not found`);
             const ticker = tickerRows[0];
+
+            // DOMAIN SILO ENFORCEMENT & HEALING
+            if (ticker.college_domain !== collegeDomain) {
+                if (ticker.owner_campus === collegeDomain) {
+                    await queryRunner.query('UPDATE tickers SET college_domain = $1 WHERE ticker_id = $2', [collegeDomain, tickerId]);
+                    ticker.college_domain = collegeDomain;
+                } else {
+                    throw new ForbiddenException(`This IPO belongs to ${ticker.owner_campus} and cannot be traded on the ${collegeDomain} floor.`);
+                }
+            }
             
             // L3 Circuit Breaker Check
             if (ticker.status === 'AUTO_FROZEN' || ticker.status === 'FROZEN') {
