@@ -10,8 +10,8 @@ if (!connectionString) {
   process.exit(1);
 }
 
-// 0. Manual Override Switch
-const FORCE_REAPPLY = process.env.FORCE_REAPPLY_MIGRATIONS === 'true';
+// 0. Manual Override Switch (Surgical)
+const REAPPLY_LIST = (process.env.REAPPLY_MIGRATIONS || '').split(',').map(s => s.trim());
 
 const client = new Client({
   connectionString: connectionString,
@@ -47,8 +47,10 @@ async function runMigrations() {
     for (const file of files) {
       const { rows } = await client.query('SELECT 1 FROM _migrations_log WHERE filename = $1', [file]);
       
-      if (rows.length === 0 || FORCE_REAPPLY) {
-        if (FORCE_REAPPLY) console.log(`[FORCE] Re-applying migration: ${file}...`);
+      const shouldReapply = REAPPLY_LIST.includes(file) || REAPPLY_LIST.includes(file.replace('.sql', ''));
+      
+      if (rows.length === 0 || shouldReapply) {
+        if (shouldReapply) console.log(`[REPAIR] Re-applying migration: ${file}...`);
         else console.log(`Applying migration: ${file}...`);
         const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
         
@@ -56,8 +58,8 @@ async function runMigrations() {
         try {
           // Execute the SQL file content
           await client.query(sql);
-          // Log the success
-          await client.query('INSERT INTO _migrations_log (filename) VALUES ($1)', [file]);
+          // Log the success (idempotent logging)
+          await client.query('INSERT INTO _migrations_log (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING', [file]);
           await client.query('COMMIT');
           console.log(`✅ ${file} applied successfully.`);
         } catch (err) {
