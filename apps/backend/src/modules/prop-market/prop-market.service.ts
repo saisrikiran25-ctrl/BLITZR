@@ -245,10 +245,14 @@ export class PropMarketService {
                 [settledBy],
             );
             const userEmail = moderator?.email?.trim().toLowerCase();
-            const REQUIRED_SETTLER = 'saisrikiran_ipm25@iift.edu';
+            const IIFT_ALLOWED_EMAILS = [
+                'saksham_ipm25@iift.edu',
+                'aarav_ipm25@iift.edu',
+                'saisrikiran_ipm25@iift.edu'
+            ];
 
-            if (userEmail !== REQUIRED_SETTLER) {
-                throw new ForbiddenException(`UNAUTHORIZED: Only the primary moderator (${REQUIRED_SETTLER}) can issue a final verdict on market outcomes.`);
+            if (!IIFT_ALLOWED_EMAILS.includes(userEmail)) {
+                throw new ForbiddenException(`UNAUTHORIZED: Only designated IIFT moderators (${IIFT_ALLOWED_EMAILS.join(', ')}) can issue a final verdict on market outcomes.`);
             }
 
             const isExpired = new Date(event.expiry_timestamp).getTime() <= Date.now();

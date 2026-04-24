@@ -59,8 +59,14 @@ export const ArenaScreen: React.FC = () => {
     const [newEventCategory, setNewEventCategory] = useState('CAMPUS');
     const [customCategory, setCustomCategory] = useState('');
     const [newEventExpiryHours, setNewEventExpiryHours] = useState('24');
-    const [newEventLiquidity, setNewEventLiquidity] = useState('50');
+    const [newEventLiquidity, setNewEventLiquidity] = useState('25');
     const [isCreating, setIsCreating] = useState(false);
+
+    // Settlement Modal State
+    const [isSettleModalVisible, setIsSettleModalVisible] = useState(false);
+    const [settleEventId, setSettleEventId] = useState<string | null>(null);
+    const [settleOutcome, setSettleOutcome] = useState<'YES' | 'NO'>('YES');
+    const [isSettling, setIsSettling] = useState(false);
 
     const filteredEvents = events.filter(e =>
         selectedTab === 'Active' ? e.status === 'OPEN' : e.status === 'SETTLED'
@@ -84,27 +90,25 @@ export const ArenaScreen: React.FC = () => {
         setIsBetModalVisible(true);
     };
 
-    const handleSettleEvent = (eventId: string, winningOutcome: 'YES' | 'NO') => {
-        Alert.alert(
-            'Final Verdict',
-            `Are you sure you want to resolve this market as ${winningOutcome}? This will distribute all prize pool Chips immediately.`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: `Resolve ${winningOutcome}`,
-                    style: 'destructive',
-                    onPress: async () => {
-                        try {
-                            await api.settleEvent(eventId, winningOutcome);
-                            Alert.alert('Market Settled', 'All winners have been compensated and the market is archived.');
-                            fetchInitialData();
-                        } catch (error: any) {
-                            Alert.alert('Settlement Failed', error.message);
-                        }
-                    }
-                }
-            ]
-        );
+    const handleSettleEvent = (eventId: string, outcome: 'YES' | 'NO') => {
+        setSettleEventId(eventId);
+        setSettleOutcome(outcome);
+        setIsSettleModalVisible(true);
+    };
+
+    const confirmSettlement = async () => {
+        if (!settleEventId) return;
+        setIsSettling(true);
+        try {
+            await api.settleEvent(settleEventId, settleOutcome);
+            Alert.alert('Market Settled', 'VERDICT REGISTERED: Returns distributed and market archived.');
+            setIsSettleModalVisible(false);
+            fetchInitialData();
+        } catch (error: any) {
+            Alert.alert('Settlement Failed', error.message);
+        } finally {
+            setIsSettling(false);
+        }
     };
 
     const handlePlaceBet = async () => {
@@ -182,7 +186,7 @@ export const ArenaScreen: React.FC = () => {
         const yesPct = (item.yes_pool / totalPool) * 100;
         const noPct = (item.no_pool / totalPool) * 100;
         const isSettled = item.status === 'SETTLED';
-        const isMainModerator = email?.toLowerCase().trim() === 'saisrikiran_ipm25@iift.edu';
+        const isMainModerator = !!email && IIFT_ALLOWED_EMAILS.includes(email.toLowerCase().trim());
         const isExpired = item.time_remaining_ms <= 0;
 
         return (
@@ -411,6 +415,44 @@ export const ArenaScreen: React.FC = () => {
                             <Text style={styles.disclaimerText}>
                                 BLITZR operates exclusively with virtual credits. No real monetary value. Not a financial product.
                             </Text>
+                        </View>
+                    </GlassCard>
+                </View>
+            </Modal>
+
+            {/* Settlement Confirmation Modal */}
+            <Modal
+                visible={isSettleModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setIsSettleModalVisible(false)}
+            >
+                <View style={[styles.modalOverlay, { backgroundColor: 'rgba(0,0,0,0.85)' }]}>
+                    <GlassCard style={[styles.modalContent, { borderColor: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }]} variant="elevated" intensity={60}>
+                        <View style={styles.modalHeader}>
+                            <Text style={[styles.modalTitle, { color: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }]}>FINAL VERDICT</Text>
+                            <View style={[styles.modalLine, { backgroundColor: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }]} />
+                        </View>
+
+                        <Text style={[styles.inputLabel, { textAlign: 'center', marginBottom: Spacing.xl }]}>
+                            Resolve market as <Text style={{ color: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }}>{settleOutcome}</Text>? 
+                            {"\n\n"}This will distribute ALL Chips and cannot be undone.
+                        </Text>
+
+                        <View style={{ flexDirection: 'row', marginTop: Spacing.xl }}>
+                            <Button
+                                title="Abort"
+                                onPress={() => setIsSettleModalVisible(false)}
+                                style={{ flex: 1, marginRight: 8 }}
+                                variant="outline"
+                            />
+                            <Button
+                                title="Resolve"
+                                loading={isSettling}
+                                onPress={confirmSettlement}
+                                style={{ flex: 2 }}
+                                variant={settleOutcome === 'YES' ? 'buy' : 'sell'}
+                            />
                         </View>
                     </GlassCard>
                 </View>
