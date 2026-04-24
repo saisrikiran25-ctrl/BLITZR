@@ -246,12 +246,12 @@ export class TradingService {
                     `Bought ${sharesToBuy} $${tickerId} @ ${finalPrice.toFixed(2)}`,
                     'TRADING'
                 ).catch(() => {});
-            } catch (e) {
+            } catch (e: any) {
                 this.logger.warn(`Secondary trade actions failed: ${e.message}`);
             }
 
             return { status: 'SUCCESS', new_balance: balance - grossCost };
-        } catch (error) {
+        } catch (error: any) {
             await queryRunner.rollbackTransaction();
             this.logger.error(`TRADE_CRASH: ${error.message}`);
             throw error;
@@ -395,12 +395,12 @@ export class TradingService {
                     `Sold ${sharesToSell} $${tickerId} @ ${finalPrice.toFixed(2)}`,
                     'TRADING'
                 ).catch(() => {});
-            } catch (e) {
+            } catch (e: any) {
                 this.logger.warn(`Secondary sell actions failed: ${e.message}`);
             }
 
             return { status: 'SUCCESS', net_received: netValue };
-        } catch (error) {
+        } catch (error: any) {
             await queryRunner.rollbackTransaction();
             this.logger.error(`SELL_CRASH: ${error.message}`);
             throw error;

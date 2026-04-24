@@ -81,7 +81,8 @@ describe('AuthService (Google Identity Verification)', () => {
     });
 
     it('should successfully verify and register a valid institutional email', async () => {
-        const result = await service.googleLogin('valid_token');
+        const result: any = await service.googleLogin('valid_token');
+        expect(result.status).toBe('SUCCESS');
         expect(result.user.username).toBeDefined();
         expect(result.token).toBe('mock_jwt');
         expect(mockVerifyIdToken).toHaveBeenCalledWith({

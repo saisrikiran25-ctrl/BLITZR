@@ -109,7 +109,7 @@ export class AuthService {
 
             // If user exists, we already know their campus
             if (user) {
-                const userInst = institutions.find(i => i.institution_id === user.institution_id);
+                const userInst = institutions.find((i: any) => i.institution_id === user!.institution_id);
                 // JWT uses short_code for campus-based Floor (e.g. 'IIFT-D')
                 const token = this.generateToken(user.user_id, userInst ? userInst.short_code : institutions[0].short_code);
                 return {
@@ -132,7 +132,7 @@ export class AuthService {
             if (institutions.length > 1) {
                 return {
                     status: 'REQUIRES_CAMPUS_SELECTION',
-                    campuses: institutions.map(i => ({ 
+                    campuses: institutions.map((i: any) => ({ 
                         id: i.institution_id, 
                         name: i.name, 
                         short_code: i.short_code 
@@ -143,7 +143,7 @@ export class AuthService {
 
             // 4. Single Campus Flow - AUTO-SELECT
             const institution = institutions[0];
-            user = await this.createGoogleUser(email, name, institution.institution_id);
+            user = await this.createGoogleUser(email, name || '', institution.institution_id);
             const token = this.generateToken(user.user_id, institution.short_code);
 
             return {
@@ -160,7 +160,7 @@ export class AuthService {
                 token,
                 isNewUser: true,
             };
-        } catch (error) {
+        } catch (error: any) {
             console.error('Google Login Error:', error);
             throw new UnauthorizedException('Authentication failed');
         }
@@ -187,7 +187,7 @@ export class AuthService {
         );
         if (!instRes.length) throw new BadRequestException('Invalid campus selection for your email domain');
 
-        const user = await this.createGoogleUser(email, name, institutionId);
+        const user = await this.createGoogleUser(email, name || '', institutionId);
         const token = this.generateToken(user.user_id, instRes[0].short_code);
 
         return {
@@ -226,24 +226,6 @@ export class AuthService {
             credibility_score: 60,
             tos_accepted: false,
         });
-    }
-        } catch (error: any) {
-            if (error instanceof BadRequestException || error instanceof UnauthorizedException) {
-                throw error;
-            }
-
-            const message = String(error?.message || '');
-            if (this.isGoogleTokenVerificationError(message)) {
-                throw new UnauthorizedException('Invalid Google token or audience.');
-            }
-
-            console.error('[CRITICAL ERROR] Google Login failed. Details:', {
-                error: error.message,
-                stack: error.stack,
-                googleAudiencesConfigured: this.getGoogleClientAudiences().length
-            });
-            throw new InternalServerErrorException(`Authentication failed: ${error.message}`);
-        }
     }
 
     private generateToken(userId: string, collegeDomain: string): string {
