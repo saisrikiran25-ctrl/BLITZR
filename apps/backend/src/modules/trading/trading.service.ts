@@ -117,9 +117,9 @@ export class TradingService {
             const tickerRows = await queryRunner.query(
                 `SELECT current_supply, owner_id, status, price_open, college_domain, frozen_until 
                  FROM tickers 
-                 WHERE ticker_id = $1 
+                 WHERE ticker_id = $1 AND college_domain = $2
                  FOR UPDATE`,
-                [tickerId],
+                [tickerId, collegeDomain],
             );
 
             if (!tickerRows || tickerRows.length === 0) {
@@ -135,6 +135,8 @@ export class TradingService {
                 }
             } else if (ticker.status === 'DELISTED') {
                 throw new ForbiddenException('Ticker is delisted and cannot be traded');
+            } else if (ticker.status !== 'ACTIVE') {
+                throw new ForbiddenException(`Ticker is not available for trading (status: ${ticker.status})`);
             }
 
             const supply = Number(ticker.current_supply);
@@ -273,8 +275,8 @@ export class TradingService {
         try {
             // Lock ticker (Join on ID only to bypass domain-sync blockers)
             const tickerRows = await queryRunner.query(
-                `SELECT current_supply, owner_id, status, price_open, college_domain, frozen_until FROM tickers WHERE ticker_id = $1 FOR UPDATE`,
-                [tickerId],
+                `SELECT current_supply, owner_id, status, price_open, college_domain, frozen_until FROM tickers WHERE ticker_id = $1 AND college_domain = $2 FOR UPDATE`,
+                [tickerId, collegeDomain],
             );
 
             if (!tickerRows || tickerRows.length === 0) throw new NotFoundException(`Ticker ${tickerId} not found`);
@@ -288,6 +290,8 @@ export class TradingService {
                 }
             } else if (ticker.status === 'DELISTED') {
                 throw new ForbiddenException('Ticker is delisted and cannot be traded');
+            } else if (ticker.status !== 'ACTIVE') {
+                throw new ForbiddenException(`Ticker is not available for trading (status: ${ticker.status})`);
             }
 
             const supply = Number(ticker.current_supply);

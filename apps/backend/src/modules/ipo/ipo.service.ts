@@ -61,6 +61,7 @@ export class IpoService {
             price_open: startingPrice,   // Session open = IPO price
             category,
             college_domain: collegeDomain,
+            status: 'ACTIVE',
         });
 
         await this.tickerRepo.save(ticker);
