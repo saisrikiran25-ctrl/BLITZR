@@ -168,10 +168,9 @@ export class TradingService {
                      total_volume = total_volume + $2,
                      total_trades = total_trades + 1,
                      human_trades_1h = human_trades_1h + 1,
-                     status = 'ACTIVE',
                      updated_at = NOW()
-                 WHERE ticker_id = $3`,
-                [sharesToBuy, grossCost, tickerId],
+                 WHERE ticker_id = $3 AND college_domain = $4`,
+                [sharesToBuy, grossCost, tickerId, collegeDomain],
             );
 
             // Step 5: Deduct Creds from buyer
@@ -319,10 +318,9 @@ export class TradingService {
                      total_volume = total_volume + $2,
                      total_trades = total_trades + 1,
                      human_trades_1h = human_trades_1h + 1,
-                     status = 'ACTIVE',
                      updated_at = NOW()
-                 WHERE ticker_id = $3`,
-                [sharesToSell, grossValue, tickerId],
+                 WHERE ticker_id = $3 AND college_domain = $4`,
+                [sharesToSell, grossValue, tickerId, collegeDomain],
             );
 
             // Credit Creds to seller (net of fees)
@@ -420,7 +418,7 @@ export class TradingService {
     async broadcastMarketUpdates() {
         // Fetch current supply AND the session open price for each active ticker
         const tickers = await this.dataSource.query(
-            `SELECT t.ticker_id, t.current_supply, t.total_volume, t.price_open, t.college_domain
+            `SELECT t.ticker_id, t.current_supply, t.total_volume, t.price_open, t.college_domain, t.owner_id
              FROM tickers t
              WHERE t.status = 'ACTIVE'`
         );

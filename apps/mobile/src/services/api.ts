@@ -116,13 +116,7 @@ class ApiClient {
                     const errorBody = await response.json().catch(() => ({ message: 'Request failed' }));
                     const message = errorBody.message || `HTTP ${response.status}`;
 
-                    // If it's a 5xx error, it might be worth trying the next URL
-                    if (response.status >= 500 && urlIndex < urls.length - 1) {
-                        console.warn(`[API] 5xx error from ${baseUrl}, trying next candidate...`);
-                        attemptErrors.push(`${baseUrl}: ${message}`);
-                        continue;
-                    }
-
+                    // Stop on 5xx immediately - server errors should not be retried as they mask the real bug
                     const httpError = new Error(message);
                     httpError.name = API_HTTP_ERROR_NAME;
                     throw httpError;

@@ -139,7 +139,7 @@ export class AuthService {
                 });
             }
 
-            const token = this.generateToken(user.user_id, institution.short_code);
+            const token = this.generateToken(user.user_id, institution.email_domain);
 
             return {
                 user: {
