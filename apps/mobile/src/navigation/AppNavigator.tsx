@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Colors, Typography, Spacing } from '../theme';
 import { Fonts } from '../theme/typography';
@@ -48,12 +49,17 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
 }
 
 function TabNavigator() {
+    // Dynamically account for iPhone home indicator and Android gesture bar
+    const insets = useSafeAreaInsets();
+    const tabBarHeight = 60 + insets.bottom;
+    const tabBarPaddingBottom = insets.bottom > 0 ? insets.bottom : Spacing.xs;
+
     return (
         <Tab.Navigator
             id="main-tabs"
             screenOptions={({ route }) => ({
                 headerShown: false,
-                tabBarStyle: styles.tabBar,
+                tabBarStyle: [styles.tabBar, { height: tabBarHeight, paddingBottom: tabBarPaddingBottom }],
                 tabBarActiveTintColor: Colors.kineticGreen,
                 tabBarInactiveTintColor: Colors.slateNeutral,
                 tabBarLabelStyle: styles.tabLabel,
@@ -122,9 +128,8 @@ const styles = StyleSheet.create({
         backgroundColor: Colors.titaniumGray,
         borderTopWidth: 0.5,
         borderTopColor: Colors.glassBorder,
-        height: 60,
-        paddingBottom: Spacing.xs,
         paddingTop: Spacing.xs,
+        // height and paddingBottom are set dynamically via useSafeAreaInsets in TabNavigator
     },
     tabLabel: {
         ...Typography.dataLabel,
