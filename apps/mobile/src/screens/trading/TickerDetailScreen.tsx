@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -9,6 +9,7 @@ import {
     StatusBar,
     Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/common/GlassCard';
 import { Button } from '../../components/common/Button';
@@ -34,7 +35,8 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     const ticker = useMarketStore((s) => s.tickers[tickerId]);
     const { credBalance } = usePortfolioStore();
     const { userId } = useAuthStore();
-    
+    const insets = useSafeAreaInsets();
+
     // Ownership check for Panic Button visibility
     const isOwner = ticker?.owner_id === userId;
 
@@ -55,6 +57,16 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     const marketCap = price * supply;
     const isPositive = changePct >= 0;
 
+    // Memoize chart bars so Math.random() only runs once per ticker,
+    // preventing visual flickering on every re-render.
+    const chartBars = useMemo(() =>
+        Array.from({ length: 32 }, (_, i) => ({
+            id: i,
+            h: 30 + Math.sin(i * 0.4) * 20 + Math.random() * 15,
+        })),
+        [tickerId]
+    );
+
     const handleTrade = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -71,7 +83,7 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             setIsLoading(false);
         }
     }, [mode, shares, tickerId]);
-    
+
     const handleDelist = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -104,7 +116,11 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                 style={StyleSheet.absoluteFill as any}
             />
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            {/* paddingTop via insets ensures content clears the notch/status bar */}
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingTop: insets.top }}
+            >
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -118,12 +134,25 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
                 {/* Ticker Hero */}
                 <View style={styles.heroSection}>
-                    <Text style={[styles.tickerName, Typography.phosphorAmber]}>{tickerId}</Text>
+                    {/* adjustsFontSizeToFit + numberOfLines prevents overflow on small screens */}
+                    <Text
+                        style={[styles.tickerName, Typography.phosphorAmber]}
+                        adjustsFontSizeToFit
+                        numberOfLines={1}
+                        minimumFontScale={0.5}
+                    >
+                        {tickerId}
+                    </Text>
                     <View style={styles.priceContainer}>
-                        <Text style={[
-                            styles.heroPrice,
-                            isPositive ? Typography.phosphorGreen : styles.redGlow
-                        ]}>
+                        <Text
+                            style={[
+                                styles.heroPrice,
+                                isPositive ? Typography.phosphorGreen : styles.redGlow
+                            ]}
+                            adjustsFontSizeToFit
+                            numberOfLines={1}
+                            minimumFontScale={0.5}
+                        >
                             {formatPrice(price)}
                         </Text>
                     </View>
@@ -141,22 +170,19 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                         </View>
 
                         <View style={styles.mockChart}>
-                            {Array.from({ length: 32 }, (_, i) => {
-                                const h = 30 + Math.sin(i * 0.4) * 20 + Math.random() * 15;
-                                return (
-                                    <View
-                                        key={i}
-                                        style={[
-                                            styles.mockBar,
-                                            {
-                                                height: h,
-                                                backgroundColor: h > 40 ? Colors.kineticGreen : Colors.thermalRed,
-                                                opacity: 0.3 + (i / 40),
-                                            },
-                                        ]}
-                                    />
-                                );
-                            })}
+                            {chartBars.map(({ id, h }) => (
+                                <View
+                                    key={id}
+                                    style={[
+                                        styles.mockBar,
+                                        {
+                                            height: h,
+                                            backgroundColor: h > 40 ? Colors.kineticGreen : Colors.thermalRed,
+                                            opacity: 0.3 + (id / 40),
+                                        },
+                                    ]}
+                                />
+                            ))}
                         </View>
                         <View style={styles.chartGlow} />
                     </View>
@@ -287,7 +313,7 @@ export const TickerDetailScreen: React.FC<{ route: any; navigation: any }> = ({
                         </Text>
                     </View>
                 )}
-                
+
                 <View style={{ height: 40 }} />
             </ScrollView>
         </View>
@@ -336,21 +362,25 @@ const styles = StyleSheet.create({
     heroSection: {
         alignItems: 'center',
         paddingVertical: Spacing.xl,
+        paddingHorizontal: Spacing.lg,
     },
     tickerName: {
         ...Typography.displayHero,
         color: Colors.textPrimary,
         fontSize: 32,
         letterSpacing: 4,
+        // adjustsFontSizeToFit and numberOfLines applied on the Text element directly
     },
     priceContainer: {
         alignItems: 'center',
         marginTop: Spacing.sm,
+        width: '100%',
     },
     heroPrice: {
         ...Typography.displayHero,
         fontSize: 48,
         letterSpacing: -1,
+        // adjustsFontSizeToFit and numberOfLines applied on the Text element directly
     },
     heroChange: {
         ...Typography.price,
@@ -569,4 +599,3 @@ const styles = StyleSheet.create({
         lineHeight: 12,
     },
 });
-
