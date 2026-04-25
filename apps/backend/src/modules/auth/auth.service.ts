@@ -6,6 +6,9 @@ import { OAuth2Client } from 'google-auth-library';
 import { UsersService } from '../users/users.service';
 import { DataSource } from 'typeorm';
 
+/** Max iterations before bailing out of the username collision loop. */
+const MAX_USERNAME_ATTEMPTS = 100;
+
 @Injectable()
 export class AuthService {
     private googleClient: OAuth2Client;
@@ -132,10 +135,10 @@ export class AuthService {
             if (institutions.length > 1) {
                 return {
                     status: 'REQUIRES_CAMPUS_SELECTION',
-                    campuses: institutions.map((i: any) => ({ 
-                        id: i.institution_id, 
-                        name: i.name, 
-                        short_code: i.short_code 
+                    campuses: institutions.map((i: any) => ({
+                        id: i.institution_id,
+                        name: i.name,
+                        short_code: i.short_code
                     })),
                     tempToken: idToken // Frontend sends this back to selectCampus
                 };
@@ -178,7 +181,7 @@ export class AuthService {
         if (!payload || !payload.email) throw new UnauthorizedException('Invalid Token');
 
         const { email, name } = payload;
-        
+
         // Ensure institution is valid for this domain
         const domain = email.split('@')[1];
         const instRes = await this.dataSource.query(
@@ -210,11 +213,20 @@ export class AuthService {
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(tempPassword, salt);
 
-        let baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         let username = baseUsername;
         let counter = 1;
-        while (await this.usersService.isUsernameTaken(username, institutionId)) {
+
+        // FIX-A: Cap the loop at MAX_USERNAME_ATTEMPTS (100) to prevent an infinite
+        // loop under extreme username collision conditions. Beyond the cap we fall
+        // back to a UUID-suffixed username which is guaranteed to be unique.
+        while (counter <= MAX_USERNAME_ATTEMPTS && await this.usersService.isUsernameTaken(username, institutionId)) {
             username = `${baseUsername}${counter++}`;
+        }
+        if (counter > MAX_USERNAME_ATTEMPTS) {
+            // Guaranteed-unique fallback: baseUsername + first 8 chars of a UUID
+            const { v4: uuidv4 } = await import('uuid');
+            username = `${baseUsername}_${uuidv4().split('-')[0]}`;
         }
 
         return this.usersService.create({

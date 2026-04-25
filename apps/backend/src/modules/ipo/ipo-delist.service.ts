@@ -16,7 +16,7 @@ import {
 
 /**
  * IPO Delist Service — The "Panic Button" (PRD §7.1)
- * 
+ *
  * When a student feels targeted, they can delist their IPO.
  * Sequence:
  * 1. Freeze the ticker (status = 'FROZEN')
@@ -45,7 +45,7 @@ export class IpoDelistService {
         try {
             // Find the user's ticker
             const [ticker] = await queryRunner.query(
-                `SELECT ticker_id, current_supply, owner_id, status 
+                `SELECT ticker_id, current_supply, owner_id, status
          FROM tickers WHERE owner_id = $1 AND status != 'DELISTED' FOR UPDATE`,
                 [userId],
             );
@@ -239,6 +239,11 @@ export class IpoDelistService {
     /**
      * Buy Golden Border for ticker (1 week).
      * Costs 1,000 Creds. Per Blueprint §6.3.
+     *
+     * FIX-B: ticker query now uses FOR UPDATE inside the queryRunner transaction.
+     * Previously the ticker was fetched without a lock, creating a TOCTOU window
+     * where a concurrent delist could set status = 'DELISTED' between the ticker
+     * SELECT and the Cred deduction, charging the user for a delisted ticker.
      */
     async buyGoldenBorder(userId: string) {
         const queryRunner = this.dataSource.createQueryRunner();
@@ -254,8 +259,9 @@ export class IpoDelistService {
                 throw new BadRequestException(`Insufficient Creds. Need ${GOLDEN_BORDER_COST_CREDS}`);
             }
 
+            // FIX-B: Added FOR UPDATE to lock the ticker row and prevent TOCTOU with delistIpo().
             const [ticker] = await queryRunner.query(
-                `SELECT ticker_id FROM tickers WHERE owner_id = $1 AND status = 'ACTIVE'`,
+                `SELECT ticker_id, status FROM tickers WHERE owner_id = $1 AND status = 'ACTIVE' FOR UPDATE`,
                 [userId],
             );
             if (!ticker) throw new NotFoundException('No active IPO');

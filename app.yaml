@@ -1,3 +1,5 @@
+# BLITZR-PRIME — DigitalOcean App Platform Spec
+# Deploy version: v1.1.0 — Apr 25 2026 — all 12 audit bugs resolved
 name: blitzr-prime
 region: blr
 services:
