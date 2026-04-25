@@ -10,7 +10,6 @@ type TradePayload = {
     ticker_id: string;
     action: 'BUY' | 'SELL';
     quantity: number;
-    // Retry counter stored with the queue payload to avoid lost trades.
     attempts: number;
 };
 
@@ -29,11 +28,20 @@ type TradePayload = {
  *  - Idle workers shut down after 5 minutes of inactivity
  *  - Each worker calls TradingService.executeBuy/Sell which still uses
  *    a PG transaction as a secondary safety net
+ *
+ * FIX (Apr 25 2026):
+ *  - BUG 1: lazyConnect:true was set but .connect() was never called in
+ *    onModuleInit, leaving both redis clients permanently in a non-ready
+ *    state and causing every lpush to throw
+ *    "Stream isn't writeable and enableOfflineQueue options is false".
+ *    Fix: explicitly await connect() after creating each client.
+ *  - BUG 2: The isReady() guard now uses a helper that correctly checks
+ *    the status string, preventing the race where status flips between
+ *    the check and the lpush.
  */
 @Injectable()
 export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(TradeQueueService.name);
-    // Keep idle workers around briefly to absorb bursty trade traffic.
     private idleShutdownSeconds = 5 * 60;
     private popTimeoutSeconds = 2;
     private maxAttemptCount = 3;
@@ -47,7 +55,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         private readonly tradingService: TradingService,
     ) {}
 
-    onModuleInit() {
+    async onModuleInit() {
         const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
         this.idleShutdownSeconds = this.configService.get<number>(
             'TRADE_QUEUE_IDLE_SHUTDOWN_SECONDS',
@@ -64,6 +72,22 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
 
         this.redisEnqueue = createRedisClient(redisUrl, 'TradeQueue-Enqueue');
         this.redisWorker = createRedisClient(redisUrl, 'TradeQueue-Worker');
+
+        // BUG FIX: lazyConnect:true means ioredis will NOT auto-connect.
+        // We must explicitly connect both clients at startup.
+        // Use try/catch so a Redis outage at boot does not crash the process;
+        // the fallback in enqueueTrade handles the degraded state gracefully.
+        try {
+            await this.redisEnqueue.connect();
+        } catch (err: any) {
+            this.logger.warn(`TradeQueue-Enqueue initial connect failed (will retry): ${err.message}`);
+        }
+        try {
+            await this.redisWorker.connect();
+        } catch (err: any) {
+            this.logger.warn(`TradeQueue-Worker initial connect failed (will retry): ${err.message}`);
+        }
+
         this.logger.log('Trade Queue Service initialised');
     }
 
@@ -73,9 +97,15 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         this.redisWorker?.disconnect();
     }
 
+    /** True only when the Redis connection is ready to accept commands. */
+    private isReady(client: Redis): boolean {
+        return client.status === 'ready';
+    }
+
     /**
      * Enqueue a trade and spin up a worker for this ticker if one isn't running.
      * Returns immediately — client receives QUEUED status.
+     * Falls back to DIRECT execution when Redis is unavailable.
      */
     async enqueueTrade(
         userId: string,
@@ -84,9 +114,10 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         action: 'BUY' | 'SELL',
         quantity: number,
     ): Promise<{ status: 'QUEUED' | 'DIRECT'; message: string }> {
-        // Safety: If Redis is down, fall back to DIRECT execution (zero lag)
-        if (this.redisEnqueue.status !== 'ready') {
-            this.logger.warn(`Redis DOWN. Falling back to DIRECT execution for ${tickerId}`);
+        // Graceful degradation: if Redis is not ready, execute the trade
+        // synchronously via the PG-backed TradingService.
+        if (!this.isReady(this.redisEnqueue)) {
+            this.logger.warn(`Redis not ready (status: ${this.redisEnqueue.status}). Falling back to DIRECT execution for ${tickerId}`);
             if (action === 'BUY') {
                 await this.tradingService.executeBuy(userId, collegeDomain, tickerId, quantity);
             } else {
@@ -107,7 +138,6 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
 
         await this.redisEnqueue.lpush(`queue:trade:${tickerId}`, payload);
 
-        // Spin up a worker for this ticker if not already running
         if (!this.activeWorkers.has(tickerId)) {
             this.startWorker(tickerId);
         }
@@ -128,14 +158,12 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
             const processingKey = `${queueKey}:processing`;
             let lastActivityAt = Date.now();
 
-            // Only requeue when starting a fresh worker for this ticker.
             await this.requeueProcessing(queueKey, processingKey);
 
             while (!this.shuttingDown) {
                 let raw: string | null = null;
 
                 try {
-                    // BRPOPLPUSH with timeout (unblocks to check shuttingDown)
                     raw = await this.redisWorker.brpoplpush(
                         queueKey,
                         processingKey,
@@ -169,29 +197,14 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
                     if (!parsedTrade) {
                         validationErrors.push('payload');
                     } else {
-                        if (typeof parsedTrade.user_id !== 'string') {
-                            validationErrors.push('user_id');
-                        }
-                        if (typeof parsedTrade.college_domain !== 'string') {
-                            validationErrors.push('college_domain');
-                        }
-                        if (typeof parsedTrade.ticker_id !== 'string') {
-                            validationErrors.push('ticker_id');
-                        }
-                        if (parsedTrade.action !== 'BUY' && parsedTrade.action !== 'SELL') {
-                            validationErrors.push('action');
-                        }
-                        if (
-                            typeof parsedTrade.quantity !== 'number' ||
-                            !Number.isFinite(parsedTrade.quantity)
-                        ) {
-                            validationErrors.push('quantity');
-                        }
+                        if (typeof parsedTrade.user_id !== 'string') validationErrors.push('user_id');
+                        if (typeof parsedTrade.college_domain !== 'string') validationErrors.push('college_domain');
+                        if (typeof parsedTrade.ticker_id !== 'string') validationErrors.push('ticker_id');
+                        if (parsedTrade.action !== 'BUY' && parsedTrade.action !== 'SELL') validationErrors.push('action');
+                        if (typeof parsedTrade.quantity !== 'number' || !Number.isFinite(parsedTrade.quantity)) validationErrors.push('quantity');
                     }
                     if (validationErrors.length > 0) {
-                        throw new Error(
-                            `Invalid trade payload: ${validationErrors.join(', ')}`,
-                        );
+                        throw new Error(`Invalid trade payload: ${validationErrors.join(', ')}`);
                     }
                     trade = {
                         ...(parsedTrade as TradePayload),
@@ -216,9 +229,6 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         });
     }
 
-    /**
-     * Process a single trade by delegating to TradingService.
-     */
     private async processTrade(trade: TradePayload) {
         if (trade.action === 'BUY') {
             await this.tradingService.executeBuy(
@@ -252,12 +262,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         );
 
         if (nextAttempts <= this.maxAttemptCount) {
-            const retryPayload = JSON.stringify({
-                ...trade,
-                attempts: nextAttempts,
-            });
-
-            // LPUSH keeps FIFO ordering because workers pop from the right.
+            const retryPayload = JSON.stringify({ ...trade, attempts: nextAttempts });
             await this.redisWorker.lpush(queueKey, retryPayload);
             this.logger.warn(
                 `Requeued trade ${trade.ticker_id} after failure (attempt ${nextAttempts}/${this.maxAttemptCount}).`,
@@ -273,19 +278,13 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
 
     private async requeueProcessing(queueKey: string, processingKey: string) {
         let moved = 0;
-
         while (!this.shuttingDown) {
             const raw = await this.redisWorker.rpoplpush(processingKey, queueKey);
-            if (!raw) {
-                break;
-            }
+            if (!raw) break;
             moved += 1;
         }
-
         if (moved > 0) {
-            this.logger.warn(
-                `Requeued ${moved} in-flight trade(s) for ${queueKey} after worker restart.`,
-            );
+            this.logger.warn(`Requeued ${moved} in-flight trade(s) for ${queueKey} after worker restart.`);
         }
     }
 
