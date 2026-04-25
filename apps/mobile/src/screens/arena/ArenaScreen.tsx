@@ -1,3 +1,5 @@
+// File: saisrikiran25-ctrl/blitzr/BLITZR-master/apps/mobile/src/screens/arena/ArenaScreen.tsx
+
 import React, { useState } from 'react';
 import {
     View,
@@ -125,8 +127,8 @@ export const ArenaScreen: React.FC = () => {
             await api.placeBet(selectedEvent.event_id, selectedOutcome, amount);
             Alert.alert('Bet Placed', `Successfully bet ${amount} Chips on ${selectedOutcome}`);
             setIsBetModalVisible(false);
-            fetchInitialData(); // Refresh Props
-            usePortfolioStore.getState().fetchInitialData(); // Sync live Chip depletion
+            fetchInitialData(); 
+            usePortfolioStore.getState().fetchInitialData(); 
         } catch (error: any) {
             Alert.alert('Bet Failed', error.message);
         } finally {
@@ -158,24 +160,23 @@ export const ArenaScreen: React.FC = () => {
 
         setIsCreating(true);
         try {
-            // Calculate absolute expiry timestamp
             const expiryDate = new Date();
             expiryDate.setHours(expiryDate.getHours() + hours);
 
             await api.createPropEvent(
                 newEventTitle,
                 expiryDate.toISOString(),
-                'User Generated Context', // Optional description
+                'User Generated Context',
                 finalCategory,
                 liquidity
             );
 
             Alert.alert('Market Deployed', `Event created successfully with ¤ ${liquidity} initial pool parity.`);
             setIsCreateModalVisible(false);
-            setNewEventTitle(''); // Reset
-            setCustomCategory(''); // Reset
-            fetchInitialData(); // Refresh global arena feed
-            usePortfolioStore.getState().fetchInitialData(); // Sync exact UI chip deduction (- liquidity * 2)
+            setNewEventTitle(''); 
+            setCustomCategory(''); 
+            fetchInitialData(); 
+            usePortfolioStore.getState().fetchInitialData(); 
         } catch (error: any) {
             Alert.alert('Creation Failed', error.message);
         } finally {
@@ -193,7 +194,6 @@ export const ArenaScreen: React.FC = () => {
 
         return (
             <GlassCard style={styles.propCard} variant="default" intensity={10}>
-                {/* Category Header */}
                 <View style={styles.cardHeader}>
                     <View style={styles.categoryBadge}>
                         <BIcon name="landmark" size={10} color={Colors.textSecondary} style={{ marginRight: 4 }} />
@@ -201,7 +201,6 @@ export const ArenaScreen: React.FC = () => {
                     </View>
                 </View>
 
-                {/* Title and Date */}
                 <Text style={styles.propTitle} numberOfLines={2}>
                     {item.title}
                 </Text>
@@ -209,9 +208,7 @@ export const ArenaScreen: React.FC = () => {
                     {isSettled ? 'Settled' : `Ends in ${formatTimeRemaining(item.time_remaining_ms)}`}
                 </Text>
 
-                {/* Outcomes List */}
                 <View style={styles.outcomesContainer}>
-                    {/* YES Outcome */}
                     <TouchableOpacity
                         style={styles.outcomeRow}
                         onPress={() => !isSettled && handleOpenBet(item, 'YES')}
@@ -228,7 +225,6 @@ export const ArenaScreen: React.FC = () => {
                         </View>
                     </TouchableOpacity>
 
-                    {/* NO Outcome */}
                     <TouchableOpacity
                         style={styles.outcomeRow}
                         onPress={() => !isSettled && handleOpenBet(item, 'NO')}
@@ -246,13 +242,11 @@ export const ArenaScreen: React.FC = () => {
                     </TouchableOpacity>
                 </View>
 
-                {/* Footer Stats */}
                 <View style={[styles.cardFooter, isMainModerator && isExpired && !isSettled && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 8 }]}>
                     <Text style={styles.volumeText}>{formatCreds(totalPool)} Vol</Text>
                     <Text style={styles.marketCount}>{isExpired ? 'Expired' : 'Live'}</Text>
                 </View>
 
-                {/* Moderator Settlement Console */}
                 {isMainModerator && isExpired && !isSettled && (
                     <View style={styles.modSettleConsole}>
                         <Text style={styles.modSettleTitle}>SETTLEMENT REQUIRED</Text>
@@ -282,8 +276,6 @@ export const ArenaScreen: React.FC = () => {
             <StatusBar barStyle="light-content" />
             <LinearGradient colors={Gradients.obsidianDeep as any} style={StyleSheet.absoluteFill as any} />
 
-
-
             <View style={styles.tabBar}>
                 {['Active', 'Settled'].map((tab: any) => (
                     <TouchableOpacity
@@ -312,8 +304,6 @@ export const ArenaScreen: React.FC = () => {
                     data={filteredEvents}
                     keyExtractor={(item) => item.event_id}
                     renderItem={renderPropCard}
-                    numColumns={2}
-                    columnWrapperStyle={styles.columnWrapper}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                 />
@@ -336,7 +326,6 @@ export const ArenaScreen: React.FC = () => {
                 </TouchableOpacity>
             )}
 
-            {/* Bet Modal — KeyboardAvoidingView ensures TextInput is not obscured by keyboard */}
             <Modal
                 visible={isBetModalVisible}
                 transparent
@@ -371,12 +360,9 @@ export const ArenaScreen: React.FC = () => {
                                             const amount = parseInt(betAmount) || 0;
                                             if (amount <= 0 || !selectedEvent) return formatChips(0);
 
-                                            // Dynamic slippage calculation
                                             const total = selectedEvent.yes_pool + selectedEvent.no_pool;
                                             const pool = selectedOutcome === 'YES' ? selectedEvent.yes_pool : selectedEvent.no_pool;
 
-                                            // Formula: (Total Pool + Bet) * (Bet / (Pool + Bet))
-                                            // Minus 5% platform fee
                                             const netBet = amount * 0.95;
                                             const newTotal = total + netBet;
                                             const newPool = pool + netBet;
@@ -418,17 +404,11 @@ export const ArenaScreen: React.FC = () => {
                                     style={{ flex: 2 }}
                                 />
                             </View>
-                            <View style={styles.disclaimerContainer}>
-                                <Text style={styles.disclaimerText}>
-                                    BLITZR operates exclusively with virtual credits. No real monetary value. Not a financial product.
-                                </Text>
-                            </View>
                         </GlassCard>
                     </View>
                 </KeyboardAvoidingView>
             </Modal>
 
-            {/* Settlement Confirmation Modal */}
             <Modal
                 visible={isSettleModalVisible}
                 transparent
@@ -466,7 +446,6 @@ export const ArenaScreen: React.FC = () => {
                 </View>
             </Modal>
 
-            {/* Event Creation Modal — KeyboardAvoidingView ensures TextInput fields are not obscured by keyboard */}
             <Modal
                 visible={isCreateModalVisible}
                 transparent
@@ -511,19 +490,6 @@ export const ArenaScreen: React.FC = () => {
                                             </TouchableOpacity>
                                         ))}
                                     </View>
-                                    {newEventCategory === 'Other' && (
-                                        <View style={{ marginTop: Spacing.md }}>
-                                            <TextInput
-                                                style={[styles.textInput, { minHeight: 40, paddingBottom: 4, fontSize: 12 }]}
-                                                value={customCategory}
-                                                onChangeText={setCustomCategory}
-                                                placeholder="Enter custom category..."
-                                                placeholderTextColor="rgba(255,255,255,0.2)"
-                                                maxLength={15}
-                                                autoCapitalize="characters"
-                                            />
-                                        </View>
-                                    )}
                                 </View>
                             </View>
 
@@ -550,11 +516,6 @@ export const ArenaScreen: React.FC = () => {
                                         placeholder="50"
                                         placeholderTextColor="rgba(255,255,255,0.2)"
                                     />
-                                    <View style={{ position: 'absolute', bottom: -20, left: 0, right: 0, alignItems: 'center' }}>
-                                        <Text style={{ fontSize: 9, color: Colors.thermalRed, fontFamily: Fonts.bold }}>
-                                            Cost: -{parseInt(newEventLiquidity || '0') * 2} Chips
-                                        </Text>
-                                    </View>
                                 </View>
                             </View>
 
@@ -586,7 +547,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: Colors.obsidianBase,
     },
-    // Tabs
     tabBar: {
         flexDirection: 'row',
         paddingHorizontal: Spacing.lg,
@@ -615,22 +575,16 @@ const styles = StyleSheet.create({
     tabTextActive: {
         color: Colors.textPrimary,
     },
-    // List
     listContent: {
-        paddingHorizontal: Spacing.sm,
+        paddingHorizontal: Spacing.md,
         paddingTop: Spacing.md,
         paddingBottom: 100,
     },
-    columnWrapper: {
-        justifyContent: 'space-between',
-        paddingHorizontal: Spacing.xs,
-        marginBottom: Spacing.sm,
-    },
-    // Prop Card
+    // FIX: Set width to 100% for horizontal rectangle appearance
     propCard: {
-        width: '48.5%',
+        width: '100%',
         padding: Spacing.md,
-        marginBottom: Spacing.sm,
+        marginBottom: Spacing.md,
     },
     cardHeader: {
         flexDirection: 'row',
@@ -645,10 +599,6 @@ const styles = StyleSheet.create({
         paddingVertical: 3,
         borderRadius: 4,
     },
-    categoryIcon: {
-        fontSize: 10,
-        marginRight: 4,
-    },
     propCategory: {
         ...Typography.dataLabel,
         color: Colors.textSecondary,
@@ -659,7 +609,6 @@ const styles = StyleSheet.create({
         ...Typography.bodyMedium,
         color: Colors.textPrimary,
         fontSize: 15,
-        height: 44,
         lineHeight: 22,
         marginTop: 4,
     },
@@ -698,19 +647,15 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 2,
     },
-    // Fixed: replaced hardcoded width:85 with flexible min/max to prevent overflow on sub-375px screens
     outcomeStats: {
         flexDirection: 'row',
         alignItems: 'center',
         minWidth: 50,
-        maxWidth: 85,
-        flexShrink: 1,
         justifyContent: 'flex-end',
     },
     outcomeOdds: {
         ...Typography.h3,
         color: Colors.textPrimary,
-        marginRight: 8,
     },
     cardFooter: {
         flexDirection: 'row',
@@ -730,7 +675,6 @@ const styles = StyleSheet.create({
         color: Colors.textTertiary,
         fontSize: 10,
     },
-    // Empty
     emptyState: {
         flex: 1,
         justifyContent: 'center',
@@ -753,7 +697,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 18,
     },
-    // FAB
     fab: {
         position: 'absolute',
         bottom: Spacing.xl,
@@ -763,10 +706,6 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         overflow: 'hidden',
         elevation: 10,
-        shadowColor: Colors.kineticGreen,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.5,
-        shadowRadius: 10,
     },
     fabGradient: {
         width: '100%',
@@ -774,15 +713,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
-    fabText: {
-        fontSize: 36,
-        color: Colors.obsidianBase,
-        fontWeight: '900',
-        lineHeight: 36,
-        marginTop: -4,
-        marginLeft: 1,
-    },
-    // Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.9)',
@@ -878,7 +808,6 @@ const styles = StyleSheet.create({
     },
     green: { color: Colors.kineticGreen },
     red: { color: Colors.thermalRed },
-    // Create Event Specific
     textInput: {
         ...Typography.bodyMedium,
         color: Colors.textPrimary,
@@ -921,17 +850,6 @@ const styles = StyleSheet.create({
     catOptionTextActive: {
         color: Colors.kineticGreen,
     },
-    disclaimerContainer: {
-        marginTop: Spacing.xl,
-        alignItems: 'center',
-    },
-    disclaimerText: {
-        color: '#8E8E93',
-        fontSize: 10,
-        textAlign: 'center',
-        lineHeight: 14,
-    },
-    // Mod Settle
     modSettleConsole: {
         marginTop: Spacing.md,
         paddingTop: Spacing.sm,
