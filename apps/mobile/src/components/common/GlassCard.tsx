@@ -16,6 +16,10 @@ interface GlassCardProps {
  * GlassCard — Reimagined for High Fidelity
  * Uses expo-blur for real-time translucent depth and LinearGradient for surface shine.
  * Aesthetic: Palantir HUD / Industrial Glass
+ *
+ * Android note: BlurView has no effect on API < 31 (renders transparent).
+ * We layer a solid dark fill beneath it so the card aesthetic is preserved
+ * on all Android devices regardless of API level.
  */
 export const GlassCard: React.FC<GlassCardProps> = ({
     children,
@@ -26,6 +30,15 @@ export const GlassCard: React.FC<GlassCardProps> = ({
 }) => {
     return (
         <View style={[styles.card, variantStyles[variant], style]}>
+            {/* Android fallback: solid dark fill so BlurView transparency doesn't break aesthetics on API < 31 */}
+            {Platform.OS === 'android' && (
+                <View
+                    style={[
+                        StyleSheet.absoluteFill as any,
+                        styles.androidBlurFallback,
+                    ]}
+                />
+            )}
             <BlurView
                 intensity={Platform.OS === 'web' ? 0 : intensity}
                 tint="dark"
@@ -58,6 +71,9 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.15,
         shadowRadius: 10,
         elevation: 6,
+    },
+    androidBlurFallback: {
+        backgroundColor: 'rgba(15, 20, 30, 0.82)',
     },
     content: {
         padding: 16,
