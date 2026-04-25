@@ -113,32 +113,40 @@ export class TradingService {
         await queryRunner.startTransaction();
 
         try {
-            // Step 1: Lock the ticker row (Join-insensitive lock by ID)
+            // Step 1: Lock the ticker row (Surgical lock by ID)
             const tickerRows = await queryRunner.query(
-                `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, i.short_code as owner_campus
+                `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, 
+                        i.short_code as owner_campus, u.college_domain as owner_raw_domain
                  FROM tickers t
                  JOIN users u ON t.owner_id = u.user_id
-                 JOIN institutions i ON u.institution_id = i.institution_id
+                 LEFT JOIN institutions i ON u.institution_id = i.institution_id
                  WHERE t.ticker_id = $1 
                  FOR UPDATE OF t`,
                 [tickerId],
             );
 
             if (!tickerRows || tickerRows.length === 0) {
+                this.logger.error(`TRADE_ERROR: Ticker ${tickerId} not found in DB`);
                 throw new NotFoundException(`Ticker ${tickerId} not found in exchange database`);
             }
             const ticker = tickerRows[0];
 
             // DOMAIN SILO ENFORCEMENT & HEALING
-            // If the ticker is in a different domain, we check if it's a legacy mismatch
+            // We use the short_code (owner_campus) if available, otherwise fallback to user's raw domain
+            const effectiveOwnerCampus = ticker.owner_campus || ticker.owner_raw_domain;
+
             if (ticker.college_domain !== collegeDomain) {
-                if (ticker.owner_campus === collegeDomain) {
-                    // HEALING: Both are from the same campus, but ticker was stuck on a legacy domain.
-                    // Silently migrate it to the campus silo.
+                this.logger.log(`HEALING_TRIGGER: Ticker ${tickerId} is on ${ticker.college_domain}, buyer is ${collegeDomain}`);
+                
+                if (effectiveOwnerCampus === collegeDomain) {
+                    // ATOMIC HEAL: Synchronize ticker with the correct campus silo
                     await queryRunner.query('UPDATE tickers SET college_domain = $1 WHERE ticker_id = $2', [collegeDomain, tickerId]);
                     ticker.college_domain = collegeDomain;
+                    this.logger.log(`HEALING_SUCCESS: ${tickerId} migrated to ${collegeDomain}`);
                 } else {
-                    throw new ForbiddenException(`This IPO belongs to ${ticker.owner_campus} and cannot be traded on the ${collegeDomain} floor.`);
+                    const errorMsg = `This IPO belongs to ${effectiveOwnerCampus} and cannot be traded on the ${collegeDomain} floor.`;
+                    this.logger.warn(`TRADE_FORBIDDEN: ${errorMsg}`);
+                    throw new ForbiddenException(errorMsg);
                 }
             }
             
@@ -176,7 +184,7 @@ export class TradingService {
                 );
             }
 
-            // Step 4: Update ticker supply
+            // Step 4: Update ticker supply (Surgical PK update)
             await queryRunner.query(
                 `UPDATE tickers 
                  SET current_supply = current_supply + $1, 
@@ -184,8 +192,8 @@ export class TradingService {
                      total_trades = total_trades + 1,
                      human_trades_1h = human_trades_1h + 1,
                      updated_at = NOW()
-                 WHERE ticker_id = $3 AND college_domain = $4`,
-                [sharesToBuy, grossCost, tickerId, collegeDomain],
+                 WHERE ticker_id = $3`,
+                [sharesToBuy, grossCost, tickerId],
             );
 
             // Step 5: Deduct Creds from buyer
@@ -287,12 +295,13 @@ export class TradingService {
         await queryRunner.startTransaction();
 
         try {
-            // Lock ticker (Join on ID only to bypass domain-sync blockers)
+            // Lock ticker (Surgical lock by ID)
             const tickerRows = await queryRunner.query(
-                `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, i.short_code as owner_campus
+                `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, 
+                        i.short_code as owner_campus, u.college_domain as owner_raw_domain
                  FROM tickers t
                  JOIN users u ON t.owner_id = u.user_id
-                 JOIN institutions i ON u.institution_id = i.institution_id
+                 LEFT JOIN institutions i ON u.institution_id = i.institution_id
                  WHERE t.ticker_id = $1 
                  FOR UPDATE OF t`,
                 [tickerId],
@@ -302,12 +311,14 @@ export class TradingService {
             const ticker = tickerRows[0];
 
             // DOMAIN SILO ENFORCEMENT & HEALING
+            const effectiveOwnerCampus = ticker.owner_campus || ticker.owner_raw_domain;
+
             if (ticker.college_domain !== collegeDomain) {
-                if (ticker.owner_campus === collegeDomain) {
+                if (effectiveOwnerCampus === collegeDomain) {
                     await queryRunner.query('UPDATE tickers SET college_domain = $1 WHERE ticker_id = $2', [collegeDomain, tickerId]);
                     ticker.college_domain = collegeDomain;
                 } else {
-                    throw new ForbiddenException(`This IPO belongs to ${ticker.owner_campus} and cannot be traded on the ${collegeDomain} floor.`);
+                    throw new ForbiddenException(`This IPO belongs to ${effectiveOwnerCampus} and cannot be traded on the ${collegeDomain} floor.`);
                 }
             }
             
@@ -341,7 +352,7 @@ export class TradingService {
             const { burnAmount, dividendAmount } = applyIpoFees(grossValue);
             const netValue = grossValue - burnAmount - dividendAmount;
 
-            // Update ticker supply
+            // Update ticker supply (Surgical PK update)
             await queryRunner.query(
                 `UPDATE tickers 
                  SET current_supply = current_supply - $1, 
@@ -349,8 +360,8 @@ export class TradingService {
                      total_trades = total_trades + 1,
                      human_trades_1h = human_trades_1h + 1,
                      updated_at = NOW()
-                 WHERE ticker_id = $3 AND college_domain = $4`,
-                [sharesToSell, grossValue, tickerId, collegeDomain],
+                 WHERE ticker_id = $3`,
+                [sharesToSell, grossValue, tickerId],
             );
 
             // Credit Creds to seller (net of fees)
