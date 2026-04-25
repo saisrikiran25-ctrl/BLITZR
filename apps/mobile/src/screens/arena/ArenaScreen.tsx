@@ -310,6 +310,7 @@ export const ArenaScreen: React.FC = () => {
                     data={filteredEvents}
                     keyExtractor={(item) => item.event_id}
                     renderItem={renderPropCard}
+                    numColumns={1}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
                 />
@@ -610,11 +611,11 @@ const styles = StyleSheet.create({
     },
     // List
     listContent: {
-        paddingHorizontal: Spacing.sm,
+        paddingHorizontal: Spacing.lg,
         paddingTop: Spacing.md,
         paddingBottom: 100,
     },
-    // Prop Card - MODIFIED: Width set to 100% for wide rectangle aesthetic
+    // Prop Card — full-width wide rectangle for mobile
     propCard: {
         width: '100%',
         padding: Spacing.md,
