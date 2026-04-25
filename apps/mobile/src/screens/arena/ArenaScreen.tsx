@@ -9,6 +9,8 @@ import {
     TextInput,
     Alert,
     StatusBar,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GlassCard } from '../../components/common/GlassCard';
@@ -334,90 +336,96 @@ export const ArenaScreen: React.FC = () => {
                 </TouchableOpacity>
             )}
 
+            {/* Bet Modal — KeyboardAvoidingView ensures TextInput is not obscured by keyboard */}
             <Modal
                 visible={isBetModalVisible}
                 transparent
                 animationType="slide"
                 onRequestClose={() => setIsBetModalVisible(false)}
             >
-                <View style={styles.modalOverlay}>
-                    <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Place Bet</Text>
-                            <View style={styles.modalLine} />
-                        </View>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <View style={styles.modalOverlay}>
+                        <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Place Bet</Text>
+                                <View style={styles.modalLine} />
+                            </View>
 
-                        <Text style={styles.modalEventTitle}>{selectedEvent?.title}</Text>
+                            <Text style={styles.modalEventTitle}>{selectedEvent?.title}</Text>
 
-                        <View style={styles.outcomePreview}>
-                            <View style={styles.outcomeBlock}>
-                                <Text style={styles.outcomeLabel}>Position</Text>
-                                <Text style={[styles.outcomeValue, selectedOutcome === 'YES' ? styles.green : styles.red]}>
-                                    {selectedOutcome}
+                            <View style={styles.outcomePreview}>
+                                <View style={styles.outcomeBlock}>
+                                    <Text style={styles.outcomeLabel}>Position</Text>
+                                    <Text style={[styles.outcomeValue, selectedOutcome === 'YES' ? styles.green : styles.red]}>
+                                        {selectedOutcome}
+                                    </Text>
+                                </View>
+                                <View style={styles.outcomeDivider} />
+                                <View style={styles.outcomeBlock}>
+                                    <Text style={styles.outcomeLabel}>Estimated Return</Text>
+                                    <Text style={[styles.outcomeValue, selectedOutcome === 'YES' ? styles.green : styles.red]}>
+                                        {(() => {
+                                            const amount = parseInt(betAmount) || 0;
+                                            if (amount <= 0 || !selectedEvent) return formatChips(0);
+
+                                            // Dynamic slippage calculation
+                                            const total = selectedEvent.yes_pool + selectedEvent.no_pool;
+                                            const pool = selectedOutcome === 'YES' ? selectedEvent.yes_pool : selectedEvent.no_pool;
+
+                                            // Formula: (Total Pool + Bet) * (Bet / (Pool + Bet))
+                                            // Minus 5% platform fee
+                                            const netBet = amount * 0.95;
+                                            const newTotal = total + netBet;
+                                            const newPool = pool + netBet;
+
+                                            const returnAmount = newTotal * (netBet / newPool);
+                                            return formatChips(returnAmount);
+                                        })()}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Chip Allocation</Text>
+                                <TextInput
+                                    style={styles.amountInput}
+                                    value={betAmount}
+                                    onChangeText={setBetAmount}
+                                    keyboardType="numeric"
+                                    placeholder="..."
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                />
+                                <View style={styles.balanceTag}>
+                                    <Text style={styles.balanceText}>Balance: {chipBalance}</Text>
+                                </View>
+                            </View>
+
+                            <View style={styles.modalButtons}>
+                                <Button
+                                    title="Abort"
+                                    variant="secondary"
+                                    onPress={() => setIsBetModalVisible(false)}
+                                    style={{ flex: 1, marginRight: 8 }}
+                                />
+                                <Button
+                                    title="Approve"
+                                    variant={selectedOutcome === 'YES' ? 'buy' : 'sell'}
+                                    loading={isSubmitting}
+                                    onPress={handlePlaceBet}
+                                    style={{ flex: 2 }}
+                                />
+                            </View>
+                            <View style={styles.disclaimerContainer}>
+                                <Text style={styles.disclaimerText}>
+                                    BLITZR operates exclusively with virtual credits. No real monetary value. Not a financial product.
                                 </Text>
                             </View>
-                            <View style={styles.outcomeDivider} />
-                            <View style={styles.outcomeBlock}>
-                                <Text style={styles.outcomeLabel}>Estimated Return</Text>
-                                <Text style={[styles.outcomeValue, selectedOutcome === 'YES' ? styles.green : styles.red]}>
-                                    {(() => {
-                                        const amount = parseInt(betAmount) || 0;
-                                        if (amount <= 0 || !selectedEvent) return formatChips(0);
-
-                                        // Dynamic slippage calculation
-                                        const total = selectedEvent.yes_pool + selectedEvent.no_pool;
-                                        const pool = selectedOutcome === 'YES' ? selectedEvent.yes_pool : selectedEvent.no_pool;
-
-                                        // Formula: (Total Pool + Bet) * (Bet / (Pool + Bet))
-                                        // Minus 5% platform fee
-                                        const netBet = amount * 0.95;
-                                        const newTotal = total + netBet;
-                                        const newPool = pool + netBet;
-
-                                        const returnAmount = newTotal * (netBet / newPool);
-                                        return formatChips(returnAmount);
-                                    })()}
-                                </Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Chip Allocation</Text>
-                            <TextInput
-                                style={styles.amountInput}
-                                value={betAmount}
-                                onChangeText={setBetAmount}
-                                keyboardType="numeric"
-                                placeholder="..."
-                                placeholderTextColor="rgba(255,255,255,0.2)"
-                            />
-                            <View style={styles.balanceTag}>
-                                <Text style={styles.balanceText}>Balance: {chipBalance}</Text>
-                            </View>
-                        </View>
-
-                        <View style={styles.modalButtons}>
-                            <Button
-                                title="Abort"
-                                variant="secondary"
-                                onPress={() => setIsBetModalVisible(false)}
-                                style={{ flex: 1, marginRight: 8 }}
-                            />
-                            <Button
-                                title="Approve"
-                                variant={selectedOutcome === 'YES' ? 'buy' : 'sell'}
-                                loading={isSubmitting}
-                                onPress={handlePlaceBet}
-                                style={{ flex: 2 }}
-                            />
-                        </View>
-                        <View style={styles.disclaimerContainer}>
-                            <Text style={styles.disclaimerText}>
-                                BLITZR operates exclusively with virtual credits. No real monetary value. Not a financial product.
-                            </Text>
-                        </View>
-                    </GlassCard>
-                </View>
+                        </GlassCard>
+                    </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* Settlement Confirmation Modal */}
@@ -458,111 +466,116 @@ export const ArenaScreen: React.FC = () => {
                 </View>
             </Modal>
 
-            {/* Event Creation Modal */}
+            {/* Event Creation Modal — KeyboardAvoidingView ensures TextInput fields are not obscured by keyboard */}
             <Modal
                 visible={isCreateModalVisible}
                 transparent
                 animationType="slide"
                 onRequestClose={() => setIsCreateModalVisible(false)}
             >
-                <View style={styles.modalOverlay}>
-                    <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Create Market</Text>
-                            <View style={styles.modalLine} />
-                        </View>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <View style={styles.modalOverlay}>
+                        <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Create Market</Text>
+                                <View style={styles.modalLine} />
+                            </View>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Proposition Title</Text>
-                            <TextInput
-                                style={styles.textInput}
-                                value={newEventTitle}
-                                onChangeText={setNewEventTitle}
-                                placeholder="e.g., Will it rain tomorrow?"
-                                placeholderTextColor="rgba(255,255,255,0.2)"
-                                maxLength={100}
-                                multiline
-                            />
-                        </View>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Proposition Title</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={newEventTitle}
+                                    onChangeText={setNewEventTitle}
+                                    placeholder="e.g., Will it rain tomorrow?"
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                    maxLength={100}
+                                    multiline
+                                />
+                            </View>
 
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl }}>
-                            <View style={{ flex: 1, marginRight: Spacing.md }}>
-                                <Text style={styles.inputLabel}>Category</Text>
-                                <View style={styles.categoryPicker}>
-                                    {['Campus', 'Sports', 'Events', 'Opinion', 'Other'].map((cat) => (
-                                        <TouchableOpacity
-                                            key={cat}
-                                            style={[styles.catOption, newEventCategory === cat && styles.catOptionActive]}
-                                            onPress={() => setNewEventCategory(cat)}
-                                        >
-                                            <Text style={[styles.catOptionText, newEventCategory === cat && styles.catOptionTextActive]}>{cat}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </View>
-                                {newEventCategory === 'Other' && (
-                                    <View style={{ marginTop: Spacing.md }}>
-                                        <TextInput
-                                            style={[styles.textInput, { minHeight: 40, paddingBottom: 4, fontSize: 12 }]}
-                                            value={customCategory}
-                                            onChangeText={setCustomCategory}
-                                            placeholder="Enter custom category..."
-                                            placeholderTextColor="rgba(255,255,255,0.2)"
-                                            maxLength={15}
-                                            autoCapitalize="characters"
-                                        />
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xl }}>
+                                <View style={{ flex: 1, marginRight: Spacing.md }}>
+                                    <Text style={styles.inputLabel}>Category</Text>
+                                    <View style={styles.categoryPicker}>
+                                        {['Campus', 'Sports', 'Events', 'Opinion', 'Other'].map((cat) => (
+                                            <TouchableOpacity
+                                                key={cat}
+                                                style={[styles.catOption, newEventCategory === cat && styles.catOptionActive]}
+                                                onPress={() => setNewEventCategory(cat)}
+                                            >
+                                                <Text style={[styles.catOptionText, newEventCategory === cat && styles.catOptionTextActive]}>{cat}</Text>
+                                            </TouchableOpacity>
+                                        ))}
                                     </View>
-                                )}
-                            </View>
-                        </View>
-
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xxl }}>
-                            <View style={{ flex: 1, marginRight: Spacing.md }}>
-                                <Text style={styles.inputLabel}>Duration (Hours)</Text>
-                                <TextInput
-                                    style={styles.numericInput}
-                                    value={newEventExpiryHours}
-                                    onChangeText={setNewEventExpiryHours}
-                                    keyboardType="numeric"
-                                    placeholder="24"
-                                    placeholderTextColor="rgba(255,255,255,0.2)"
-                                />
-                            </View>
-
-                            <View style={{ flex: 1, marginLeft: Spacing.md }}>
-                                <Text style={styles.inputLabel}>Initial Liquidity</Text>
-                                <TextInput
-                                    style={[styles.numericInput, { color: Colors.kineticGreen }]}
-                                    value={newEventLiquidity}
-                                    onChangeText={setNewEventLiquidity}
-                                    keyboardType="numeric"
-                                    placeholder="50"
-                                    placeholderTextColor="rgba(255,255,255,0.2)"
-                                />
-                                <View style={{ position: 'absolute', bottom: -20, left: 0, right: 0, alignItems: 'center' }}>
-                                    <Text style={{ fontSize: 9, color: Colors.thermalRed, fontFamily: Fonts.bold }}>
-                                        Cost: -{parseInt(newEventLiquidity || '0') * 2} Chips
-                                    </Text>
+                                    {newEventCategory === 'Other' && (
+                                        <View style={{ marginTop: Spacing.md }}>
+                                            <TextInput
+                                                style={[styles.textInput, { minHeight: 40, paddingBottom: 4, fontSize: 12 }]}
+                                                value={customCategory}
+                                                onChangeText={setCustomCategory}
+                                                placeholder="Enter custom category..."
+                                                placeholderTextColor="rgba(255,255,255,0.2)"
+                                                maxLength={15}
+                                                autoCapitalize="characters"
+                                            />
+                                        </View>
+                                    )}
                                 </View>
                             </View>
-                        </View>
 
-                        <View style={styles.modalButtons}>
-                            <Button
-                                title="Cancel"
-                                variant="secondary"
-                                onPress={() => setIsCreateModalVisible(false)}
-                                style={{ flex: 1, marginRight: 8 }}
-                            />
-                            <Button
-                                title="Deploy"
-                                variant="buy"
-                                loading={isCreating}
-                                onPress={handleCreateEvent}
-                                style={{ flex: 2 }}
-                            />
-                        </View>
-                    </GlassCard>
-                </View>
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xxl }}>
+                                <View style={{ flex: 1, marginRight: Spacing.md }}>
+                                    <Text style={styles.inputLabel}>Duration (Hours)</Text>
+                                    <TextInput
+                                        style={styles.numericInput}
+                                        value={newEventExpiryHours}
+                                        onChangeText={setNewEventExpiryHours}
+                                        keyboardType="numeric"
+                                        placeholder="24"
+                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                    />
+                                </View>
+
+                                <View style={{ flex: 1, marginLeft: Spacing.md }}>
+                                    <Text style={styles.inputLabel}>Initial Liquidity</Text>
+                                    <TextInput
+                                        style={[styles.numericInput, { color: Colors.kineticGreen }]}
+                                        value={newEventLiquidity}
+                                        onChangeText={setNewEventLiquidity}
+                                        keyboardType="numeric"
+                                        placeholder="50"
+                                        placeholderTextColor="rgba(255,255,255,0.2)"
+                                    />
+                                    <View style={{ position: 'absolute', bottom: -20, left: 0, right: 0, alignItems: 'center' }}>
+                                        <Text style={{ fontSize: 9, color: Colors.thermalRed, fontFamily: Fonts.bold }}>
+                                            Cost: -{parseInt(newEventLiquidity || '0') * 2} Chips
+                                        </Text>
+                                    </View>
+                                </View>
+                            </View>
+
+                            <View style={styles.modalButtons}>
+                                <Button
+                                    title="Cancel"
+                                    variant="secondary"
+                                    onPress={() => setIsCreateModalVisible(false)}
+                                    style={{ flex: 1, marginRight: 8 }}
+                                />
+                                <Button
+                                    title="Deploy"
+                                    variant="buy"
+                                    loading={isCreating}
+                                    onPress={handleCreateEvent}
+                                    style={{ flex: 2 }}
+                                />
+                            </View>
+                        </GlassCard>
+                    </View>
+                </KeyboardAvoidingView>
             </Modal>
         </View>
     );
@@ -685,10 +698,13 @@ const styles = StyleSheet.create({
         height: '100%',
         borderRadius: 2,
     },
+    // Fixed: replaced hardcoded width:85 with flexible min/max to prevent overflow on sub-375px screens
     outcomeStats: {
         flexDirection: 'row',
         alignItems: 'center',
-        width: 85,
+        minWidth: 50,
+        maxWidth: 85,
+        flexShrink: 1,
         justifyContent: 'flex-end',
     },
     outcomeOdds: {
@@ -764,7 +780,7 @@ const styles = StyleSheet.create({
         fontWeight: '900',
         lineHeight: 36,
         marginTop: -4,
-        marginLeft: 1, // Optional: slightly adjust X axis if needed too, but normally Y axis is the issue
+        marginLeft: 1,
     },
     // Modal
     modalOverlay: {
