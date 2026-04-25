@@ -22,7 +22,7 @@ SplashScreen.preventAutoHideAsync();
  * BLITZR — Campus Social-Equity Exchange
  */
 function App(): React.JSX.Element | null {
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontLoadError] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -30,9 +30,15 @@ function App(): React.JSX.Element | null {
     ...Feather.font,
   });
 
-
-  const [fontError] = React.useState<Error | null>(null);
+  const [fontError, setFontError] = React.useState<Error | null>(null);
   const [useFallback, setUseFallback] = React.useState(false);
+
+  // Capture any font load error so error boundary / fallback can react
+  useEffect(() => {
+    if (fontLoadError) {
+      setFontError(fontLoadError);
+    }
+  }, [fontLoadError]);
 
   useEffect(() => {
     wsService.connect();
@@ -52,12 +58,12 @@ function App(): React.JSX.Element | null {
   }, [fontsLoaded]);
 
   const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || useFallback) {
+    if (fontsLoaded || useFallback || fontError) {
       await SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, useFallback]);
+  }, [fontsLoaded, useFallback, fontError]);
 
-  // If fontsLoaded is true, or we hit the fallback timeout, render the app
+  // If fontsLoaded is true, hit the fallback timeout, or font errored — render the app
   if (!fontsLoaded && !useFallback && !fontError) {
     return null; // Still waiting initially
   }
