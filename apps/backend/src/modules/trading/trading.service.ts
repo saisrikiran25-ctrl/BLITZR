@@ -33,15 +33,22 @@ import { NotificationsService } from '../notifications/notifications.service';
  * 8. Pay dividend to creator
  * 9. COMMIT
  *
- * FIX (Apr 25 2026):
+ * FIX (Apr 25 2026 — batch 1):
  *  - BUG-04: Added HttpException and InternalServerErrorException to imports.
- *    Both were referenced in catch blocks but never imported, causing a
- *    ReferenceError at runtime that masked the real trade exception.
- *  - BUG-05: Campus silo healer now uses ticker.college_domain directly as
- *    the authoritative campus value. The previous fallback to owner_raw_domain
- *    (raw email domain like 'iift.edu') never matched collegeDomain (JWT
- *    short_code like 'IIFT-D') when the institutions LEFT JOIN returned null,
- *    causing every trade on affected IPOs to throw ForbiddenException.
+ *  - BUG-05: Campus silo healer uses ticker.college_domain as authoritative value.
+ *
+ * FIX (Apr 25 2026 — batch 2):
+ *  - BUG-08: broadcastMarketUpdates() cron no longer falls back to 'iift.edu'.
+ *    Tickers with no college_domain are skipped with a warn log.
+ *  - BUG-09: executeBuy + executeSell healer dead-code inner condition removed.
+ *    `ticker.college_domain === collegeDomain` was unreachable inside the
+ *    `ticker.college_domain !== collegeDomain` branch — now cleaned out.
+ *  - NEW-01: executeBuy secondary broadcasts no longer fall back to collegeDomain.
+ *    ticker.college_domain is guaranteed set by the healer above.
+ *  - NEW-02: previewBuy() Global Lockdown check moved before the ticker query
+ *    so a stale college_domain in DB cannot cause a misleading 404.
+ *  - NEW-03: platform_wallet burn step now logs a CRITICAL warning if 0 rows
+ *    were affected (row missing), surfacing the data integrity gap to ops.
  */
 @Injectable()
 export class TradingService {
@@ -58,18 +65,23 @@ export class TradingService {
 
     /**
      * Preview a BUY trade (no mutation — shows price impact).
+     *
+     * NEW-02 FIX: Global Lockdown check is now the FIRST thing that runs,
+     * before the ticker SELECT. Previously, if college_domain was stale in
+     * the DB the ticker query returned 0 rows and we threw NotFoundException
+     * instead of the correct ForbiddenException('GLOBAL LOCKDOWN').
      */
     async previewBuy(collegeDomain: string, tickerId: string, sharesToBuy: number) {
-        const ticker = await this.dataSource.query(
-            `SELECT current_supply, scaling_constant, status, frozen_until FROM tickers WHERE ticker_id = $1 AND college_domain = $2`,
-            [tickerId, collegeDomain],
-        );
-
-        // Global Lockdown Check
+        // NEW-02 FIX: Lockdown check FIRST — before any ticker query.
         const isLockdown = await this.dataSource.query(`SELECT value FROM settings WHERE key = 'GLOBAL_LOCKDOWN'`);
         if (isLockdown.length && isLockdown[0].value === 'true') {
             throw new ForbiddenException('Market is in GLOBAL LOCKDOWN mode. All trading is suspended.');
         }
+
+        const ticker = await this.dataSource.query(
+            `SELECT current_supply, scaling_constant, status, frozen_until FROM tickers WHERE ticker_id = $1 AND college_domain = $2`,
+            [tickerId, collegeDomain],
+        );
 
         if (!ticker.length) throw new NotFoundException(`Ticker ${tickerId} not found`);
 
@@ -148,12 +160,13 @@ export class TradingService {
             }
 
             // BUG-05 FIX: Domain silo enforcement.
-            // Use ticker.college_domain as the authoritative stored campus value.
-            // Do NOT fall back to owner_raw_domain (raw email domain) — it never
-            // matches the JWT collegeDomain (short_code) and breaks all trades.
+            // BUG-09 FIX: Removed dead inner condition `ticker.college_domain === collegeDomain`.
+            //   That condition lived inside the block that only executes when
+            //   ticker.college_domain !== collegeDomain — it could never be true.
+            //   Healer now correctly fires only when ownerCampus === collegeDomain.
             if (ticker.college_domain !== collegeDomain) {
                 const ownerCampus = ticker.owner_campus || ticker.college_domain;
-                if (ownerCampus === collegeDomain || ticker.college_domain === collegeDomain) {
+                if (ownerCampus === collegeDomain) {
                     await queryRunner.query(
                         'UPDATE tickers SET college_domain = $1 WHERE ticker_id = $2',
                         [collegeDomain, tickerId],
@@ -267,14 +280,19 @@ export class TradingService {
                 );
             }
 
-            // Step 9: Burn
-            await queryRunner.query(
+            // Step 9: Burn — NEW-03 FIX: log CRITICAL warning if platform_wallet row is missing.
+            const burnResult = await queryRunner.query(
                 `UPDATE platform_wallet SET
                   total_burned_creds = total_burned_creds + $1,
                   updated_at = NOW()
                  WHERE id = 1`,
                 [Number(burnAmount)],
             );
+            if (!burnResult || burnResult.affected === 0) {
+                this.logger.error(
+                    `PLATFORM_WALLET_MISSING: BUY burn of ${burnAmount} CRED for trade on ${tickerId} was NOT recorded. platform_wallet row id=1 does not exist. Data integrity gap — ops action required.`,
+                );
+            }
 
             // Step 10: Fetch volume before commit
             const updatedTickerRows = await queryRunner.query(
@@ -285,15 +303,18 @@ export class TradingService {
 
             await queryRunner.commitTransaction();
 
-            // Step 11: Secondary async actions (non-blocking)
+            // Step 11: Secondary async actions (non-blocking).
+            // NEW-01 FIX: Removed `|| collegeDomain` fallback from broadcastPriceUpdate
+            // and broadcastPulse. ticker.college_domain is guaranteed set by the healer
+            // above. The fallback was a latent silo leak matching the BUG-08 class.
             try {
                 const finalPrice = this.bondingCurve.getPrice(newSupply);
                 const changePct = this.calculateChangePct(Number(ticker.price_open), finalPrice);
                 this.realtimeGateway.broadcastPriceUpdate(
-                    ticker.college_domain || collegeDomain,
+                    ticker.college_domain,
                     tickerId, finalPrice, newSupply, changePct, newVolume,
                 );
-                this.realtimeGateway.broadcastPulse(ticker.college_domain || collegeDomain, tickerId, 'BUY');
+                this.realtimeGateway.broadcastPulse(ticker.college_domain, tickerId, 'BUY');
             } catch (e: any) {
                 this.logger.warn(`Realtime broadcast failed: ${e.message}`);
             }
@@ -302,7 +323,6 @@ export class TradingService {
         } catch (error: any) {
             await queryRunner.rollbackTransaction();
             this.logger.error(`TRADE_CRASH: ${error.message}`);
-            // BUG-04 FIX: HttpException and InternalServerErrorException are now imported.
             if (error instanceof HttpException) throw error;
             throw new InternalServerErrorException(`Trade failed: ${error.message}`);
         } finally {
@@ -338,9 +358,10 @@ export class TradingService {
             const ticker = tickerRows[0];
 
             // BUG-05 FIX: Same domain silo fix as executeBuy.
+            // BUG-09 FIX: Removed dead inner condition `ticker.college_domain === collegeDomain`.
             if (ticker.college_domain !== collegeDomain) {
                 const ownerCampus = ticker.owner_campus || ticker.college_domain;
-                if (ownerCampus === collegeDomain || ticker.college_domain === collegeDomain) {
+                if (ownerCampus === collegeDomain) {
                     await queryRunner.query(
                         'UPDATE tickers SET college_domain = $1 WHERE ticker_id = $2',
                         [collegeDomain, tickerId],
@@ -442,13 +463,18 @@ export class TradingService {
                 [dividendAmount, ticker.owner_id],
             );
 
-            // Burn
-            await queryRunner.query(
+            // Burn — NEW-03 FIX: log CRITICAL warning if platform_wallet row is missing.
+            const burnResult = await queryRunner.query(
                 `UPDATE platform_wallet
                  SET total_burned_creds = total_burned_creds + $1, updated_at = NOW()
                  WHERE id = 1`,
                 [burnAmount],
             );
+            if (!burnResult || burnResult.affected === 0) {
+                this.logger.error(
+                    `PLATFORM_WALLET_MISSING: SELL burn of ${burnAmount} CRED for trade on ${tickerId} was NOT recorded. platform_wallet row id=1 does not exist. Data integrity gap — ops action required.`,
+                );
+            }
 
             // Fetch volume before commit
             const updatedRows = await queryRunner.query(
@@ -489,6 +515,11 @@ export class TradingService {
 
     /**
      * CRON JOB: Broadcast live price + accurate % change every minute.
+     *
+     * BUG-08 FIX: Removed `|| 'iift.edu'` fallback on domain resolution.
+     * Tickers with no college_domain are now skipped with a warn log.
+     * Previously they were silently routed into IIFT-D's realtime room,
+     * causing a multi-tenant data leak and denying other campuses live updates.
      */
     @Cron(CronExpression.EVERY_MINUTE)
     async broadcastMarketUpdates() {
@@ -503,6 +534,14 @@ export class TradingService {
         const domainMap = new Map<string, any[]>();
 
         for (const t of tickers) {
+            // BUG-08 FIX: Skip tickers with no domain — do NOT fall back to 'iift.edu'.
+            if (!t.college_domain) {
+                this.logger.warn(
+                    `Ticker ${t.ticker_id} has no college_domain — skipping broadcast to prevent cross-campus data leak.`,
+                );
+                continue;
+            }
+
             const supply = Number(t.current_supply);
             const currentPrice = this.bondingCurve.getPrice(supply);
             const openPrice = Number(t.price_open);
@@ -530,7 +569,7 @@ export class TradingService {
                 );
             }
 
-            const domain = t.college_domain || 'iift.edu';
+            const domain = t.college_domain;
             if (!domainMap.has(domain)) domainMap.set(domain, []);
             domainMap.get(domain)!.push(update);
         }
