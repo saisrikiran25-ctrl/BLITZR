@@ -110,63 +110,67 @@ export class TradingService {
 
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
-        await queryRunner.startTransaction();
-
-        try {
+        await queryRunner.startTransaction();        try {
             // Step 1: Lock the ticker row (Surgical lock by ID)
-            const tickerRows = await queryRunner.query(
-                `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, 
-                        i.short_code as owner_campus, u.college_domain as owner_raw_domain
-                 FROM tickers t
-                 JOIN users u ON t.owner_id = u.user_id
-                 LEFT JOIN institutions i ON u.institution_id = i.institution_id
-                 WHERE t.ticker_id = $1 
-                 FOR UPDATE OF t`,
-                [tickerId],
-            );
+            let ticker: any;
+            try {
+                const tickerRows = await queryRunner.query(
+                    `SELECT t.current_supply, t.owner_id, t.status, t.price_open, t.college_domain, t.frozen_until, 
+                            i.short_code as owner_campus, u.college_domain as owner_raw_domain
+                     FROM tickers t
+                     JOIN users u ON t.owner_id = u.user_id
+                     LEFT JOIN institutions i ON u.institution_id = i.institution_id
+                     WHERE t.ticker_id = $1 
+                     FOR UPDATE OF t`,
+                    [tickerId],
+                );
 
-            if (!tickerRows || tickerRows.length === 0) {
-                this.logger.error(`TRADE_ERROR: Ticker ${tickerId} not found in DB`);
-                throw new NotFoundException(`Ticker ${tickerId} not found in exchange database`);
+                if (!tickerRows || tickerRows.length === 0) {
+                    throw new NotFoundException(`Ticker ${tickerId} not found`);
+                }
+                ticker = tickerRows[0];
+            } catch (e: any) {
+                this.logger.error(`STEP_1_FAILED: ${e.message}`);
+                throw e instanceof NotFoundException ? e : new BadRequestException(`Ticker lock failed: ${e.message}`);
             }
-            const ticker = tickerRows[0];
 
             // DOMAIN SILO ENFORCEMENT & HEALING
-            // We use the short_code (owner_campus) if available, otherwise fallback to user's raw domain
             const effectiveOwnerCampus = ticker.owner_campus || ticker.owner_raw_domain;
 
             if (ticker.college_domain !== collegeDomain) {
-                this.logger.log(`HEALING_TRIGGER: Ticker ${tickerId} is on ${ticker.college_domain}, buyer is ${collegeDomain}`);
-                
                 if (effectiveOwnerCampus === collegeDomain) {
-                    // ATOMIC HEAL: Synchronize ticker with the correct campus silo
                     await queryRunner.query('UPDATE tickers SET college_domain = $1 WHERE ticker_id = $2', [collegeDomain, tickerId]);
                     ticker.college_domain = collegeDomain;
-                    this.logger.log(`HEALING_SUCCESS: ${tickerId} migrated to ${collegeDomain}`);
                 } else {
-                    const errorMsg = `This IPO belongs to ${effectiveOwnerCampus} and cannot be traded on the ${collegeDomain} floor.`;
-                    this.logger.warn(`TRADE_FORBIDDEN: ${errorMsg}`);
-                    throw new ForbiddenException(errorMsg);
+                    throw new ForbiddenException(`This IPO belongs to ${effectiveOwnerCampus} and cannot be traded on the ${collegeDomain} floor.`);
                 }
             }
             
             // L3 Circuit Breaker Check
             if (ticker.status === 'AUTO_FROZEN' || ticker.status === 'FROZEN') {
-                const frozenUntil = ticker.frozen_until ? new Date(ticker.frozen_until).getTime() : 0;
-                if (frozenUntil > Date.now()) {
-                    throw new ForbiddenException(`Trading halted for security. Resumes at ${new Date(frozenUntil).toLocaleTimeString()}`);
-                }
-            } else if (ticker.status === 'DELISTED') {
-                throw new ForbiddenException('Ticker is delisted and cannot be traded');
+                throw new ForbiddenException(`Trading halted for security.`);
             } else if (ticker.status !== 'ACTIVE') {
-                throw new ForbiddenException(`Ticker is not available for trading (status: ${ticker.status})`);
+                throw new ForbiddenException(`Ticker status: ${ticker.status}`);
             }
 
-            const supply = Number(ticker.current_supply);
+            const supply = Number(ticker.current_supply) || 0;
 
             // Step 2: Calculate cost
-            const grossCost = Number(this.bondingCurve.getBuyCost(supply, sharesToBuy));
-            const { burnAmount, dividendAmount } = applyIpoFees(grossCost);
+            let grossCost: number;
+            let burnAmount: number;
+            let dividendAmount: number;
+            try {
+                grossCost = Number(this.bondingCurve.getBuyCost(supply, sharesToBuy));
+                const fees = applyIpoFees(grossCost);
+                burnAmount = Number(fees.burnAmount);
+                dividendAmount = Number(fees.dividendAmount);
+                
+                if (isNaN(grossCost) || isNaN(burnAmount) || isNaN(dividendAmount)) {
+                    throw new Error('NaN calculated in trade fees');
+                }
+            } catch (e: any) {
+                throw new BadRequestException(`Pricing engine error: ${e.message}`);
+            }
 
             // Step 3: Lock and check user balance
             const userRows = await queryRunner.query(
@@ -175,31 +179,28 @@ export class TradingService {
             );
 
             if (!userRows || userRows.length === 0) throw new NotFoundException('User not found');
-            const user = userRows[0];
+            const balance = Number(userRows[0].cred_balance);
 
-            const balance = Number(user.cred_balance);
             if (balance < grossCost) {
-                throw new BadRequestException(
-                    `Insufficient Creds: need ${grossCost.toFixed(4)}, have ${balance.toFixed(4)}`,
-                );
+                throw new BadRequestException(`Insufficient Creds: need ${grossCost.toFixed(4)}, have ${balance.toFixed(4)}`);
             }
 
             // Step 4: Update ticker supply (Surgical PK update)
             await queryRunner.query(
-                `UPDATE tickers 
-                 SET current_supply = current_supply + $1, 
-                     total_volume = total_volume + $2,
-                     total_trades = total_trades + 1,
-                     human_trades_1h = human_trades_1h + 1,
-                     updated_at = NOW()
+                `UPDATE tickers SET 
+                  current_supply = current_supply + $1, 
+                  total_volume = total_volume + $2,
+                  total_trades = total_trades + 1,
+                  human_trades_1h = human_trades_1h + 1,
+                  updated_at = NOW()
                  WHERE ticker_id = $3`,
-                [sharesToBuy, grossCost, tickerId],
+                [Number(sharesToBuy), Number(grossCost), tickerId],
             );
 
             // Step 5: Deduct Creds from buyer
             await queryRunner.query(
                 `UPDATE users SET cred_balance = cred_balance - $1, updated_at = NOW() WHERE user_id = $2`,
-                [grossCost, userId],
+                [Number(grossCost), userId],
             );
 
             // Step 6: UPSERT holding
@@ -211,10 +212,10 @@ export class TradingService {
                  DO UPDATE SET 
                    shares_held = holdings.shares_held + $3,
                    avg_buy_price = (
-                     (holdings.avg_buy_price * holdings.shares_held) + ($4 * $3)
+                     (COALESCE(holdings.avg_buy_price, 0) * holdings.shares_held) + ($4 * $3)
                    ) / (holdings.shares_held + $3),
                    updated_at = NOW()`,
-                [userId, tickerId, sharesToBuy, avgPrice],
+                [userId, tickerId, Number(sharesToBuy), Number(avgPrice)],
             );
 
             // Step 7: Insert transaction record
@@ -225,33 +226,34 @@ export class TradingService {
                   price_at_execution, supply_at_execution, 
                   burn_amount, dividend_amount, currency)
                  VALUES ($1, $2, 'BUY', $3, $4, $5, $6, $7, $8, 'CRED')`,
-                [userId, tickerId, sharesToBuy, grossCost,
-                    this.bondingCurve.getPrice(supply), supply,
-                    burnAmount, dividendAmount],
+                [userId, tickerId, Number(sharesToBuy), Number(grossCost),
+                    Number(this.bondingCurve.getPrice(supply)), Number(supply),
+                    Number(burnAmount), Number(dividendAmount)],
             );
 
-            // Step 8: Pay 5% dividend to creator
-            await queryRunner.query(
-                `UPDATE users 
-                 SET cred_balance = cred_balance + $1, 
-                     dividend_earned = dividend_earned + $1,
-                     updated_at = NOW()
-                 WHERE user_id = $2`,
-                [dividendAmount, ticker.owner_id],
-            );
+            // Step 8: Pay dividend to creator (Safe Update)
+            if (ticker.owner_id) {
+                await queryRunner.query(
+                    `UPDATE users SET 
+                      cred_balance = cred_balance + $1, 
+                      dividend_earned = dividend_earned + $1,
+                      updated_at = NOW()
+                     WHERE user_id = $2`,
+                    [Number(dividendAmount), ticker.owner_id],
+                );
+            }
 
-            // Step 9: Burn 3% (update platform wallet)
+            // Step 9: Burn (Safe Update)
             await queryRunner.query(
-                `UPDATE platform_wallet 
-                 SET total_burned_creds = total_burned_creds + $1, updated_at = NOW()
+                `UPDATE platform_wallet SET 
+                  total_burned_creds = total_burned_creds + $1, 
+                  updated_at = NOW()
                  WHERE id = 1`,
-                [burnAmount],
+                [Number(burnAmount)],
             );
             
             // Step 10: Fetch volume before commit
-            const updatedTickerRows = await queryRunner.query(
-                `SELECT total_volume FROM tickers WHERE ticker_id = $1`, [tickerId]
-            );
+            const updatedTickerRows = await queryRunner.query(`SELECT total_volume FROM tickers WHERE ticker_id = $1`, [tickerId]);
             const newVolume = updatedTickerRows.length ? Number(updatedTickerRows[0].total_volume) : 0;
 
             await queryRunner.commitTransaction();
@@ -260,27 +262,21 @@ export class TradingService {
             try {
                 const finalPrice = this.bondingCurve.getPrice(newSupply);
                 const changePct = this.calculateChangePct(Number(ticker.price_open), finalPrice);
-                
-                this.realtimeGateway.broadcastPriceUpdate(ticker.college_domain, tickerId, finalPrice, newSupply, changePct, newVolume);
-                this.realtimeGateway.broadcastPulse(ticker.college_domain, tickerId, 'BUY');
-
-                this.notificationsService.createNotification(
-                    userId, 'TRADE_EXECUTED',
-                    `Bought ${sharesToBuy} $${tickerId} @ ${finalPrice.toFixed(2)}`,
-                    'TRADING'
-                ).catch(() => {});
+                this.realtimeGateway.broadcastPriceUpdate(ticker.college_domain || collegeDomain, tickerId, finalPrice, newSupply, changePct, newVolume);
+                this.realtimeGateway.broadcastPulse(ticker.college_domain || collegeDomain, tickerId, 'BUY');
             } catch (e: any) {
-                this.logger.warn(`Secondary trade actions failed: ${e.message}`);
+                this.logger.warn(`Realtime failed: ${e.message}`);
             }
 
             return { status: 'SUCCESS', new_balance: balance - grossCost };
         } catch (error: any) {
             await queryRunner.rollbackTransaction();
             this.logger.error(`TRADE_CRASH: ${error.message}`);
-            throw error;
+            if (error instanceof HttpException) throw error;
+            throw new InternalServerErrorException(`Trade failed: ${error.message}`);
         } finally {
             await queryRunner.release();
-        }
+        }   }
     }
 
     /**
