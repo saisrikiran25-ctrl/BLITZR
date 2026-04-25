@@ -9,6 +9,8 @@ import {
     Modal,
     TextInput,
     Alert,
+    KeyboardAvoidingView,
+    Platform,
 } from 'react-native';
 import Animated, {
     useSharedValue,
@@ -18,6 +20,7 @@ import Animated, {
     interpolate
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { audioService } from '../../services/AudioService';
 import { useFeedStore } from '../../store/useFeedStore';
 import { GlassCard } from '../../components/common/GlassCard';
@@ -39,6 +42,9 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const { rumors, userVotes, updateRumorVotes, fetchInitialData } = useFeedStore();
     const { tickerTapeItems } = useMarketStore();
     const { credibilityScore } = usePortfolioStore();
+
+    // Safe area insets for dynamic bottom padding (accounts for tab bar + gesture nav bar)
+    const insets = useSafeAreaInsets();
 
     // Broadcast Modal State
     const [newRumorContent, setNewRumorContent] = React.useState('');
@@ -223,7 +229,9 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 data={rumors}
                 keyExtractor={(item) => item.rumor_id}
                 renderItem={renderRumor}
-                contentContainerStyle={styles.listContent}
+                // Dynamic bottom padding: 40 base + tab bar height (60) + gesture nav inset
+                // so the last item is never hidden behind the tab bar on any device
+                contentContainerStyle={[styles.listContent, { paddingBottom: 40 + 60 + insets.bottom }]}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={
                     <View style={styles.emptyState}>
@@ -257,75 +265,80 @@ export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 </LinearGradient>
             </TouchableOpacity>
 
-            {/* Ghost Broadcast Modal */}
+            {/* Ghost Broadcast Modal — KeyboardAvoidingView prevents keyboard from covering TextInput */}
             <Modal
                 visible={isCreateModalVisible}
                 transparent
                 animationType="slide"
                 onRequestClose={() => setIsCreateModalVisible(false)}
             >
-                <View style={styles.modalOverlay}>
-                    <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Secure Broadcast</Text>
-                            <View style={styles.modalLine} />
-                        </View>
-
-                        <View style={styles.ghostIdentityWarning}>
-                            <View style={styles.ghostAvatarSmall}>
-                                <Text style={styles.ghostAvatarTextSmall}>Ω</Text>
+                <KeyboardAvoidingView
+                    behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+                    style={{ flex: 1 }}
+                >
+                    <View style={styles.modalOverlay}>
+                        <GlassCard style={styles.modalContent} variant="elevated" intensity={50}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Secure Broadcast</Text>
+                                <View style={styles.modalLine} />
                             </View>
-                            <Text style={styles.ghostWarningText}>
-                                Your network signature will be scrambled via one-way cryptographic hashing upon deployment. You are acting as Anonymous Entity XXXX.
-                            </Text>
-                        </View>
 
-                        <View style={styles.inputContainer}>
-                            <Text style={styles.inputLabel}>Message Payload</Text>
-                            <TextInput
-                                style={styles.textInput}
-                                value={newRumorContent}
-                                onChangeText={setNewRumorContent}
-                                placeholder="Intercepted intelligence to broadcast..."
-                                placeholderTextColor="rgba(255,255,255,0.2)"
-                                maxLength={280}
-                                multiline
-                                textAlignVertical="top"
-                            />
-                            <View style={styles.characterCountRow}>
-                                <Text style={[styles.characterCount, newRumorContent.length >= 250 && { color: Colors.thermalRed }]}>
-                                    {newRumorContent.length} / 280
+                            <View style={styles.ghostIdentityWarning}>
+                                <View style={styles.ghostAvatarSmall}>
+                                    <Text style={styles.ghostAvatarTextSmall}>Ω</Text>
+                                </View>
+                                <Text style={styles.ghostWarningText}>
+                                    Your network signature will be scrambled via one-way cryptographic hashing upon deployment. You are acting as Anonymous Entity XXXX.
                                 </Text>
                             </View>
-                            
-                            {isRestrictedFactualClaim() && (
-                                <View style={styles.restrictionWarning}>
-                                    <Text style={styles.restrictionWarningText}>
-                                        ⚠️ Credibility Lock: Your score ({credibilityScore}) is below 50. 
-                                        You cannot execute factual intelligence drops until you prove competency in the Arena.
+
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.inputLabel}>Message Payload</Text>
+                                <TextInput
+                                    style={styles.textInput}
+                                    value={newRumorContent}
+                                    onChangeText={setNewRumorContent}
+                                    placeholder="Intercepted intelligence to broadcast..."
+                                    placeholderTextColor="rgba(255,255,255,0.2)"
+                                    maxLength={280}
+                                    multiline
+                                    textAlignVertical="top"
+                                />
+                                <View style={styles.characterCountRow}>
+                                    <Text style={[styles.characterCount, newRumorContent.length >= 250 && { color: Colors.thermalRed }]}>
+                                        {newRumorContent.length} / 280
                                     </Text>
                                 </View>
-                            )}
-                        </View>
+                                
+                                {isRestrictedFactualClaim() && (
+                                    <View style={styles.restrictionWarning}>
+                                        <Text style={styles.restrictionWarningText}>
+                                            ⚠️ Credibility Lock: Your score ({credibilityScore}) is below 50. 
+                                            You cannot execute factual intelligence drops until you prove competency in the Arena.
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
 
-                        <View style={styles.modalButtons}>
-                            <Button
-                                title="Abort"
-                                variant="secondary"
-                                onPress={() => setIsCreateModalVisible(false)}
-                                style={{ flex: 1, marginRight: 8 }}
-                            />
-                            <Button
-                                title="Transmit"
-                                variant="buy"
-                                loading={isDeploying}
-                                disabled={isRestrictedFactualClaim()}
-                                onPress={handleCreateRumor}
-                                style={{ flex: 2 }}
-                            />
-                        </View>
-                    </GlassCard>
-                </View>
+                            <View style={styles.modalButtons}>
+                                <Button
+                                    title="Abort"
+                                    variant="secondary"
+                                    onPress={() => setIsCreateModalVisible(false)}
+                                    style={{ flex: 1, marginRight: 8 }}
+                                />
+                                <Button
+                                    title="Transmit"
+                                    variant="buy"
+                                    loading={isDeploying}
+                                    disabled={isRestrictedFactualClaim()}
+                                    onPress={handleCreateRumor}
+                                    style={{ flex: 2 }}
+                                />
+                            </View>
+                        </GlassCard>
+                    </View>
+                </KeyboardAvoidingView>
             </Modal>
 
             {/* Identity Disclosure Modal (L5 Compliance) */}
@@ -422,7 +435,7 @@ const styles = StyleSheet.create({
     listContent: {
         paddingHorizontal: Spacing.sm,
         paddingTop: Spacing.sm,
-        paddingBottom: 40,
+        // paddingBottom is set dynamically inline using useSafeAreaInsets
     },
     // Rumor Card
     rumorCard: {
@@ -572,9 +585,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.materialDark,
-        paddingHorizontal: 16, // Chunkier
+        paddingHorizontal: 16,
         paddingVertical: 8,
-        borderRadius: 100, // Pill
+        borderRadius: 100,
         borderWidth: 1,
         borderColor: Colors.glassBorder,
         overflow: 'hidden',
@@ -595,7 +608,7 @@ const styles = StyleSheet.create({
     },
     voteButtonBg: {
         ...StyleSheet.absoluteFillObject,
-        opacity: 0.2, // Boost background gradient
+        opacity: 0.2,
     },
     voteUp: {
         ...Typography.priceSmall,
@@ -614,7 +627,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 14,
         backgroundColor: Colors.materialDark,
-        borderRadius: 100, // Pill
+        borderRadius: 100,
         borderWidth: 1,
         borderColor: Colors.glassBorder,
     },
@@ -785,4 +798,3 @@ const styles = StyleSheet.create({
         paddingHorizontal: Spacing.sm,
     },
 });
-
