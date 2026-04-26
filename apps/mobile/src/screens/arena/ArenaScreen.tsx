@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
     View,
     Text,
-    FlatList,
+    ScrollView,
     TouchableOpacity,
     StyleSheet,
     Modal,
@@ -125,8 +125,8 @@ export const ArenaScreen: React.FC = () => {
             await api.placeBet(selectedEvent.event_id, selectedOutcome, amount);
             Alert.alert('Bet Placed', `Successfully bet ${amount} Chips on ${selectedOutcome}`);
             setIsBetModalVisible(false);
-            fetchInitialData(); // Refresh Props
-            usePortfolioStore.getState().fetchInitialData(); // Sync live Chip depletion
+            fetchInitialData();
+            usePortfolioStore.getState().fetchInitialData();
         } catch (error: any) {
             Alert.alert('Bet Failed', error.message);
         } finally {
@@ -158,24 +158,23 @@ export const ArenaScreen: React.FC = () => {
 
         setIsCreating(true);
         try {
-            // Calculate absolute expiry timestamp
             const expiryDate = new Date();
             expiryDate.setHours(expiryDate.getHours() + hours);
 
             await api.createPropEvent(
                 newEventTitle,
                 expiryDate.toISOString(),
-                'User Generated Context', // Optional description
+                'User Generated Context',
                 finalCategory,
                 liquidity
             );
 
             Alert.alert('Market Deployed', `Event created successfully with ¤ ${liquidity} initial pool parity.`);
             setIsCreateModalVisible(false);
-            setNewEventTitle(''); // Reset
-            setCustomCategory(''); // Reset
-            fetchInitialData(); // Refresh global arena feed
-            usePortfolioStore.getState().fetchInitialData(); // Sync exact UI chip deduction (- liquidity * 2)
+            setNewEventTitle('');
+            setCustomCategory('');
+            fetchInitialData();
+            usePortfolioStore.getState().fetchInitialData();
         } catch (error: any) {
             Alert.alert('Creation Failed', error.message);
         } finally {
@@ -183,7 +182,7 @@ export const ArenaScreen: React.FC = () => {
         }
     };
 
-    const renderPropCard = ({ item }: { item: any }) => {
+    const renderPropCard = (item: any) => {
         const totalPool = item.yes_pool + item.no_pool || 1;
         const yesPct = (item.yes_pool / totalPool) * 100;
         const noPct = (item.no_pool / totalPool) * 100;
@@ -192,7 +191,7 @@ export const ArenaScreen: React.FC = () => {
         const isExpired = item.time_remaining_ms <= 0;
 
         return (
-            <GlassCard style={styles.propCard} variant="default" intensity={10}>
+            <GlassCard key={item.event_id} style={styles.propCard} variant="default" intensity={10}>
                 {/* Category Header */}
                 <View style={styles.cardHeader}>
                     <View style={styles.categoryBadge}>
@@ -220,7 +219,7 @@ export const ArenaScreen: React.FC = () => {
                         <View style={styles.outcomeInfo}>
                             <Text style={styles.outcomeName}>Yes</Text>
                             <View style={styles.progressTrack}>
-                                <View style={[styles.progressBar, { width: `${yesPct}%`, backgroundColor: Colors.kineticGreen }]} />
+                                <View style={[styles.progressBar, { width: `${yesPct}%` as any, backgroundColor: Colors.kineticGreen }]} />
                             </View>
                         </View>
                         <View style={styles.outcomeStats}>
@@ -237,7 +236,7 @@ export const ArenaScreen: React.FC = () => {
                         <View style={styles.outcomeInfo}>
                             <Text style={styles.outcomeName}>No</Text>
                             <View style={styles.progressTrack}>
-                                <View style={[styles.progressBar, { width: `${noPct}%`, backgroundColor: Colors.thermalRed }]} />
+                                <View style={[styles.progressBar, { width: `${noPct}%` as any, backgroundColor: Colors.thermalRed }]} />
                             </View>
                         </View>
                         <View style={styles.outcomeStats}>
@@ -306,14 +305,13 @@ export const ArenaScreen: React.FC = () => {
                     <Text style={styles.emptySubtitle}>Initialize new events via the (+) controller.</Text>
                 </View>
             ) : (
-                <FlatList
-                    data={filteredEvents}
-                    keyExtractor={(item) => item.event_id}
-                    renderItem={renderPropCard}
-                    numColumns={1}
+                <ScrollView
+                    style={styles.scrollView}
                     contentContainerStyle={styles.listContent}
                     showsVerticalScrollIndicator={false}
-                />
+                >
+                    {filteredEvents.map((item) => renderPropCard(item))}
+                </ScrollView>
             )}
 
             {selectedTab === 'Active' && isAuthorizedToCreate && (
@@ -609,17 +607,23 @@ const styles = StyleSheet.create({
     tabTextActive: {
         color: Colors.textPrimary,
     },
-    // List
+    // ScrollView
+    scrollView: {
+        flex: 1,
+    },
+    // List content
     listContent: {
         paddingHorizontal: Spacing.lg,
         paddingTop: Spacing.md,
         paddingBottom: 100,
+        flexDirection: 'column',
     },
-    // Prop Card — full-width wide rectangle for mobile
+    // Prop Card — full-width horizontal rectangle, stacked vertically
     propCard: {
         width: '100%',
         padding: Spacing.md,
         marginBottom: Spacing.sm,
+        alignSelf: 'stretch',
     },
     cardHeader: {
         flexDirection: 'row',
