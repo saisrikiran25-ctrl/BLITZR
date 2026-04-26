@@ -42,7 +42,7 @@ export const ArenaScreen: React.FC = () => {
     ];
 
     const isAuthorizedToCreate = !!email && (
-        !email.toLowerCase().endsWith('@iift.edu') || 
+        !email.toLowerCase().endsWith('@iift.edu') ||
         IIFT_ALLOWED_EMAILS.includes(email.toLowerCase().trim())
     );
 
@@ -119,7 +119,6 @@ export const ArenaScreen: React.FC = () => {
             Alert.alert('Invalid Amount', 'Please enter a valid chip amount.');
             return;
         }
-
         setIsSubmitting(true);
         try {
             await api.placeBet(selectedEvent.event_id, selectedOutcome, amount);
@@ -160,7 +159,6 @@ export const ArenaScreen: React.FC = () => {
         try {
             const expiryDate = new Date();
             expiryDate.setHours(expiryDate.getHours() + hours);
-
             await api.createPropEvent(
                 newEventTitle,
                 expiryDate.toISOString(),
@@ -168,7 +166,6 @@ export const ArenaScreen: React.FC = () => {
                 finalCategory,
                 liquidity
             );
-
             Alert.alert('Market Deployed', `Event created successfully with ¤ ${liquidity} initial pool parity.`);
             setIsCreateModalVisible(false);
             setNewEventTitle('');
@@ -191,88 +188,91 @@ export const ArenaScreen: React.FC = () => {
         const isExpired = item.time_remaining_ms <= 0;
 
         return (
-            <GlassCard key={item.event_id} style={styles.propCard} variant="default" intensity={10}>
-                {/* Category Header */}
-                <View style={styles.cardHeader}>
-                    <View style={styles.categoryBadge}>
-                        <BIcon name="landmark" size={10} color={Colors.textSecondary} style={{ marginRight: 4 }} />
-                        <Text style={styles.propCategory}>{item.category || 'Politics'}</Text>
-                    </View>
-                </View>
-
-                {/* Title and Date */}
-                <Text style={styles.propTitle} numberOfLines={2}>
-                    {item.title}
-                </Text>
-                <Text style={styles.propDate}>
-                    {isSettled ? 'Settled' : `Ends in ${formatTimeRemaining(item.time_remaining_ms)}`}
-                </Text>
-
-                {/* Outcomes List */}
-                <View style={styles.outcomesContainer}>
-                    {/* YES Outcome */}
-                    <TouchableOpacity
-                        style={styles.outcomeRow}
-                        onPress={() => !isSettled && handleOpenBet(item, 'YES')}
-                        activeOpacity={0.7}
-                    >
-                        <View style={styles.outcomeInfo}>
-                            <Text style={styles.outcomeName}>Yes</Text>
-                            <View style={styles.progressTrack}>
-                                <View style={[styles.progressBar, { width: `${yesPct}%` as any, backgroundColor: Colors.kineticGreen }]} />
-                            </View>
-                        </View>
-                        <View style={styles.outcomeStats}>
-                            <Text style={styles.outcomeOdds}>¤ {Math.round(yesPct)}</Text>
-                        </View>
-                    </TouchableOpacity>
-
-                    {/* NO Outcome */}
-                    <TouchableOpacity
-                        style={styles.outcomeRow}
-                        onPress={() => !isSettled && handleOpenBet(item, 'NO')}
-                        activeOpacity={0.7}
-                    >
-                        <View style={styles.outcomeInfo}>
-                            <Text style={styles.outcomeName}>No</Text>
-                            <View style={styles.progressTrack}>
-                                <View style={[styles.progressBar, { width: `${noPct}%` as any, backgroundColor: Colors.thermalRed }]} />
-                            </View>
-                        </View>
-                        <View style={styles.outcomeStats}>
-                            <Text style={styles.outcomeOdds}>¤ {Math.round(noPct)}</Text>
-                        </View>
-                    </TouchableOpacity>
-                </View>
-
-                {/* Footer Stats */}
-                <View style={[styles.cardFooter, isMainModerator && isExpired && !isSettled && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 8 }]}>
-                    <Text style={styles.volumeText}>{formatCreds(totalPool)} Vol</Text>
-                    <Text style={styles.marketCount}>{isExpired ? 'Expired' : 'Live'}</Text>
-                </View>
-
-                {/* Moderator Settlement Console */}
-                {isMainModerator && isExpired && !isSettled && (
-                    <View style={styles.modSettleConsole}>
-                        <Text style={styles.modSettleTitle}>SETTLEMENT REQUIRED</Text>
-                        <Text style={styles.modSettleSubtitle}>What is the right bet?</Text>
-                        <View style={styles.modSettleButtons}>
-                            <TouchableOpacity
-                                style={[styles.miniSettleBtn, { borderColor: Colors.kineticGreen }]}
-                                onPress={() => handleSettleEvent(item.event_id, 'YES')}
-                            >
-                                <Text style={[styles.miniSettleText, { color: Colors.kineticGreen }]}>YES</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={[styles.miniSettleBtn, { borderColor: Colors.thermalRed }]}
-                                onPress={() => handleSettleEvent(item.event_id, 'NO')}
-                            >
-                                <Text style={[styles.miniSettleText, { color: Colors.thermalRed }]}>NO</Text>
-                            </TouchableOpacity>
+            // cardWrapper forces 100% width as a block-level container on web
+            <View key={item.event_id} style={styles.cardWrapper}>
+                <GlassCard style={styles.propCard} variant="default" intensity={10}>
+                    {/* Category Header */}
+                    <View style={styles.cardHeader}>
+                        <View style={styles.categoryBadge}>
+                            <BIcon name="landmark" size={10} color={Colors.textSecondary} style={{ marginRight: 4 }} />
+                            <Text style={styles.propCategory}>{item.category || 'Politics'}</Text>
                         </View>
                     </View>
-                )}
-            </GlassCard>
+
+                    {/* Title and Date */}
+                    <Text style={styles.propTitle} numberOfLines={2}>
+                        {item.title}
+                    </Text>
+                    <Text style={styles.propDate}>
+                        {isSettled ? 'Settled' : `Ends in ${formatTimeRemaining(item.time_remaining_ms)}`}
+                    </Text>
+
+                    {/* Outcomes List */}
+                    <View style={styles.outcomesContainer}>
+                        {/* YES Outcome */}
+                        <TouchableOpacity
+                            style={styles.outcomeRow}
+                            onPress={() => !isSettled && handleOpenBet(item, 'YES')}
+                            activeOpacity={0.7}
+                        >
+                            <View style={styles.outcomeInfo}>
+                                <Text style={styles.outcomeName}>Yes</Text>
+                                <View style={styles.progressTrack}>
+                                    <View style={[styles.progressBar, { width: `${yesPct}%` as any, backgroundColor: Colors.kineticGreen }]} />
+                                </View>
+                            </View>
+                            <View style={styles.outcomeStats}>
+                                <Text style={styles.outcomeOdds}>¤ {Math.round(yesPct)}</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        {/* NO Outcome */}
+                        <TouchableOpacity
+                            style={styles.outcomeRow}
+                            onPress={() => !isSettled && handleOpenBet(item, 'NO')}
+                            activeOpacity={0.7}
+                        >
+                            <View style={styles.outcomeInfo}>
+                                <Text style={styles.outcomeName}>No</Text>
+                                <View style={styles.progressTrack}>
+                                    <View style={[styles.progressBar, { width: `${noPct}%` as any, backgroundColor: Colors.thermalRed }]} />
+                                </View>
+                            </View>
+                            <View style={styles.outcomeStats}>
+                                <Text style={styles.outcomeOdds}>¤ {Math.round(noPct)}</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Footer Stats */}
+                    <View style={[styles.cardFooter, isMainModerator && isExpired && !isSettled && { borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)', paddingBottom: 8 }]}>
+                        <Text style={styles.volumeText}>{formatCreds(totalPool)} Vol</Text>
+                        <Text style={styles.marketCount}>{isExpired ? 'Expired' : 'Live'}</Text>
+                    </View>
+
+                    {/* Moderator Settlement Console */}
+                    {isMainModerator && isExpired && !isSettled && (
+                        <View style={styles.modSettleConsole}>
+                            <Text style={styles.modSettleTitle}>SETTLEMENT REQUIRED</Text>
+                            <Text style={styles.modSettleSubtitle}>What is the right bet?</Text>
+                            <View style={styles.modSettleButtons}>
+                                <TouchableOpacity
+                                    style={[styles.miniSettleBtn, { borderColor: Colors.kineticGreen }]}
+                                    onPress={() => handleSettleEvent(item.event_id, 'YES')}
+                                >
+                                    <Text style={[styles.miniSettleText, { color: Colors.kineticGreen }]}>YES</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[styles.miniSettleBtn, { borderColor: Colors.thermalRed }]}
+                                    onPress={() => handleSettleEvent(item.event_id, 'NO')}
+                                >
+                                    <Text style={[styles.miniSettleText, { color: Colors.thermalRed }]}>NO</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    )}
+                </GlassCard>
+            </View>
         );
     };
 
@@ -365,14 +365,11 @@ export const ArenaScreen: React.FC = () => {
                                         {(() => {
                                             const amount = parseInt(betAmount) || 0;
                                             if (amount <= 0 || !selectedEvent) return formatChips(0);
-
                                             const total = selectedEvent.yes_pool + selectedEvent.no_pool;
                                             const pool = selectedOutcome === 'YES' ? selectedEvent.yes_pool : selectedEvent.no_pool;
-
                                             const netBet = amount * 0.95;
                                             const newTotal = total + netBet;
                                             const newPool = pool + netBet;
-
                                             const returnAmount = newTotal * (netBet / newPool);
                                             return formatChips(returnAmount);
                                         })()}
@@ -433,12 +430,10 @@ export const ArenaScreen: React.FC = () => {
                             <Text style={[styles.modalTitle, { color: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }]}>FINAL VERDICT</Text>
                             <View style={[styles.modalLine, { backgroundColor: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }]} />
                         </View>
-
                         <Text style={[styles.inputLabel, { textAlign: 'center', marginBottom: Spacing.xl }]}>
-                            Resolve market as <Text style={{ color: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }}>{settleOutcome}</Text>? 
+                            Resolve market as <Text style={{ color: settleOutcome === 'YES' ? Colors.kineticGreen : Colors.thermalRed }}>{settleOutcome}</Text>?
                             {"\n\n"}This will distribute ALL Chips and cannot be undone.
                         </Text>
-
                         <View style={{ flexDirection: 'row', marginTop: Spacing.xl }}>
                             <Button
                                 title="Abort"
@@ -531,7 +526,6 @@ export const ArenaScreen: React.FC = () => {
                                         placeholderTextColor="rgba(255,255,255,0.2)"
                                     />
                                 </View>
-
                                 <View style={{ flex: 1, marginLeft: Spacing.md }}>
                                     <Text style={styles.inputLabel}>Initial Liquidity</Text>
                                     <TextInput
@@ -578,7 +572,6 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: Colors.obsidianBase,
     },
-    // Tabs
     tabBar: {
         flexDirection: 'row',
         paddingHorizontal: Spacing.lg,
@@ -607,23 +600,26 @@ const styles = StyleSheet.create({
     tabTextActive: {
         color: Colors.textPrimary,
     },
-    // ScrollView
     scrollView: {
         flex: 1,
+        width: '100%',
     },
-    // List content
     listContent: {
         paddingHorizontal: Spacing.lg,
         paddingTop: Spacing.md,
         paddingBottom: 100,
         flexDirection: 'column',
+        width: '100%',
     },
-    // Prop Card — full-width horizontal rectangle, stacked vertically
+    // Full-width block wrapper — this is the key fix on web
+    cardWrapper: {
+        width: '100%',
+        flexDirection: 'column',
+        marginBottom: Spacing.sm,
+    },
     propCard: {
         width: '100%',
         padding: Spacing.md,
-        marginBottom: Spacing.sm,
-        alignSelf: 'stretch',
     },
     cardHeader: {
         flexDirection: 'row',
@@ -652,9 +648,9 @@ const styles = StyleSheet.create({
         ...Typography.bodyMedium,
         color: Colors.textPrimary,
         fontSize: 15,
-        height: 44,
         lineHeight: 22,
         marginTop: 4,
+        // NOTE: removed fixed height:44 — was causing letter-by-letter wrap in narrow cards
     },
     propDate: {
         ...Typography.dataLabel,
@@ -722,7 +718,6 @@ const styles = StyleSheet.create({
         color: Colors.textTertiary,
         fontSize: 10,
     },
-    // Empty
     emptyState: {
         flex: 1,
         justifyContent: 'center',
@@ -745,7 +740,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 18,
     },
-    // FAB
     fab: {
         position: 'absolute',
         bottom: Spacing.xl,
@@ -774,7 +768,6 @@ const styles = StyleSheet.create({
         marginTop: -4,
         marginLeft: 1,
     },
-    // Modal
     modalOverlay: {
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.9)',
@@ -870,7 +863,6 @@ const styles = StyleSheet.create({
     },
     green: { color: Colors.kineticGreen },
     red: { color: Colors.thermalRed },
-    // Create Event Specific
     textInput: {
         ...Typography.bodyMedium,
         color: Colors.textPrimary,
@@ -923,7 +915,6 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         lineHeight: 14,
     },
-    // Mod Settle
     modSettleConsole: {
         marginTop: Spacing.md,
         paddingTop: Spacing.sm,
