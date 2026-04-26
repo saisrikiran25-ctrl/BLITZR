@@ -50,14 +50,17 @@ const styles = StyleSheet.create({
     card: {
         borderRadius: BorderRadius.card,
         borderWidth: 1.5,
-        borderColor: Colors.glassBorder, // Thick reflective rim
+        borderColor: Colors.glassBorder,
         overflow: 'hidden',
-        // Subtle, refined dark blue shadow (Substantially toned down)
         shadowColor: '#000D1A',
         shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.15,
         shadowRadius: 10,
         elevation: 6,
+        // Force full-width block layout on web (prevents inline/grid side-by-side behaviour)
+        width: '100%',
+        alignSelf: 'stretch',
+        flexDirection: 'column',
     },
     content: {
         padding: 16,
