@@ -115,6 +115,10 @@ export class AuthService {
                 const userInst = institutions.find((i: any) => i.institution_id === user!.institution_id);
                 // JWT uses short_code for campus-based Floor (e.g. 'IIFT-D')
                 const token = this.generateToken(user.user_id, userInst ? userInst.short_code : institutions[0].short_code);
+
+                // Grant daily login reward (100 chips) if eligible
+                const dailyReward = await this.grantDailyLoginReward(user.user_id);
+
                 return {
                     status: 'SUCCESS',
                     user: {
@@ -128,6 +132,8 @@ export class AuthService {
                     },
                     token,
                     isNewUser: false,
+                    daily_reward_granted: dailyReward.granted,
+                    chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
                 };
             }
 
@@ -242,5 +248,52 @@ export class AuthService {
 
     private generateToken(userId: string, collegeDomain: string): string {
         return this.jwtService.sign({ sub: userId, collegeDomain });
+    }
+
+    /**
+     * Daily Login Reward
+     * Credits 100 chips to an existing user once per calendar day (UTC).
+     * Uses an atomic UPDATE with a WHERE guard so concurrent logins cannot
+     * double-credit the same account.
+     *
+     * Returns { granted: true, amount: 100 } if the reward was applied,
+     * or { granted: false, amount: 0 } if the user already claimed today.
+     */
+    private async grantDailyLoginReward(
+        userId: string,
+    ): Promise<{ granted: boolean; amount: number }> {
+        const DAILY_CHIPS = 100;
+
+        try {
+            // Atomic single-statement update:
+            //   Only updates rows where last_daily_reward_at is NULL
+            //   OR its UTC date is before today's UTC date.
+            // The RETURNING clause tells us whether a row was actually updated.
+            const result = await this.dataSource.query(
+                `UPDATE users
+                 SET chip_balance       = chip_balance + $1,
+                     last_daily_reward_at = NOW(),
+                     updated_at          = NOW()
+                 WHERE user_id = $2
+                   AND (
+                       last_daily_reward_at IS NULL
+                       OR DATE(last_daily_reward_at AT TIME ZONE 'UTC') < DATE(NOW() AT TIME ZONE 'UTC')
+                   )
+                 RETURNING user_id`,
+                [DAILY_CHIPS, userId],
+            );
+
+            if (result.length > 0) {
+                console.log(`[DailyReward] Granted ${DAILY_CHIPS} chips to user ${userId}`);
+                return { granted: true, amount: DAILY_CHIPS };
+            }
+
+            // Already claimed today — no update happened
+            return { granted: false, amount: 0 };
+        } catch (err) {
+            // Never let a reward failure break the login flow
+            console.error(`[DailyReward] Failed for user ${userId}:`, err);
+            return { granted: false, amount: 0 };
+        }
     }
 }

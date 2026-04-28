@@ -75,6 +75,9 @@ export class UserEntity {
     @Column({ type: 'timestamptz', nullable: true })
     last_active_at: Date;
 
+    @Column({ type: 'timestamptz', nullable: true })
+    last_daily_reward_at: Date;
+
     // Notification Preferences
     @Column({ type: 'boolean', default: true })
     notify_trading: boolean;
