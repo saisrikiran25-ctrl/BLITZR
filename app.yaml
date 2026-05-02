@@ -18,6 +18,7 @@ services:
         value: ${blitzr-db.DATABASE_URL}
         scope: RUN_AND_BUILD_TIME
       - key: REDIS_URL
+        value: ${blitzr-redis.REDIS_URL}
         scope: RUN_AND_BUILD_TIME
       - key: JWT_SECRET
         value: super_secret_blitzr_campus_key_2024
@@ -32,4 +33,8 @@ services:
       - cluster_name: blitzr-db
         engine: PG
         name: blitzr-db
+        production: true
+      - cluster_name: blitzr-redis
+        engine: REDIS
+        name: blitzr-redis
         production: true
