@@ -6,8 +6,18 @@ const app_module_1 = require("./app.module");
 const typeorm_1 = require("typeorm");
 const migration_runner_1 = require("./config/migration-runner");
 async function bootstrap() {
+    console.log('--- SYSTEM ENVIRONMENT DIAGNOSTICS ---');
+    const criticalVars = ['DATABASE_URL', 'REDIS_URL', 'JWT_SECRET', 'GOOGLE_WEB_CLIENT_ID'];
+    criticalVars.forEach(v => {
+        const val = process.env[v];
+        if (!val)
+            console.warn(`⚠️  MISSING ENV VAR: ${v}`);
+        else {
+            const masked = val.length > 10 ? val.substring(0, 5) + '...' + val.substring(val.length - 5) : '********';
+            console.log(`✅ ${v} found: ${masked}`);
+        }
+    });
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
-    // Run native migrations before starting the server
     const dataSource = app.get(typeorm_1.DataSource);
     await (0, migration_runner_1.runNativeMigrations)(dataSource);
     // Global prefix for all API routes

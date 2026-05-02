@@ -6,7 +6,14 @@ import Redis from 'ioredis';
  * self-signed certificates that require rejectUnauthorized: false.
  */
 export function createRedisClient(url: string, name: string = 'Redis'): Redis {
+    if (!url) {
+        console.error(`❌ [${name}] FATAL: Redis URL is undefined or empty!`);
+        // We'll still return a client so it doesn't crash the whole app, 
+        // but it will obviously fail to connect to anything.
+        return new Redis('redis://invalid-host:6379', { lazyConnect: true });
+    }
     // DigitalOcean Managed Redis uses port 25061 for TLS even if the protocol is 'redis://'
+
     const isTls = url.startsWith('rediss://') || url.includes(':25061');
     
     // Mask password in logs

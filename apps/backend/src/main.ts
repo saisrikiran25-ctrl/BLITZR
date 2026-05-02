@@ -5,9 +5,19 @@ import { DataSource } from 'typeorm';
 import { runNativeMigrations } from './config/migration-runner';
 
 async function bootstrap() {
+    console.log('--- SYSTEM ENVIRONMENT DIAGNOSTICS ---');
+    const criticalVars = ['DATABASE_URL', 'REDIS_URL', 'JWT_SECRET', 'GOOGLE_WEB_CLIENT_ID'];
+    criticalVars.forEach(v => {
+        const val = process.env[v];
+        if (!val) console.warn(`⚠️  MISSING ENV VAR: ${v}`);
+        else {
+            const masked = val.length > 10 ? val.substring(0, 5) + '...' + val.substring(val.length - 5) : '********';
+            console.log(`✅ ${v} found: ${masked}`);
+        }
+    });
+
     const app = await NestFactory.create(AppModule);
 
-    // Run native migrations before starting the server
     const dataSource = app.get(DataSource);
     await runNativeMigrations(dataSource);
 

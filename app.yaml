@@ -1,5 +1,5 @@
 # BLITZR-PRIME — DigitalOcean App Platform Spec
-# Final Restoration Spec — May 02 2026
+# CLEAN BOOT VERSION — MAY 03 2026
 name: blitzr-prime
 region: blr
 services:
@@ -14,14 +14,8 @@ services:
       - key: NODE_ENV
         value: production
         scope: RUN_TIME
-      - key: DATABASE_URL
-        value: ${blitzr-db.DATABASE_URL}
-        scope: RUN_AND_BUILD_TIME
-      - key: REDIS_URL
-        value: ${blitzr-redis.REDIS_URL}
-        scope: RUN_AND_BUILD_TIME
       - key: JWT_SECRET
-        value: super_secret_blitzr_campus_key_2024
+        value: blitzr_secure_prod_2024!
         scope: RUN_TIME
       - key: JWT_EXPIRATION
         value: 7d
@@ -29,21 +23,6 @@ services:
       - key: SARVAM_API_KEY
         value: sk_2eysz60p_RtAZoqmMEiGXhuW30uhHJY6E
         scope: RUN_TIME
-      - key: GOOGLE_CLIENT_ID
-        value: 308419908804-tj9rlovie3ddn14nipra2pf78mss3q06.apps.googleusercontent.com
-        scope: RUN_TIME
       - key: GOOGLE_WEB_CLIENT_ID
         value: 836611609888-g2pld548p3f14ta3rvasgn6pa5hof2nv.apps.googleusercontent.com
         scope: RUN_TIME
-      - key: REAPPLY_MIGRATIONS
-        value: 031_ultimate_floor_sync
-        scope: RUN_TIME
-    databases:
-      - cluster_name: blitzr-db
-        engine: PG
-        name: blitzr-db
-        production: true
-      - cluster_name: blitzr-redis
-        engine: VALKEY
-        name: blitzr-redis
-        production: true
