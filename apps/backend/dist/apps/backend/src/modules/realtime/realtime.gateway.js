@@ -19,11 +19,10 @@ const jwt_1 = require("@nestjs/jwt");
 /**
  * RealtimeGateway
  *
- * Socket.io WebSocket gateway for:
- * - Live price updates (Ticker Tape)
- * - Trade execution notifications
- * - Prop event pool changes
- * - The "Pulse" indicator (global trade blips)
+ * FIX (Apr 25 2026):
+ *  - BUG-06: handleSubscribeTicker no longer falls back to hardcoded 'iift.edu'.
+ *    Unauthenticated clients now receive subscription_error instead of joining
+ *    IIFT-D rooms — fixing a multi-tenant data isolation breach.
  */
 let RealtimeGateway = class RealtimeGateway {
     constructor(jwtService) {
@@ -40,67 +39,43 @@ let RealtimeGateway = class RealtimeGateway {
                 }
             }
             catch (e) {
-                // Invalid token silently ignored, domain remains empty
+                // Invalid token — collegeDomain stays undefined, subscription will be rejected below.
             }
         }
-        console.log(`Client connected: ${client.id} [Domain: ${client.data.collegeDomain || 'UNKNOWN'}]`);
+        console.log(`Client connected: ${client.id} [Domain: ${client.data.collegeDomain || 'UNAUTHENTICATED'}]`);
     }
     handleDisconnect(client) {
         console.log(`Client disconnected: ${client.id}`);
     }
-    /**
-     * Subscribe to a specific ticker's price updates.
-     */
     handleSubscribeTicker(client, data) {
-        const domain = client.data.collegeDomain || 'iift.edu';
+        const domain = client.data.collegeDomain;
+        if (!domain) {
+            return { event: 'subscription_error', message: 'Authentication required to subscribe to ticker.' };
+        }
         client.join(`ticker:${domain}:${data.ticker_id}`);
         return { event: 'subscribed', ticker_id: data.ticker_id };
     }
-    /**
-     * Unsubscribe from a ticker.
-     */
     handleUnsubscribeTicker(client, data) {
-        const domain = client.data.collegeDomain || 'iift.edu';
+        const domain = client.data.collegeDomain;
+        if (!domain) {
+            return { event: 'subscription_error', message: 'Authentication required.' };
+        }
         client.leave(`ticker:${domain}:${data.ticker_id}`);
         return { event: 'unsubscribed', ticker_id: data.ticker_id };
     }
-    /**
-     * Broadcast a price update to all subscribers of a ticker.
-     * Called by TradingService after each trade.
-     */
     broadcastPriceUpdate(domain, tickerId, price, supply, change24h, volume) {
         this.server.to(`ticker:${domain}:${tickerId}`).emit('price_update', {
-            ticker_id: tickerId,
-            price,
-            supply,
-            change_24h: change24h,
-            volume,
-            timestamp: Date.now(),
+            ticker_id: tickerId, price, supply, change_24h: change24h, volume, timestamp: Date.now(),
         });
     }
-    /**
-     * Broadcast to the global "Ticker Tape" channel.
-     * Sent every minute by Cron — includes supply for Global Market Cap recalculation.
-     */
     broadcastTickerTape(domain, tickers) {
         this.server.to(`domain:${domain}`).emit('ticker_tape', { tickers, timestamp: Date.now() });
     }
-    /**
-     * Broadcast a "Pulse" blip (global trade indicator).
-     */
     broadcastPulse(domain, tickerId, txType) {
         this.server.to(`domain:${domain}`).emit('pulse', { ticker_id: tickerId, tx_type: txType, timestamp: Date.now() });
     }
-    /**
-     * Broadcast prop event pool update.
-     */
     broadcastPropUpdate(domain, eventId, yesPool, noPool) {
-        this.server.to(`domain:${domain}`).emit('prop_update', {
-            event_id: eventId,
-            yes_pool: yesPool,
-            no_pool: noPool,
-            timestamp: Date.now(),
-        });
+        this.server.to(`domain:${domain}`).emit('prop_update', { event_id: eventId, yes_pool: yesPool, no_pool: noPool, timestamp: Date.now() });
     }
 };
 exports.RealtimeGateway = RealtimeGateway;

@@ -29,12 +29,16 @@ let TradingController = class TradingController {
     }
     /**
      * B12: Buy via Redis trade queue — returns immediately with QUEUED status.
+     * FIX (Apr 25 2026): Was calling tradingService.executeBuy directly,
+     * completely bypassing the queue. Now correctly routes through
+     * tradeQueue.enqueueTrade which handles the Redis-down fallback internally.
      */
     async executeBuy(req, body) {
         return this.tradeQueue.enqueueTrade(req.user.userId, req.user.collegeDomain, body.ticker_id, 'BUY', body.shares);
     }
     /**
      * B12: Sell via Redis trade queue — returns immediately with QUEUED status.
+     * FIX (Apr 25 2026): Same fix as executeBuy — now routes through queue.
      */
     async executeSell(req, body) {
         return this.tradeQueue.enqueueTrade(req.user.userId, req.user.collegeDomain, body.ticker_id, 'SELL', body.shares);

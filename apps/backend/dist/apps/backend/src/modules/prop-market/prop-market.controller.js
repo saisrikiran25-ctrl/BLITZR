@@ -17,6 +17,46 @@ const common_1 = require("@nestjs/common");
 const prop_market_service_1 = require("./prop-market.service");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const admin_jwt_guard_1 = require("../admin/guards/admin-jwt.guard");
+const class_validator_1 = require("class-validator");
+const class_transformer_1 = require("class-transformer");
+class CreateEventDto {
+}
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    __metadata("design:type", String)
+], CreateEventDto.prototype, "title", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateEventDto.prototype, "description", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateEventDto.prototype, "category", void 0);
+__decorate([
+    (0, class_validator_1.IsDateString)(),
+    __metadata("design:type", String)
+], CreateEventDto.prototype, "expiry_timestamp", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateEventDto.prototype, "referee_id", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateEventDto.prototype, "listing_fee", void 0);
+__decorate([
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.IsNotEmpty)(),
+    (0, class_transformer_1.Type)(() => Number),
+    __metadata("design:type", Number)
+], CreateEventDto.prototype, "initial_liquidity", void 0);
 let PropMarketController = class PropMarketController {
     constructor(propMarketService) {
         this.propMarketService = propMarketService;

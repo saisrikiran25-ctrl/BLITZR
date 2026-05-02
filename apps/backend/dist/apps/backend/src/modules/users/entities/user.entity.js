@@ -95,6 +95,10 @@ __decorate([
     __metadata("design:type", Date)
 ], UserEntity.prototype, "last_active_at", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'timestamptz', nullable: true }),
+    __metadata("design:type", Date)
+], UserEntity.prototype, "last_daily_reward_at", void 0);
+__decorate([
     (0, typeorm_1.Column)({ type: 'boolean', default: true }),
     __metadata("design:type", Boolean)
 ], UserEntity.prototype, "notify_trading", void 0);

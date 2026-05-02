@@ -2,15 +2,7 @@ import { PropMarketService } from './prop-market.service';
 export declare class PropMarketController {
     private readonly propMarketService;
     constructor(propMarketService: PropMarketService);
-    createEvent(req: any, body: {
-        title: string;
-        description?: string;
-        category?: string;
-        expiry_timestamp: string;
-        referee_id?: string;
-        listing_fee?: number;
-        initial_liquidity: number;
-    }): Promise<import("./entities/prop-event.entity").PropEventEntity>;
+    createEvent(req: any, body: any): Promise<import("./entities/prop-event.entity").PropEventEntity>;
     placeBet(req: any, body: {
         event_id: string;
         outcome: 'YES' | 'NO';

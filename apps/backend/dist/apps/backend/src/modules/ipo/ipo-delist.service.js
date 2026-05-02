@@ -41,7 +41,7 @@ let IpoDelistService = IpoDelistService_1 = class IpoDelistService {
         await queryRunner.startTransaction();
         try {
             // Find the user's ticker
-            const [ticker] = await queryRunner.query(`SELECT ticker_id, current_supply, owner_id, status 
+            const [ticker] = await queryRunner.query(`SELECT ticker_id, current_supply, owner_id, status
          FROM tickers WHERE owner_id = $1 AND status != 'DELISTED' FOR UPDATE`, [userId]);
             if (!ticker)
                 throw new common_1.NotFoundException('No active IPO found for this user');
@@ -161,6 +161,11 @@ let IpoDelistService = IpoDelistService_1 = class IpoDelistService {
     /**
      * Buy Golden Border for ticker (1 week).
      * Costs 1,000 Creds. Per Blueprint §6.3.
+     *
+     * FIX-B: ticker query now uses FOR UPDATE inside the queryRunner transaction.
+     * Previously the ticker was fetched without a lock, creating a TOCTOU window
+     * where a concurrent delist could set status = 'DELISTED' between the ticker
+     * SELECT and the Cred deduction, charging the user for a delisted ticker.
      */
     async buyGoldenBorder(userId) {
         const queryRunner = this.dataSource.createQueryRunner();
@@ -171,7 +176,8 @@ let IpoDelistService = IpoDelistService_1 = class IpoDelistService {
             if (Number(user.cred_balance) < shared_1.GOLDEN_BORDER_COST_CREDS) {
                 throw new common_1.BadRequestException(`Insufficient Creds. Need ${shared_1.GOLDEN_BORDER_COST_CREDS}`);
             }
-            const [ticker] = await queryRunner.query(`SELECT ticker_id FROM tickers WHERE owner_id = $1 AND status = 'ACTIVE'`, [userId]);
+            // FIX-B: Added FOR UPDATE to lock the ticker row and prevent TOCTOU with delistIpo().
+            const [ticker] = await queryRunner.query(`SELECT ticker_id, status FROM tickers WHERE owner_id = $1 AND status = 'ACTIVE' FOR UPDATE`, [userId]);
             if (!ticker)
                 throw new common_1.NotFoundException('No active IPO');
             await queryRunner.query(`UPDATE users SET cred_balance = cred_balance - $1, updated_at = NOW() WHERE user_id = $2`, [shared_1.GOLDEN_BORDER_COST_CREDS, userId]);

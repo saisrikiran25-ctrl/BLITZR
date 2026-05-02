@@ -28,6 +28,9 @@ let AuthController = class AuthController {
     async googleLogin(body) {
         return this.authService.googleLogin(body.idToken);
     }
+    async selectCampus(body) {
+        return this.authService.selectCampus(body.idToken, body.institutionId);
+    }
     async acceptTos(req) {
         return this.authService.acceptTos(req.user.userId);
     }
@@ -49,6 +52,14 @@ __decorate([
     __metadata("design:paramtypes", [google_auth_dto_1.GoogleAuthDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "googleLogin", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Post)('select-campus'),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "selectCampus", null);
 __decorate([
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     (0, common_1.Post)('accept-tos'),

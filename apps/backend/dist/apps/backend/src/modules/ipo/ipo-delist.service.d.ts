@@ -46,6 +46,11 @@ export declare class IpoDelistService {
     /**
      * Buy Golden Border for ticker (1 week).
      * Costs 1,000 Creds. Per Blueprint §6.3.
+     *
+     * FIX-B: ticker query now uses FOR UPDATE inside the queryRunner transaction.
+     * Previously the ticker was fetched without a lock, creating a TOCTOU window
+     * where a concurrent delist could set status = 'DELISTED' between the ticker
+     * SELECT and the Cred deduction, charging the user for a delisted ticker.
      */
     buyGoldenBorder(userId: string): Promise<{
         ticker_id: any;

@@ -36,7 +36,7 @@ let PropMarketService = class PropMarketService {
      */
     async createEvent(creatorId, collegeDomain, title, description, category, expiryTimestamp, refereeId, listingFee = 0, initialLiquidity = 0) {
         const [creator] = await this.dataSource.query(`SELECT institution_id, email FROM users WHERE user_id = $1`, [creatorId]);
-        const institutionId = creator?.institution_id ?? null;
+        const institutionId = creator?.institution_id ?? undefined;
         // IIFT Kakinada Strict Moderator Check
         // Account for any case sensitivity in institutional naming
         const [instInfo] = await this.dataSource.query(`SELECT name FROM institutions WHERE institution_id = $1`, [institutionId]);
@@ -46,33 +46,41 @@ let PropMarketService = class PropMarketService {
             'aarav_ipm25@iift.edu',
             'saisrikiran_ipm25@iift.edu'
         ];
-        if (creator.email.trim().toLowerCase().endsWith('@iift.edu') && !IIFT_ALLOWED_EMAILS.includes(creator.email.trim().toLowerCase())) {
+        const userEmail = creator.email.trim().toLowerCase();
+        const isIIFTUser = userEmail.endsWith('@iift.edu');
+        const isAllowedModerator = IIFT_ALLOWED_EMAILS.includes(userEmail);
+        if (isIIFTUser && !isAllowedModerator) {
             throw new common_1.ForbiddenException('STRICT POLICY: Only designated IIFT moderators (Saksham, Aarav, SaiK) can create Arena questions.');
         }
-        const totalCost = listingFee + (initialLiquidity * 2); // Liquidity must seed BOTH sides 50/50
-        // Deduct listing fee + initial liquidity if user-created
-        if (totalCost > 0) {
+        const numListingFee = Number(listingFee) || 0;
+        const numLiquidity = Number(initialLiquidity) || 0;
+        const totalCost = numListingFee + (numLiquidity * 2);
+        // Exempt allowed moderators from the cost check
+        const shouldDeductCost = totalCost > 0 && !isAllowedModerator;
+        if (shouldDeductCost) {
             const [user] = await this.dataSource.query(`SELECT chip_balance FROM users WHERE user_id = $1`, [creatorId]);
-            if (Number(user.chip_balance) < totalCost) {
-                throw new common_1.BadRequestException('Insufficient Chips for listing and initial liquidity');
+            const currentBalance = Number(user?.chip_balance || 0);
+            if (currentBalance < totalCost) {
+                throw new common_1.BadRequestException(`Insufficient Chips. Required: ${totalCost}, Available: ${currentBalance}`);
             }
             await this.dataSource.query(`UPDATE users SET chip_balance = chip_balance - $1 WHERE user_id = $2`, [totalCost, creatorId]);
         }
         const event = this.eventRepo.create({
             creator_id: creatorId,
-            title,
-            description,
-            category,
+            title: title.trim(),
+            description: description || 'No additional details provided.',
+            category: (category || 'OPINION').toUpperCase(),
             expiry_timestamp: expiryTimestamp,
-            referee_id: refereeId,
-            listing_fee_paid: listingFee,
-            yes_pool: initialLiquidity,
-            no_pool: initialLiquidity,
-            college_domain: collegeDomain,
+            referee_id: (refereeId && refereeId.length > 10) ? refereeId : undefined,
+            listing_fee_paid: numListingFee,
+            yes_pool: numLiquidity,
+            no_pool: numLiquidity,
+            college_domain: collegeDomain || 'iift.edu',
             scope: 'LOCAL',
             institution_id: institutionId,
             options: ['YES', 'NO'],
         });
+        console.log(`[ARENA] Deploying market: "${title}" by ${userEmail}`);
         return this.eventRepo.save(event);
     }
     /**
@@ -89,7 +97,7 @@ let PropMarketService = class PropMarketService {
             const [userInstitution] = await queryRunner.query(`SELECT institution_id FROM users WHERE user_id = $1`, [userId]);
             const institutionId = userInstitution?.institution_id ?? null;
             // Lock the event
-            const [event] = await queryRunner.query(`SELECT event_id, status, yes_pool, no_pool, platform_fee_rate, creator_id 
+            const [event] = await queryRunner.query(`SELECT event_id, status, yes_pool, no_pool, platform_fee_rate, creator_id, expiry_timestamp
                  FROM prop_events
                  WHERE event_id = $1 AND (institution_id = $2 OR institution_id IS NULL)
                  FOR UPDATE`, [eventId, institutionId]);
@@ -157,9 +165,17 @@ let PropMarketService = class PropMarketService {
             // Exclusive Permission Lock
             const [moderator] = await queryRunner.query(`SELECT email FROM users WHERE user_id = $1`, [settledBy]);
             const userEmail = moderator?.email?.trim().toLowerCase();
-            const REQUIRED_SETTLER = 'saisrikiran_ipm25@iift.edu';
-            if (userEmail !== REQUIRED_SETTLER) {
-                throw new common_1.ForbiddenException(`UNAUTHORIZED: Only the primary moderator (${REQUIRED_SETTLER}) can issue a final verdict on market outcomes.`);
+            const IIFT_ALLOWED_EMAILS = [
+                'saksham_ipm25@iift.edu',
+                'aarav_ipm25@iift.edu',
+                'saisrikiran_ipm25@iift.edu'
+            ];
+            if (!IIFT_ALLOWED_EMAILS.includes(userEmail)) {
+                throw new common_1.ForbiddenException(`UNAUTHORIZED: Only designated IIFT moderators (${IIFT_ALLOWED_EMAILS.join(', ')}) can issue a final verdict on market outcomes.`);
+            }
+            const isExpired = new Date(event.expiry_timestamp).getTime() <= Date.now();
+            if (!isExpired) {
+                throw new common_1.ForbiddenException('Settlement is locked until the event duration expires.');
             }
             const totalPool = Number(event.yes_pool) + Number(event.no_pool);
             const winningSidePool = winningOutcome === 'YES'

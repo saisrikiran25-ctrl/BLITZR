@@ -24,6 +24,7 @@ export declare class UsersController {
         email_verified: boolean;
         avatar_url: string;
         last_active_at: Date;
+        last_daily_reward_at: Date;
         notify_trading: boolean;
         notify_price_threshold: boolean;
         notify_arena_resolution: boolean;
@@ -50,6 +51,7 @@ export declare class UsersController {
         email_verified: boolean;
         avatar_url: string;
         last_active_at: Date;
+        last_daily_reward_at: Date;
         notify_trading: boolean;
         notify_price_threshold: boolean;
         notify_arena_resolution: boolean;
@@ -77,6 +79,7 @@ export declare class UsersController {
         email_verified: boolean;
         avatar_url: string;
         last_active_at: Date;
+        last_daily_reward_at: Date;
         notify_trading: boolean;
         notify_price_threshold: boolean;
         notify_arena_resolution: boolean;

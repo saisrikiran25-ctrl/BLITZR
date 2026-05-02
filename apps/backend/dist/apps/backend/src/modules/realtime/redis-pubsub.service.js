@@ -13,58 +13,84 @@ exports.RedisPubSubService = void 0;
 const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const redis_factory_1 = require("../../config/redis.factory");
-
+/**
+ * RedisPubSubService
+ *
+ * Manages Redis Pub/Sub for broadcasting price updates
+ * across multiple server instances (horizontal scaling).
+ */
 let RedisPubSubService = class RedisPubSubService {
     constructor(configService) {
         this.configService = configService;
-        this.logger = new common_1.Logger('RedisPubSubService');
     }
-
     onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL');
         const host = this.configService.get('REDIS_HOST', 'localhost');
         const port = this.configService.get('REDIS_PORT', 6379);
-        const url = redisUrl || `redis://${host}:${port}`;
-        // lazyConnect:false in factory — these auto-connect immediately
-        this.publisher = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Publisher');
-        this.subscriber = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Subscriber');
-        this.logger.log('RedisPubSubService initialised');
+        const options = {
+            maxRetriesPerRequest: 3,
+            retryStrategy: (times) => {
+                if (times > 3)
+                    return null; // stop retrying after 3 attempts
+                return Math.min(times * 50, 2000);
+            }
+        };
+        try {
+            if (redisUrl) {
+                this.publisher = (0, redis_factory_1.createRedisClient)(redisUrl, 'PubSub-Publisher');
+                this.subscriber = (0, redis_factory_1.createRedisClient)(redisUrl, 'PubSub-Subscriber');
+            }
+            else {
+                const url = `redis://${host}:${port}`;
+                this.publisher = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Publisher');
+                this.subscriber = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Subscriber');
+            }
+        }
+        catch (error) {
+            console.error('❌ Redis Init Failure:', error);
+        }
     }
-
     onModuleDestroy() {
         this.publisher?.disconnect();
         this.subscriber?.disconnect();
     }
-
+    /**
+     * Publish a price update event.
+     */
     async publishPriceUpdate(tickerId, price, supply) {
-        if (!this.publisher || this.publisher.status !== 'ready') return;
         await this.publisher.publish('price_updates', JSON.stringify({ ticker_id: tickerId, price, supply, timestamp: Date.now() }));
     }
-
+    /**
+     * Publish a trade event (for the Pulse indicator).
+     */
     async publishTrade(tickerId, txType, amount) {
-        if (!this.publisher || this.publisher.status !== 'ready') return;
         await this.publisher.publish('trades', JSON.stringify({ ticker_id: tickerId, tx_type: txType, amount, timestamp: Date.now() }));
     }
-
+    /**
+     * Subscribe to a Redis channel with a callback.
+     */
     async subscribe(channel, callback) {
-        if (!this.subscriber || this.subscriber.status !== 'ready') {
-            this.logger.warn(`Cannot subscribe to ${channel} — subscriber not ready`);
-            return;
-        }
         await this.subscriber.subscribe(channel);
         this.subscriber.on('message', (ch, message) => {
-            if (ch === channel) callback(message);
+            if (ch === channel)
+                callback(message);
         });
     }
-
+    /**
+     * Cache a value with optional TTL.
+     */
     async cacheSet(key, value, ttlSeconds) {
-        if (!this.publisher || this.publisher.status !== 'ready') return;
-        if (ttlSeconds) await this.publisher.set(key, value, 'EX', ttlSeconds);
-        else await this.publisher.set(key, value);
+        if (ttlSeconds) {
+            await this.publisher.set(key, value, 'EX', ttlSeconds);
+        }
+        else {
+            await this.publisher.set(key, value);
+        }
     }
-
+    /**
+     * Get a cached value.
+     */
     async cacheGet(key) {
-        if (!this.publisher || this.publisher.status !== 'ready') return null;
         return this.publisher.get(key);
     }
 };
