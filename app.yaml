@@ -15,12 +15,21 @@ services:
         value: production
         scope: RUN_TIME
       - key: DATABASE_URL
+        value: ${blitzr-db.DATABASE_URL}
         scope: RUN_AND_BUILD_TIME
       - key: REDIS_URL
         scope: RUN_AND_BUILD_TIME
       - key: JWT_SECRET
+        value: super_secret_blitzr_campus_key_2024
         scope: RUN_TIME
       - key: SARVAM_API_KEY
+        value: sk_2eysz60p_RtAZoqmMEiGXhuW30uhHJY6E
         scope: RUN_TIME
       - key: GOOGLE_CLIENT_ID
+        value: 308419908804-tj9rlovie3ddn14nipra2pf78mss3q06.apps.googleusercontent.com
         scope: RUN_TIME
+    databases:
+      - cluster_name: blitzr-db
+        engine: PG
+        name: blitzr-db
+        production: true
