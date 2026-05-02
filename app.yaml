@@ -1,5 +1,5 @@
 # BLITZR-PRIME — DigitalOcean App Platform Spec
-# Deploy version: v1.1.0 — Apr 25 2026 — all 12 audit bugs resolved
+# Final Restoration Spec — May 02 2026
 name: blitzr-prime
 region: blr
 services:
@@ -35,12 +35,15 @@ services:
       - key: GOOGLE_WEB_CLIENT_ID
         value: 836611609888-g2pld548p3f14ta3rvasgn6pa5hof2nv.apps.googleusercontent.com
         scope: RUN_TIME
+      - key: REAPPLY_MIGRATIONS
+        value: 031_ultimate_floor_sync
+        scope: RUN_TIME
     databases:
       - cluster_name: blitzr-db
         engine: PG
         name: blitzr-db
         production: true
       - cluster_name: blitzr-redis
-        engine: REDIS
+        engine: VALKEY
         name: blitzr-redis
         production: true

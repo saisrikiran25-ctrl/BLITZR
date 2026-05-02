@@ -44,7 +44,7 @@ export class PropMarketService {
             `SELECT institution_id, email FROM users WHERE user_id = $1`,
             [creatorId],
         );
-        const institutionId = creator?.institution_id ?? null;
+        const institutionId = creator?.institution_id ?? undefined;
 
         // IIFT Kakinada Strict Moderator Check
         // Account for any case sensitivity in institutional naming
@@ -97,7 +97,7 @@ export class PropMarketService {
             description: description || 'No additional details provided.',
             category: (category || 'OPINION').toUpperCase(),
             expiry_timestamp: expiryTimestamp,
-            referee_id: (refereeId && refereeId.length > 10) ? refereeId : null,
+            referee_id: (refereeId && refereeId.length > 10) ? refereeId : undefined,
             listing_fee_paid: numListingFee,
             yes_pool: numLiquidity,
             no_pool: numLiquidity,

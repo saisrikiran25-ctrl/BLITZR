@@ -77,6 +77,10 @@ __decorate([
     __metadata("design:type", String)
 ], TickerEntity.prototype, "college_domain", void 0);
 __decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: false }),
+    __metadata("design:type", Boolean)
+], TickerEntity.prototype, "featured", void 0);
+__decorate([
     (0, typeorm_1.UpdateDateColumn)({ type: 'timestamptz' }),
     __metadata("design:type", Date)
 ], TickerEntity.prototype, "updated_at", void 0);

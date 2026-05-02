@@ -44,6 +44,7 @@ export declare class IpoService {
         category: string;
         created_at: Date;
         college_domain: string;
+        featured: boolean;
         updated_at: Date;
     }>;
     /**
@@ -67,6 +68,7 @@ export declare class IpoService {
         category: string;
         created_at: Date;
         college_domain: string;
+        featured: boolean;
         updated_at: Date;
     }[]>;
     /**

@@ -12,6 +12,9 @@ const ioredis_1 = __importDefault(require("ioredis"));
  */
 function createRedisClient(url, name = 'Redis') {
     const isTls = url.startsWith('rediss://');
+    // Mask password in logs
+    const maskedUrl = url.replace(/:[^:@]+@/, ':****@');
+    console.log(`📡 [${name}] Attempting connection to: ${maskedUrl} (TLS: ${isTls})`);
     const client = new ioredis_1.default(url, {
         tls: isTls ? { rejectUnauthorized: false } : undefined,
         maxRetriesPerRequest: null, // Critical: Don't kill the process on request failure

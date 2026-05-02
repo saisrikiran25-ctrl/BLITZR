@@ -14,5 +14,6 @@ export declare class TickerEntity {
     category: string;
     created_at: Date;
     college_domain: string;
+    featured: boolean;
     updated_at: Date;
 }

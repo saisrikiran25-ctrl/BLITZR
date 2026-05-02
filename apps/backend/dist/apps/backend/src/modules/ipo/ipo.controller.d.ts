@@ -63,6 +63,7 @@ export declare class IpoController {
         category: string;
         created_at: Date;
         college_domain: string;
+        featured: boolean;
         updated_at: Date;
     }[]>;
     getTicker(req: any, id: string): Promise<{
@@ -83,6 +84,7 @@ export declare class IpoController {
         category: string;
         created_at: Date;
         college_domain: string;
+        featured: boolean;
         updated_at: Date;
     }>;
     getUserHoldings(req: any): Promise<{

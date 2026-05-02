@@ -7,7 +7,13 @@ import Redis from 'ioredis';
  */
 export function createRedisClient(url: string, name: string = 'Redis'): Redis {
     const isTls = url.startsWith('rediss://');
+    
+    // Mask password in logs
+    const maskedUrl = url.replace(/:[^:@]+@/, ':****@');
+    console.log(`📡 [${name}] Attempting connection to: ${maskedUrl} (TLS: ${isTls})`);
+
     const client = new Redis(url, {
+
         tls: isTls ? { rejectUnauthorized: false } : undefined,
         maxRetriesPerRequest: null, // Critical: Don't kill the process on request failure
         connectTimeout: 20000,

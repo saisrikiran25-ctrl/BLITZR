@@ -65,6 +65,10 @@ export class TickerEntity {
     @Column({ type: 'varchar', length: 100, default: 'iift.edu' })
     college_domain: string;
 
+    @Column({ type: 'boolean', default: false })
+    featured: boolean;
+
     @UpdateDateColumn({ type: 'timestamptz' })
+
     updated_at: Date;
 }
