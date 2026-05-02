@@ -15,7 +15,6 @@ services:
         value: production
         scope: RUN_TIME
       - key: DATABASE_URL
-        value: ${blitzr-db.DATABASE_URL}
         scope: RUN_AND_BUILD_TIME
       - key: REDIS_URL
         scope: RUN_AND_BUILD_TIME
@@ -25,8 +24,3 @@ services:
         scope: RUN_TIME
       - key: GOOGLE_CLIENT_ID
         scope: RUN_TIME
-    databases:
-      - cluster_name: blitzr-db
-        engine: PG
-        name: blitzr-db
-        production: true
