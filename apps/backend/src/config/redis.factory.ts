@@ -6,15 +6,20 @@ import Redis from 'ioredis';
  * self-signed certificates that require rejectUnauthorized: false.
  */
 export function createRedisClient(url: string, name: string = 'Redis'): Redis {
-    const isTls = url.startsWith('rediss://');
+    // DigitalOcean Managed Redis uses port 25061 for TLS even if the protocol is 'redis://'
+    const isTls = url.startsWith('rediss://') || url.includes(':25061');
     
     // Mask password in logs
     const maskedUrl = url.replace(/:[^:@]+@/, ':****@');
-    console.log(`📡 [${name}] Attempting connection to: ${maskedUrl} (TLS: ${isTls})`);
+    console.log(`📡 [${name}] Connecting to: ${maskedUrl} (Detected TLS: ${isTls})`);
 
     const client = new Redis(url, {
+        tls: isTls ? { 
+            rejectUnauthorized: false,
+            // Add servername to help with SNI issues in some environments
+            servername: url.split('@')[1]?.split(':')[0]?.split('/')[0]
+        } : undefined,
 
-        tls: isTls ? { rejectUnauthorized: false } : undefined,
         maxRetriesPerRequest: null, // Critical: Don't kill the process on request failure
         connectTimeout: 20000,
         enableOfflineQueue: true, // Allow commands to be queued while reconnecting
