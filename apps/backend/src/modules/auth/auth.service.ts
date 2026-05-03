@@ -214,37 +214,44 @@ export class AuthService {
     }
 
     private async createGoogleUser(email: string, name: string, institutionId: string) {
-        // Generate random placeholder password for OAuth accounts
+        // 1. Get Domain for college_domain sync
+        const domain = email.split('@')[1];
+        
+        // 2. Generate random placeholder password for OAuth accounts
         const tempPassword = Math.random().toString(36).slice(-16);
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(tempPassword, salt);
-
+    
         const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         let username = baseUsername;
         let counter = 1;
-
-        // FIX-A: Cap the loop at MAX_USERNAME_ATTEMPTS (100) to prevent an infinite
-        // loop under extreme username collision conditions. Beyond the cap we fall
-        // back to a UUID-suffixed username which is guaranteed to be unique.
+    
+        // FIX-A: Cap the loop at MAX_USERNAME_ATTEMPTS (100)
         while (counter <= MAX_USERNAME_ATTEMPTS && await this.usersService.isUsernameTaken(username, institutionId)) {
             username = `${baseUsername}${counter++}`;
         }
         if (counter > MAX_USERNAME_ATTEMPTS) {
-            // Guaranteed-unique fallback: baseUsername + first 8 chars of a UUID
-            const { v4: uuidv4 } = await import('uuid');
+            const { v4: uuidv4 } = require('uuid');
             username = `${baseUsername}_${uuidv4().split('-')[0]}`;
         }
-
-        return this.usersService.create({
-            email,
-            username,
-            display_name: name || username,
-            password_hash: passwordHash,
-            institution_id: institutionId,
-            credibility_score: 60,
-            tos_accepted: false,
-        });
+    
+        try {
+            return await this.usersService.create({
+                email,
+                username,
+                display_name: name || username,
+                password_hash: passwordHash,
+                institution_id: institutionId,
+                college_domain: domain,
+                credibility_score: 60,
+                tos_accepted: false,
+            });
+        } catch (err: any) {
+            console.error('[AuthService] CRITICAL: Google User Creation Failed:', err.message);
+            throw new InternalServerErrorException(`User registration failed: ${err.message}`);
+        }
     }
+
 
     private generateToken(userId: string, collegeDomain: string): string {
         return this.jwtService.sign({ sub: userId, collegeDomain });
