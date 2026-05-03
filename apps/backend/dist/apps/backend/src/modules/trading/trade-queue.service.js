@@ -52,30 +52,18 @@ let TradeQueueService = TradeQueueService_1 = class TradeQueueService {
         this.activeWorkers = new Set();
         this.shuttingDown = false;
     }
-    async onModuleInit() {
+    onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
         this.idleShutdownSeconds = this.configService.get('TRADE_QUEUE_IDLE_SHUTDOWN_SECONDS', this.idleShutdownSeconds);
         this.popTimeoutSeconds = this.configService.get('TRADE_QUEUE_POP_TIMEOUT_SECONDS', this.popTimeoutSeconds);
         this.maxAttemptCount = this.configService.get('TRADE_QUEUE_MAX_RETRY_ATTEMPTS', this.maxAttemptCount);
         this.redisEnqueue = (0, redis_factory_1.createRedisClient)(redisUrl, 'TradeQueue-Enqueue');
         this.redisWorker = (0, redis_factory_1.createRedisClient)(redisUrl, 'TradeQueue-Worker');
-        // BUG FIX: lazyConnect:true means ioredis will NOT auto-connect.
-        // We must explicitly connect both clients at startup.
-        // Use try/catch so a Redis outage at boot does not crash the process;
-        // the fallback in enqueueTrade handles the degraded state gracefully.
-        try {
-            await this.redisEnqueue.connect();
-        }
-        catch (err) {
-            this.logger.warn(`TradeQueue-Enqueue initial connect failed (will retry): ${err.message}`);
-        }
-        try {
-            await this.redisWorker.connect();
-        }
-        catch (err) {
-            this.logger.warn(`TradeQueue-Worker initial connect failed (will retry): ${err.message}`);
-        }
-        this.logger.log('Trade Queue Service initialised');
+        // NON-BLOCKING: Start connection in background.
+        // ioredis handles retries natively.
+        this.redisEnqueue.connect().catch(err => this.logger.warn(`TradeQueue-Enqueue connect failed: ${err.message}`));
+        this.redisWorker.connect().catch(err => this.logger.warn(`TradeQueue-Worker connect failed: ${err.message}`));
+        this.logger.log('Trade Queue Service initialised (Connecting to Redis in background)');
     }
     onModuleDestroy() {
         this.shuttingDown = true;

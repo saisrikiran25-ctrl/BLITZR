@@ -39,7 +39,7 @@ export declare class TradeQueueService implements OnModuleInit, OnModuleDestroy 
     private activeWorkers;
     private shuttingDown;
     constructor(configService: ConfigService, tradingService: TradingService);
-    onModuleInit(): Promise<void>;
+    onModuleInit(): void;
     onModuleDestroy(): void;
     /** True only when the Redis connection is ready to accept commands. */
     private isReady;

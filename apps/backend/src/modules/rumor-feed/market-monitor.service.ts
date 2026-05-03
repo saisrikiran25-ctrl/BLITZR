@@ -27,15 +27,15 @@ export class MarketMonitorService implements OnModuleInit, OnModuleDestroy {
         private readonly configService: ConfigService,
     ) { }
 
-    async onModuleInit() {
+    onModuleInit() {
         const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
         this.redisClient = createRedisClient(redisUrl, 'MarketMonitor');
-        try {
-            await this.redisClient.connect();
-        } catch (err: any) {
+        // Non-blocking connection
+        this.redisClient.connect().catch(err => {
             this.logger.warn(`Redis connection failed (MarketMonitor): ${err.message}`);
-        }
+        });
     }
+
 
 
     onModuleDestroy() {

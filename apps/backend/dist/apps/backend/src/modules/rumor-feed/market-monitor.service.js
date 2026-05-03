@@ -26,15 +26,13 @@ let MarketMonitorService = MarketMonitorService_1 = class MarketMonitorService {
         this.configService = configService;
         this.logger = new common_1.Logger(MarketMonitorService_1.name);
     }
-    async onModuleInit() {
+    onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL', 'redis://localhost:6379');
         this.redisClient = (0, redis_factory_1.createRedisClient)(redisUrl, 'MarketMonitor');
-        try {
-            await this.redisClient.connect();
-        }
-        catch (err) {
+        // Non-blocking connection
+        this.redisClient.connect().catch(err => {
             this.logger.warn(`Redis connection failed (MarketMonitor): ${err.message}`);
-        }
+        });
     }
     onModuleDestroy() {
         this.redisClient?.disconnect();

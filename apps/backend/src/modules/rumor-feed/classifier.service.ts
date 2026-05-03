@@ -40,15 +40,15 @@ export class ClassifierService implements OnModuleInit, OnModuleDestroy {
         this.sarvamKey = this.configService.get<string>('SARVAM_API_KEY', '');
     }
 
-    async onModuleInit() {
-        this.logger.log('Initializing Redis cache client...');
+    onModuleInit() {
+        this.logger.log('Initializing Redis cache client (background)...');
         this.redisClient = createRedisClient(this.redisUrl, 'Classifier');
-        try {
-            await this.redisClient.connect();
-        } catch (err: any) {
+        // Non-blocking connection
+        this.redisClient.connect().catch(err => {
             this.logger.warn(`Redis connection failed (Classifier): ${err.message}`);
-        }
+        });
     }
+
 
     onModuleDestroy() {
         this.redisClient?.disconnect();

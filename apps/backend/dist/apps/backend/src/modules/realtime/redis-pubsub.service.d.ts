@@ -11,7 +11,7 @@ export declare class RedisPubSubService implements OnModuleInit, OnModuleDestroy
     private publisher;
     private subscriber;
     constructor(configService: ConfigService);
-    onModuleInit(): Promise<void>;
+    onModuleInit(): void;
     onModuleDestroy(): void;
     /**
      * Publish a price update event.

@@ -55,7 +55,7 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         private readonly tradingService: TradingService,
     ) {}
 
-    async onModuleInit() {
+    onModuleInit() {
         const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
         this.idleShutdownSeconds = this.configService.get<number>(
             'TRADE_QUEUE_IDLE_SHUTDOWN_SECONDS',
@@ -73,23 +73,14 @@ export class TradeQueueService implements OnModuleInit, OnModuleDestroy {
         this.redisEnqueue = createRedisClient(redisUrl, 'TradeQueue-Enqueue');
         this.redisWorker = createRedisClient(redisUrl, 'TradeQueue-Worker');
 
-        // BUG FIX: lazyConnect:true means ioredis will NOT auto-connect.
-        // We must explicitly connect both clients at startup.
-        // Use try/catch so a Redis outage at boot does not crash the process;
-        // the fallback in enqueueTrade handles the degraded state gracefully.
-        try {
-            await this.redisEnqueue.connect();
-        } catch (err: any) {
-            this.logger.warn(`TradeQueue-Enqueue initial connect failed (will retry): ${err.message}`);
-        }
-        try {
-            await this.redisWorker.connect();
-        } catch (err: any) {
-            this.logger.warn(`TradeQueue-Worker initial connect failed (will retry): ${err.message}`);
-        }
+        // NON-BLOCKING: Start connection in background.
+        // ioredis handles retries natively.
+        this.redisEnqueue.connect().catch(err => this.logger.warn(`TradeQueue-Enqueue connect failed: ${err.message}`));
+        this.redisWorker.connect().catch(err => this.logger.warn(`TradeQueue-Worker connect failed: ${err.message}`));
 
-        this.logger.log('Trade Queue Service initialised');
+        this.logger.log('Trade Queue Service initialised (Connecting to Redis in background)');
     }
+
 
     onModuleDestroy() {
         this.shuttingDown = true;

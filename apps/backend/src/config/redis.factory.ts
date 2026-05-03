@@ -28,9 +28,10 @@ export function createRedisClient(url: string, name: string = 'Redis'): Redis {
         } : undefined,
 
         maxRetriesPerRequest: null, // Critical: Don't kill the process on request failure
-        connectTimeout: 20000,
+        connectTimeout: 5000,      // Reduced to prevent long hangs during startup
         enableOfflineQueue: true, // Allow commands to be queued while reconnecting
-        lazyConnect: true,
+        lazyConnect: false,       // Auto-connect in background (Non-blocking)
+
         retryStrategy(times) {
             const delay = Math.min(times * 100, 3000);
             return delay;

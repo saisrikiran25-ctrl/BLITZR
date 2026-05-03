@@ -18,7 +18,7 @@ export declare class ClassifierService implements OnModuleInit, OnModuleDestroy 
     private factualIndicators;
     private opinionIndicators;
     constructor(configService: ConfigService);
-    onModuleInit(): Promise<void>;
+    onModuleInit(): void;
     onModuleDestroy(): void;
     classify(text: string): Promise<ClassificationResult>;
     private extractTickers;
