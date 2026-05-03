@@ -38,6 +38,19 @@ let ClassifierService = ClassifierService_1 = class ClassifierService {
         this.openAiKey = this.configService.get('OPENAI_API_KEY', 'default-key-for-typing');
         this.sarvamKey = this.configService.get('SARVAM_API_KEY', '');
     }
+    async onModuleInit() {
+        this.logger.log('Initializing Redis cache client...');
+        this.redisClient = (0, redis_factory_1.createRedisClient)(this.redisUrl, 'Classifier');
+        try {
+            await this.redisClient.connect();
+        }
+        catch (err) {
+            this.logger.warn(`Redis connection failed (Classifier): ${err.message}`);
+        }
+    }
+    onModuleDestroy() {
+        this.redisClient?.disconnect();
+    }
     async classify(text) {
         const tickers = this.extractTickers(text);
         const ruleResult = this.classifyRuleBased(text);

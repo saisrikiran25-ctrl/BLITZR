@@ -152,7 +152,15 @@ export class AuthService {
 
             // 4. Single Campus Flow - AUTO-SELECT
             const institution = institutions[0];
+            console.log(`[AuthService] New User detected. Auto-selecting campus: ${institution.short_code}`);
+            
             user = await this.createGoogleUser(email, name || '', institution.institution_id);
+            
+            if (!user || !user.user_id) {
+                console.error('[AuthService] CRITICAL: User object returned from creation is undefined or missing user_id!');
+                throw new InternalServerErrorException('Account creation failed — please try again in a moment.');
+            }
+
             const token = this.generateToken(user.user_id, institution.short_code);
 
             return {
@@ -169,6 +177,7 @@ export class AuthService {
                 token,
                 isNewUser: true,
             };
+
         } catch (error: any) {
             console.error('Google Login Error:', error);
             throw new UnauthorizedException('Authentication failed');
@@ -197,6 +206,12 @@ export class AuthService {
         if (!instRes.length) throw new BadRequestException('Invalid campus selection for your email domain');
 
         const user = await this.createGoogleUser(email, name || '', institutionId);
+        
+        if (!user || !user.user_id) {
+            console.error('[AuthService] CRITICAL: User creation failed during campus selection!');
+            throw new InternalServerErrorException('Account creation failed.');
+        }
+
         const token = this.generateToken(user.user_id, instRes[0].short_code);
 
         return {
@@ -208,6 +223,7 @@ export class AuthService {
                 tos_accepted: user.tos_accepted,
                 is_ipo_active: user.is_ipo_active,
             },
+
             token,
             isNewUser: true
         };

@@ -11,7 +11,7 @@ export declare class MarketMonitorService implements OnModuleInit, OnModuleDestr
     private readonly logger;
     private redisClient;
     constructor(dataSource: DataSource, bondingCurve: BondingCurveService, notificationService: NotificationService, configService: ConfigService);
-    onModuleInit(): void;
+    onModuleInit(): Promise<void>;
     onModuleDestroy(): void;
     startMarketMonitor(postId: string, tickers: string[], priceSnapshot: Record<string, number>, authorId: string): Promise<void>;
     processMonitorQueue(): Promise<void>;

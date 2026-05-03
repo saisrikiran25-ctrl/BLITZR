@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import Redis from 'ioredis';
@@ -12,7 +12,7 @@ export interface ClassificationResult {
 }
 
 @Injectable()
-export class ClassifierService {
+export class ClassifierService implements OnModuleInit, OnModuleDestroy {
     private readonly logger = new Logger(ClassifierService.name);
     private openai?: OpenAI;
     private sarvamAi?: OpenAI;
@@ -39,6 +39,21 @@ export class ClassifierService {
         this.openAiKey = this.configService.get<string>('OPENAI_API_KEY', 'default-key-for-typing');
         this.sarvamKey = this.configService.get<string>('SARVAM_API_KEY', '');
     }
+
+    async onModuleInit() {
+        this.logger.log('Initializing Redis cache client...');
+        this.redisClient = createRedisClient(this.redisUrl, 'Classifier');
+        try {
+            await this.redisClient.connect();
+        } catch (err: any) {
+            this.logger.warn(`Redis connection failed (Classifier): ${err.message}`);
+        }
+    }
+
+    onModuleDestroy() {
+        this.redisClient?.disconnect();
+    }
+
 
     async classify(text: string): Promise<ClassificationResult> {
         const tickers = this.extractTickers(text);

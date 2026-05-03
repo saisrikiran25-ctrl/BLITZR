@@ -23,28 +23,19 @@ let RedisPubSubService = class RedisPubSubService {
     constructor(configService) {
         this.configService = configService;
     }
-    onModuleInit() {
+    async onModuleInit() {
         const redisUrl = this.configService.get('REDIS_URL');
         const host = this.configService.get('REDIS_HOST', 'localhost');
         const port = this.configService.get('REDIS_PORT', 6379);
-        const options = {
-            maxRetriesPerRequest: 3,
-            retryStrategy: (times) => {
-                if (times > 3)
-                    return null; // stop retrying after 3 attempts
-                return Math.min(times * 50, 2000);
-            }
-        };
         try {
-            if (redisUrl) {
-                this.publisher = (0, redis_factory_1.createRedisClient)(redisUrl, 'PubSub-Publisher');
-                this.subscriber = (0, redis_factory_1.createRedisClient)(redisUrl, 'PubSub-Subscriber');
-            }
-            else {
-                const url = `redis://${host}:${port}`;
-                this.publisher = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Publisher');
-                this.subscriber = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Subscriber');
-            }
+            const url = redisUrl || `redis://${host}:${port}`;
+            this.publisher = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Publisher');
+            this.subscriber = (0, redis_factory_1.createRedisClient)(url, 'PubSub-Subscriber');
+            // Explicitly connect due to lazyConnect: true in factory
+            await Promise.all([
+                this.publisher.connect().catch(e => console.warn('PubSub Publisher connect failed:', e.message)),
+                this.subscriber.connect().catch(e => console.warn('PubSub Subscriber connect failed:', e.message))
+            ]);
         }
         catch (error) {
             console.error('❌ Redis Init Failure:', error);

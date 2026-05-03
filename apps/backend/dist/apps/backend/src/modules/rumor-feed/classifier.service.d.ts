@@ -1,3 +1,4 @@
+import { OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 export interface ClassificationResult {
     post_type: 'FACTUAL_CLAIM' | 'OPINION' | 'NEUTRAL';
@@ -5,7 +6,7 @@ export interface ClassificationResult {
     confidence: number;
     tickers: string[];
 }
-export declare class ClassifierService {
+export declare class ClassifierService implements OnModuleInit, OnModuleDestroy {
     private configService;
     private readonly logger;
     private openai?;
@@ -17,6 +18,8 @@ export declare class ClassifierService {
     private factualIndicators;
     private opinionIndicators;
     constructor(configService: ConfigService);
+    onModuleInit(): Promise<void>;
+    onModuleDestroy(): void;
     classify(text: string): Promise<ClassificationResult>;
     private extractTickers;
     classifyRuleBased(text: string): {

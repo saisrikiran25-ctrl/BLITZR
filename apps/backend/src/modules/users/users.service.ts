@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -37,9 +38,15 @@ export class UsersService {
     }
 
     async create(data: Partial<UserEntity>): Promise<UserEntity> {
-        const user = this.userRepository.create(data);
+        // NUCLEAR FIX: Manually generate user_id if not present to prevent
+        // 'undefined' property access after save in high-latency DB environments.
+        const user = this.userRepository.create({
+            ...data,
+            user_id: data.user_id || crypto.randomUUID(),
+        });
         return this.userRepository.save(user);
     }
+
 
     async update(userId: string, data: Partial<UserEntity>): Promise<UserEntity> {
         const user = await this.findOneById(userId);
