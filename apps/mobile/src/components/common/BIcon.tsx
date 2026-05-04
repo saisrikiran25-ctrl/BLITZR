@@ -69,7 +69,7 @@ export const BIcon: React.FC<BIconProps> = ({ name, size = 24, color = Colors.te
         return (
             <Image
                 source={{ uri: encoded }}
-                style={[{ width: size, height: size }, style]}
+                style={[{ width: size, height: size }, style as any]}
                 resizeMode="contain"
             />
         );

@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, InternalServerErrorException, HttpException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -127,7 +127,7 @@ export class AuthService {
                         email: user.email,
                         tos_accepted: user.tos_accepted,
                         is_ipo_active: user.is_ipo_active,
-                        rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
+                        rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
                         credibility_score: user.credibility_score,
                     },
                     token,
@@ -171,7 +171,7 @@ export class AuthService {
                     email: user.email,
                     tos_accepted: user.tos_accepted,
                     is_ipo_active: user.is_ipo_active,
-                    rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
+                    rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
                     credibility_score: user.credibility_score,
                 },
                 token,
@@ -180,7 +180,16 @@ export class AuthService {
 
         } catch (error: any) {
             console.error('Google Login Error:', error);
-            throw new UnauthorizedException('Authentication failed');
+            // Re-throw NestJS HTTP exceptions as-is so the correct status code
+            // and message (e.g. BadRequestException "college not on BLITZR",
+            // InternalServerErrorException "account creation failed") reach the client.
+            if (error instanceof HttpException) {
+                throw error;
+            }
+            if (this.isGoogleTokenVerificationError(error?.message || '')) {
+                throw new UnauthorizedException('Invalid or expired Google token. Please sign in again.');
+            }
+            throw new InternalServerErrorException('Authentication failed due to an unexpected error.');
         }
     }
 
@@ -222,8 +231,8 @@ export class AuthService {
                 email: user.email,
                 tos_accepted: user.tos_accepted,
                 is_ipo_active: user.is_ipo_active,
+                rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
             },
-
             token,
             isNewUser: true
         };

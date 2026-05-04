@@ -8,6 +8,8 @@ import {
     KeyboardAvoidingView,
     Platform,
     Pressable,
+    ScrollView,
+    TouchableOpacity,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -68,6 +70,10 @@ const extractIdTokenFromWebResult = (
 export const AuthScreen: React.FC = () => {
     const [authError, setAuthError] = useState<string | null>(null);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [campusPending, setCampusPending] = useState<{
+        tempToken: string;
+        campuses: Array<{ id: string; name: string; short_code: string }>;
+    } | null>(null);
     const login = useAuthStore((s) => s.login);
     const isWeb = Platform.OS === 'web';
     const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
@@ -130,7 +136,6 @@ export const AuthScreen: React.FC = () => {
         // It should be provided by the environment configuration.
         GoogleSignin.configure({
             webClientId: googleWebClientId,
-            androidClientId: googleAndroidClientId || undefined,
             iosClientId: googleIosClientId || undefined,
             offlineAccess: true,
             forceCodeForRefreshToken: true,
@@ -199,8 +204,8 @@ export const AuthScreen: React.FC = () => {
                 );
             } else {
                 await GoogleSignin.hasPlayServices();
-                const userInfo = await GoogleSignin.signIn();
-                idToken = userInfo.idToken || null;
+                const signInResult = await GoogleSignin.signIn();
+                idToken = signInResult.type === 'success' ? (signInResult.data.idToken ?? null) : null;
             }
 
             if (!idToken) {
@@ -208,6 +213,12 @@ export const AuthScreen: React.FC = () => {
             }
 
             const result = await api.googleLogin(idToken);
+
+            if (result.status === 'REQUIRES_CAMPUS_SELECTION') {
+                // Multiple campuses share the same email domain — let the user pick.
+                setCampusPending({ tempToken: result.tempToken, campuses: result.campuses });
+                return;
+            }
 
             if (result.isNewUser) {
                 // If it's a new user, they might need to set a custom username
@@ -241,6 +252,34 @@ export const AuthScreen: React.FC = () => {
             } else {
                 setAuthError(rawMessage);
             }
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    const handleCampusSelect = async (institutionId: string) => {
+        if (!campusPending) return;
+        setGoogleLoading(true);
+        setAuthError(null);
+        try {
+            const result = await api.selectCampus(campusPending.tempToken, institutionId);
+            if (result.isNewUser) {
+                Alert.alert('Welcome!', `Your account is ready. Your ticker name is currently $${result.user.username}. You can change this in Profile later.`);
+            }
+            // Clear pending campus state only after a successful response.
+            setCampusPending(null);
+            login(
+                result.user.user_id,
+                result.user.username,
+                result.user.email,
+                result.token,
+                result.user.tos_accepted || false,
+                result.user.is_ipo_active || false,
+                result.user.rumor_disclosure_accepted || false
+            );
+        } catch (error: any) {
+            // Keep campusPending so the user can choose a different campus or retry.
+            setAuthError(String(error?.message || 'Campus selection failed. Please try again.'));
         } finally {
             setGoogleLoading(false);
         }
@@ -287,7 +326,9 @@ export const AuthScreen: React.FC = () => {
                         <View style={styles.authBody}>
                             <View style={styles.authHeader}>
                                 <View style={styles.authPulse} />
-                                <Text style={styles.formTitle}>ENCRYPTED ACCESS</Text>
+                                <Text style={styles.formTitle}>
+                                    {campusPending ? 'SELECT YOUR CAMPUS' : 'ENCRYPTED ACCESS'}
+                                </Text>
                             </View>
 
                             {authError && (
@@ -296,16 +337,32 @@ export const AuthScreen: React.FC = () => {
                                 </View>
                             )}
 
-                            <Button
-                                title="CONTINUE WITH GOOGLE"
-                                variant="buy"
-                                size="xl"
-                                fullWidth
-                                loading={googleLoading}
-                                disabled={googleLoading || !!googleConfigError}
-                                onPress={handleGoogleSignIn}
-                                style={styles.googleButton}
-                            />
+                            {campusPending ? (
+                                <ScrollView style={styles.campusList} showsVerticalScrollIndicator={false}>
+                                    {campusPending.campuses.map((campus) => (
+                                        <TouchableOpacity
+                                            key={campus.id}
+                                            style={styles.campusItem}
+                                            onPress={() => handleCampusSelect(campus.id)}
+                                            disabled={googleLoading}
+                                        >
+                                            <Text style={styles.campusName}>{campus.name}</Text>
+                                            <Text style={styles.campusCode}>{campus.short_code}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </ScrollView>
+                            ) : (
+                                <Button
+                                    title="CONTINUE WITH GOOGLE"
+                                    variant="buy"
+                                    size="xl"
+                                    fullWidth
+                                    loading={googleLoading}
+                                    disabled={googleLoading || !!googleConfigError}
+                                    onPress={handleGoogleSignIn}
+                                    style={styles.googleButton}
+                                />
+                            )}
 
                             <Text style={styles.securityNote}>
                                 Institutional Verification Required
@@ -507,5 +564,33 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.3,
         shadowRadius: 10,
+    },
+    campusList: {
+        maxHeight: 220,
+        marginBottom: Spacing.xl,
+    },
+    campusItem: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: Spacing.md,
+        paddingHorizontal: Spacing.lg,
+        marginBottom: Spacing.sm,
+        borderRadius: BorderRadius.card,
+        borderWidth: 1,
+        borderColor: 'rgba(0, 250, 154, 0.25)',
+        backgroundColor: 'rgba(0, 250, 154, 0.05)',
+    },
+    campusName: {
+        ...Typography.bodyMedium,
+        color: Colors.textPrimary,
+        flex: 1,
+    },
+    campusCode: {
+        ...Typography.dataLabel,
+        color: Colors.kineticGreen,
+        fontSize: 11,
+        letterSpacing: 1,
+        marginLeft: Spacing.sm,
     },
 });
