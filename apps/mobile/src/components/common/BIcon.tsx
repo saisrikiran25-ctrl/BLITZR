@@ -65,11 +65,11 @@ export const BIcon: React.FC<BIconProps> = ({ name, size = 24, color = Colors.te
             </svg>
         `.trim();
 
-        const encoded = `data:image/svg+xml;base64,${btoa(rawSvg)}`;
+        const encoded = `data:image/svg+xml;base64,${(globalThis as any).btoa(rawSvg)}`;
         return (
             <Image
                 source={{ uri: encoded }}
-                style={[{ width: size, height: size }, style]}
+                style={[{ width: size, height: size }, style as any]}
                 resizeMode="contain"
             />
         );

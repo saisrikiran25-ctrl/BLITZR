@@ -127,7 +127,7 @@ export class AuthService {
                         email: user.email,
                         tos_accepted: user.tos_accepted,
                         is_ipo_active: user.is_ipo_active,
-                        rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
+                        rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
                         credibility_score: user.credibility_score,
                     },
                     token,
@@ -171,7 +171,7 @@ export class AuthService {
                     email: user.email,
                     tos_accepted: user.tos_accepted,
                     is_ipo_active: user.is_ipo_active,
-                    rumor_disclosure_accepted: (user as any).rumor_disclosure_accepted ?? false,
+                    rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
                     credibility_score: user.credibility_score,
                 },
                 token,
@@ -231,8 +231,8 @@ export class AuthService {
                 email: user.email,
                 tos_accepted: user.tos_accepted,
                 is_ipo_active: user.is_ipo_active,
+                rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
             },
-
             token,
             isNewUser: true
         };

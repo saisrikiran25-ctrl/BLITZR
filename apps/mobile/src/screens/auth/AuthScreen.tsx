@@ -136,7 +136,6 @@ export const AuthScreen: React.FC = () => {
         // It should be provided by the environment configuration.
         GoogleSignin.configure({
             webClientId: googleWebClientId,
-            androidClientId: googleAndroidClientId || undefined,
             iosClientId: googleIosClientId || undefined,
             offlineAccess: true,
             forceCodeForRefreshToken: true,
@@ -205,8 +204,8 @@ export const AuthScreen: React.FC = () => {
                 );
             } else {
                 await GoogleSignin.hasPlayServices();
-                const userInfo = await GoogleSignin.signIn();
-                idToken = userInfo.idToken || null;
+                const signInResult = await GoogleSignin.signIn();
+                idToken = signInResult.type === 'success' ? (signInResult.data.idToken ?? null) : null;
             }
 
             if (!idToken) {

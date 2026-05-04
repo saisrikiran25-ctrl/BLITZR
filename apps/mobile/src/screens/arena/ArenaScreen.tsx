@@ -439,7 +439,7 @@ export const ArenaScreen: React.FC = () => {
                                 title="Abort"
                                 onPress={() => setIsSettleModalVisible(false)}
                                 style={{ flex: 1, marginRight: 8 }}
-                                variant="outline"
+                                variant="secondary"
                             />
                             <Button
                                 title="Resolve"
