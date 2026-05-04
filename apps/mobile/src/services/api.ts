@@ -142,8 +142,16 @@ class ApiClient {
 
     // === AUTH ===
     async googleLogin(idToken: string) {
-        return this.request<{ user: any; token: string; isNewUser: boolean }>('POST', '/auth/google', {
+        return this.request<
+            | { status: 'SUCCESS'; user: any; token: string; isNewUser: boolean }
+            | { status: 'REQUIRES_CAMPUS_SELECTION'; campuses: Array<{ id: string; name: string; short_code: string }>; tempToken: string }
+        >('POST', '/auth/google', { idToken });
+    }
+
+    async selectCampus(idToken: string, institutionId: string) {
+        return this.request<{ status: 'SUCCESS'; user: any; token: string; isNewUser: boolean }>('POST', '/auth/select-campus', {
             idToken,
+            institutionId,
         });
     }
 
