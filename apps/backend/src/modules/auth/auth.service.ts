@@ -129,7 +129,7 @@ export class AuthService {
 
                 const dailyReward = await this.grantDailyLoginReward(user.user_id);
 
-                return {
+                const response = {
                     status: 'SUCCESS',
                     user: {
                         user_id: user.user_id,
@@ -145,6 +145,8 @@ export class AuthService {
                     daily_reward_granted: dailyReward.granted,
                     chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
                 };
+                this.logger.log(`Existing user sign-in success: ${email}. Response structure: ${Object.keys(response).join(', ')}`);
+                return response;
             }
 
             // 4. Flow B: New User
@@ -187,7 +189,7 @@ export class AuthService {
             const token = this.generateToken(user.user_id, institution.short_code);
             const dailyReward = await this.grantDailyLoginReward(user.user_id);
 
-            return {
+            const response = {
                 status: 'SUCCESS',
                 user: {
                     user_id: user.user_id,
@@ -203,6 +205,8 @@ export class AuthService {
                 daily_reward_granted: dailyReward.granted,
                 chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
             };
+            this.logger.log(`Google Registration Success for ${email}. Response structure: ${Object.keys(response).join(', ')}`);
+            return response;
 
         } catch (error: any) {
             this.logger.error(`Google Login Error: ${error.message}`, error.stack);
@@ -244,7 +248,7 @@ export class AuthService {
         const token = this.generateToken(user.user_id, instRes[0].short_code);
         const dailyReward = await this.grantDailyLoginReward(user.user_id);
 
-        return {
+        const response = {
             status: 'SUCCESS',
             user: {
                 user_id: user.user_id,
@@ -260,6 +264,8 @@ export class AuthService {
             daily_reward_granted: dailyReward.granted,
             chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
         };
+        this.logger.log(`Campus selection finalized for ${email}. Response structure: ${Object.keys(response).join(', ')}`);
+        return response;
     }
 
     private async createGoogleUser(email: string, name: string, institutionId: string, shortCode: string) {

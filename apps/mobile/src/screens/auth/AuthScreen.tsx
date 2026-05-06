@@ -28,6 +28,7 @@ import { Button } from '../../components/common/Button';
 import { Colors, Typography, Spacing, BorderRadius, Gradients } from '../../theme';
 import { useAuthStore } from '../../store/useAuthStore';
 import { api } from '../../services/api';
+import { BIcon } from '../../components/common/BIcon';
 
 WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_REDIRECT_SCHEME = 'blitzrmobile';
@@ -214,10 +215,20 @@ export const AuthScreen: React.FC = () => {
 
             const result = await api.googleLogin(idToken);
 
+            if (!result) {
+                throw new Error('No response from authentication server.');
+            }
+
             if (result.status === 'REQUIRES_CAMPUS_SELECTION') {
                 // Multiple campuses share the same email domain — let the user pick.
                 setCampusPending({ tempToken: result.tempToken, campuses: result.campuses });
                 return;
+            }
+
+            // Ensure we have a valid success response with user data
+            if (result.status !== 'SUCCESS' || !result.user) {
+                console.error('Malformed auth response:', result);
+                throw new Error(`Authentication failed: Unexpected server response structure.`);
             }
 
             if (result.isNewUser) {
@@ -263,6 +274,12 @@ export const AuthScreen: React.FC = () => {
         setAuthError(null);
         try {
             const result = await api.selectCampus(campusPending.tempToken, institutionId);
+            
+            if (!result || result.status !== 'SUCCESS' || !result.user) {
+                console.error('Malformed campus selection response:', result);
+                throw new Error('Campus selection failed: Malformed response from server.');
+            }
+
             if (result.isNewUser) {
                 Alert.alert('Welcome!', `Your account is ready. Your ticker name is currently $${result.user.username}. You can change this in Profile later.`);
             }
