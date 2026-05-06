@@ -93,7 +93,7 @@ export class AuthService {
             const domain = hd || email.split('@')[1];
 
             // 1. Check for Existing User
-            let user = await this.usersService.findByEmail(email);
+            const foundUser = await this.usersService.findByEmail(email);
 
             // 2. Find all institutions for this domain
             const institutions = await this.dataSource.query(
@@ -102,11 +102,11 @@ export class AuthService {
             );
 
             // 3. Flow A: Existing User
-            if (user) {
+            if (foundUser) {
                 this.logger.log(`Existing user sign-in: ${email}`);
                 
                 // Find their associated institution
-                let institution = institutions.find((i: any) => i.institution_id === user!.institution_id);
+                let institution = institutions.find((i: any) => i.institution_id === foundUser.institution_id);
                 
                 // Legacy Fix: If user has no institution_id, try to find a match or prompt
                 if (!institution) {
@@ -115,37 +115,32 @@ export class AuthService {
                     } else if (institutions.length === 1) {
                         // Auto-assign the only one
                         institution = institutions[0];
-                        await this.usersService.update(user.user_id, { institution_id: institution.institution_id, college_domain: institution.short_code });
-                    } else {
-                        // Multiple campuses, and they have none — we MUST prompt them even if they exist
-                        // but for now, we'll return a special status or just pick the first one if it's a legacy account
-                        // The user request says "sign them in as is", so we assume they HAVE a saved institution.
-                        this.logger.warn(`Existing user ${email} lacks institution_id but domain has multiple campuses.`);
+                        await this.usersService.update(foundUser.user_id, { institution_id: institution.institution_id, college_domain: institution.short_code });
                     }
                 }
 
                 const shortCode = institution ? institution.short_code : (institutions.length > 0 ? institutions[0].short_code : 'GLOBAL');
-                const token = this.generateToken(user.user_id, shortCode);
+                const token = this.generateToken(foundUser.user_id, shortCode);
 
-                const dailyReward = await this.grantDailyLoginReward(user.user_id);
+                const dailyReward = await this.grantDailyLoginReward(foundUser.user_id);
 
                 const response = {
                     status: 'SUCCESS',
                     user: {
-                        user_id: user.user_id,
-                        username: user.username,
-                        email: user.email,
-                        tos_accepted: user.tos_accepted,
-                        is_ipo_active: user.is_ipo_active,
-                        rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
-                        credibility_score: user.credibility_score,
+                        user_id: foundUser.user_id,
+                        username: foundUser.username,
+                        email: foundUser.email,
+                        tos_accepted: foundUser.tos_accepted,
+                        is_ipo_active: foundUser.is_ipo_active,
+                        rumor_disclosure_accepted: foundUser.rumor_disclosure_accepted ?? false,
+                        credibility_score: foundUser.credibility_score,
                     },
                     token,
                     isNewUser: false,
                     daily_reward_granted: dailyReward.granted,
                     chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
                 };
-                this.logger.log(`Existing user sign-in success: ${email}. Response structure: ${Object.keys(response).join(', ')}`);
+                this.logger.log(`Existing user sign-in success: ${email}`);
                 return response;
             }
 
@@ -180,41 +175,41 @@ export class AuthService {
             const institution = institutions[0];
             this.logger.log(`Auto-selecting campus ${institution.short_code} for new user ${email}`);
             
-            user = await this.createGoogleUser(email, name || '', institution.institution_id, institution.short_code);
+            const createdUser = await this.createGoogleUser(email, name || '', institution.institution_id, institution.short_code);
             
-            if (!user || !user.user_id) {
+            if (!createdUser || !createdUser.user_id) {
                 throw new InternalServerErrorException('Account creation failed.');
             }
 
-            const token = this.generateToken(user.user_id, institution.short_code);
-            const dailyReward = await this.grantDailyLoginReward(user.user_id);
+            const token = this.generateToken(createdUser.user_id, institution.short_code);
+            const dailyReward = await this.grantDailyLoginReward(createdUser.user_id);
 
             const response = {
                 status: 'SUCCESS',
                 user: {
-                    user_id: user.user_id,
-                    username: user.username,
-                    email: user.email,
-                    tos_accepted: user.tos_accepted,
-                    is_ipo_active: user.is_ipo_active,
-                    rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
-                    credibility_score: user.credibility_score,
+                    user_id: createdUser.user_id,
+                    username: createdUser.username,
+                    email: createdUser.email,
+                    tos_accepted: createdUser.tos_accepted,
+                    is_ipo_active: createdUser.is_ipo_active,
+                    rumor_disclosure_accepted: createdUser.rumor_disclosure_accepted ?? false,
+                    credibility_score: createdUser.credibility_score,
                 },
                 token,
                 isNewUser: true,
                 daily_reward_granted: dailyReward.granted,
                 chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
             };
-            this.logger.log(`Google Registration Success for ${email}. Response structure: ${Object.keys(response).join(', ')}`);
+            this.logger.log(`Google Registration Success for ${email}`);
             return response;
 
         } catch (error: any) {
-            this.logger.error(`Google Login Error: ${error.message}`, error.stack);
+            this.logger.error(`CRITICAL AUTH ERROR: ${error.message}`, error.stack);
+            
             if (error instanceof HttpException) throw error;
-            if (this.isGoogleTokenVerificationError(error?.message || '')) {
-                throw new UnauthorizedException('Invalid or expired Google token. Please sign in again.');
-            }
-            throw new InternalServerErrorException('Authentication failed due to an unexpected error.');
+            
+            const detailedMessage = `BACKEND_CRASH: ${error.message} | STACK: ${error.stack?.split('\n')[1]?.trim() || 'No stack'}`;
+            throw new InternalServerErrorException(detailedMessage);
         }
     }
 

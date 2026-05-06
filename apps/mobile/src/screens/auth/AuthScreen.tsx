@@ -206,7 +206,7 @@ export const AuthScreen: React.FC = () => {
             } else {
                 await GoogleSignin.hasPlayServices();
                 const signInResult = await GoogleSignin.signIn();
-                idToken = signInResult.type === 'success' ? (signInResult.data.idToken ?? null) : null;
+                idToken = signInResult.type === 'success' ? (signInResult.data?.idToken ?? null) : null;
             }
 
             if (!idToken) {
@@ -221,7 +221,7 @@ export const AuthScreen: React.FC = () => {
 
             if (result.status === 'REQUIRES_CAMPUS_SELECTION') {
                 // Multiple campuses share the same email domain — let the user pick.
-                setCampusPending({ tempToken: result.tempToken, campuses: result.campuses });
+                setCampusPending({ tempToken: result.tempToken ?? '', campuses: result.campuses ?? [] });
                 return;
             }
 
@@ -235,53 +235,17 @@ export const AuthScreen: React.FC = () => {
                 // If it's a new user, they might need to set a custom username
                 // For now, we'll auto-login them with the generated one, 
                 // but we could redirect to a profile-setup screen.
-                Alert.alert('Welcome!', `Your basic account is ready. Your ticker name is currently $${result.user.username}. You can change this in Profile later.`);
-            }
 
-            login(
-                result.user.user_id, 
-                result.user.username, 
-                result.user.email,
-                result.token, 
-                result.user.tos_accepted || false, 
-                result.user.is_ipo_active || false, 
-                result.user.rumor_disclosure_accepted || false
-            );
-        } catch (error: any) {
-            console.log('Google Sign-In Error:', error);
-            const rawMessage = String(error?.message || 'Google Authentication failed.');
-            const normalized = rawMessage.toLowerCase();
-
-            if (normalized.includes('cancel')) {
-                setAuthError('Google Sign-In was cancelled.');
-            } else if (normalized.includes('popup') || normalized.includes('block')) {
-                setAuthError('Google Sign-In popup was blocked. Enable popups for this site and try again.');
-            } else if (normalized.includes('network') || normalized.includes('unable to connect')) {
-                setAuthError('Network error during Google authentication. Check your connection and try again.');
-            } else if (normalized.includes('token')) {
-                setAuthError('Google authentication failed because no valid token was returned.');
-            } else {
-                setAuthError(rawMessage);
-            }
-        } finally {
-            setGoogleLoading(false);
-        }
-    };
-
-    const handleCampusSelect = async (institutionId: string) => {
-        if (!campusPending) return;
-        setGoogleLoading(true);
-        setAuthError(null);
         try {
             const result = await api.selectCampus(campusPending.tempToken, institutionId);
             
-            if (!result || result.status !== 'SUCCESS' || !result.user) {
-                console.error('Malformed campus selection response:', result);
-                throw new Error('Campus selection failed: Malformed response from server.');
+            if (!result || result.status !== 'SUCCESS' || !result?.user) {
+                const debugInfo = JSON.stringify(result || 'null');
+                throw new Error(`MALFORMED_RESPONSE: ${debugInfo}`);
             }
 
             if (result.isNewUser) {
-                Alert.alert('Welcome!', `Your account is ready. Your ticker name is currently $${result.user.username}. You can change this in Profile later.`);
+                Alert.alert('Welcome!', `Your account is ready. Your ticker name is currently $${result?.user?.username}. You can change this in Profile later.`);
             }
             // Clear pending campus state only after a successful response.
             setCampusPending(null);
