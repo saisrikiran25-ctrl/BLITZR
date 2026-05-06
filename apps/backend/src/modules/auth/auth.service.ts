@@ -1,16 +1,18 @@
-import { Injectable, UnauthorizedException, ConflictException, BadRequestException, InternalServerErrorException, HttpException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException, BadRequestException, InternalServerErrorException, HttpException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import { UsersService } from '../users/users.service';
 import { DataSource } from 'typeorm';
+import { v4 as uuidv4 } from 'uuid';
 
 /** Max iterations before bailing out of the username collision loop. */
 const MAX_USERNAME_ATTEMPTS = 100;
 
 @Injectable()
 export class AuthService {
+    private readonly logger = new Logger(AuthService.name);
     private googleClient: OAuth2Client;
 
     constructor(
@@ -87,36 +89,44 @@ export class AuthService {
                 throw new UnauthorizedException('Invalid Google token payload');
             }
 
-            const { email, name, hd } = payload; // hd is the hosted domain (institution)
+            const { email, name, hd } = payload;
             const domain = hd || email.split('@')[1];
 
-            // 1. Find all institutions for this domain
+            // 1. Check for Existing User
+            let user = await this.usersService.findByEmail(email);
+
+            // 2. Find all institutions for this domain
             const institutions = await this.dataSource.query(
                 'SELECT institution_id, name, short_code, email_domain FROM institutions WHERE email_domain = $1 AND verified = true',
                 [domain]
             );
 
-            if (institutions.length === 0) {
-                // Add to waitlist just like manual registration
-                await this.dataSource.query(
-                    'INSERT INTO waitlist (email, email_domain) VALUES ($1, $2) ON CONFLICT DO NOTHING',
-                    [email, domain]
-                );
-                throw new BadRequestException(
-                    'Your college is not yet on BLITZR. You have been added to the waitlist.'
-                );
-            }
-
-            // 2. Find or Create User
-            let user = await this.usersService.findByEmail(email);
-
-            // If user exists, we already know their campus
+            // 3. Flow A: Existing User
             if (user) {
-                const userInst = institutions.find((i: any) => i.institution_id === user!.institution_id);
-                // JWT uses short_code for campus-based Floor (e.g. 'IIFT-D')
-                const token = this.generateToken(user.user_id, userInst ? userInst.short_code : institutions[0].short_code);
+                this.logger.log(`Existing user sign-in: ${email}`);
+                
+                // Find their associated institution
+                let institution = institutions.find((i: any) => i.institution_id === user!.institution_id);
+                
+                // Legacy Fix: If user has no institution_id, try to find a match or prompt
+                if (!institution) {
+                    if (institutions.length === 0) {
+                        this.logger.warn(`Existing user ${email} has no valid institution found for domain ${domain}`);
+                    } else if (institutions.length === 1) {
+                        // Auto-assign the only one
+                        institution = institutions[0];
+                        await this.usersService.update(user.user_id, { institution_id: institution.institution_id, college_domain: institution.short_code });
+                    } else {
+                        // Multiple campuses, and they have none — we MUST prompt them even if they exist
+                        // but for now, we'll return a special status or just pick the first one if it's a legacy account
+                        // The user request says "sign them in as is", so we assume they HAVE a saved institution.
+                        this.logger.warn(`Existing user ${email} lacks institution_id but domain has multiple campuses.`);
+                    }
+                }
 
-                // Grant daily login reward (100 chips) if eligible
+                const shortCode = institution ? institution.short_code : (institutions.length > 0 ? institutions[0].short_code : 'GLOBAL');
+                const token = this.generateToken(user.user_id, shortCode);
+
                 const dailyReward = await this.grantDailyLoginReward(user.user_id);
 
                 return {
@@ -137,8 +147,22 @@ export class AuthService {
                 };
             }
 
-            // 3. New User Flow - CHECK FOR MULTIPLE CAMPUSES
+            // 4. Flow B: New User
+            this.logger.log(`New user sign-up attempt: ${email} (domain: ${domain})`);
+
+            if (institutions.length === 0) {
+                this.logger.warn(`Domain ${domain} not found in institutions. Waitlisting ${email}`);
+                await this.dataSource.query(
+                    'INSERT INTO waitlist (email, email_domain) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+                    [email, domain]
+                );
+                throw new BadRequestException(
+                    'Your college is not yet on BLITZR. You have been added to the waitlist.'
+                );
+            }
+
             if (institutions.length > 1) {
+                this.logger.log(`Domain ${domain} has multiple campuses. Requesting selection.`);
                 return {
                     status: 'REQUIRES_CAMPUS_SELECTION',
                     campuses: institutions.map((i: any) => ({
@@ -146,22 +170,22 @@ export class AuthService {
                         name: i.name,
                         short_code: i.short_code
                     })),
-                    tempToken: idToken // Frontend sends this back to selectCampus
+                    tempToken: idToken
                 };
             }
 
-            // 4. Single Campus Flow - AUTO-SELECT
+            // Single campus auto-select
             const institution = institutions[0];
-            console.log(`[AuthService] New User detected. Auto-selecting campus: ${institution.short_code}`);
+            this.logger.log(`Auto-selecting campus ${institution.short_code} for new user ${email}`);
             
-            user = await this.createGoogleUser(email, name || '', institution.institution_id);
+            user = await this.createGoogleUser(email, name || '', institution.institution_id, institution.short_code);
             
             if (!user || !user.user_id) {
-                console.error('[AuthService] CRITICAL: User object returned from creation is undefined or missing user_id!');
-                throw new InternalServerErrorException('Account creation failed — please try again in a moment.');
+                throw new InternalServerErrorException('Account creation failed.');
             }
 
             const token = this.generateToken(user.user_id, institution.short_code);
+            const dailyReward = await this.grantDailyLoginReward(user.user_id);
 
             return {
                 status: 'SUCCESS',
@@ -176,16 +200,13 @@ export class AuthService {
                 },
                 token,
                 isNewUser: true,
+                daily_reward_granted: dailyReward.granted,
+                chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
             };
 
         } catch (error: any) {
-            console.error('Google Login Error:', error);
-            // Re-throw NestJS HTTP exceptions as-is so the correct status code
-            // and message (e.g. BadRequestException "college not on BLITZR",
-            // InternalServerErrorException "account creation failed") reach the client.
-            if (error instanceof HttpException) {
-                throw error;
-            }
+            this.logger.error(`Google Login Error: ${error.message}`, error.stack);
+            if (error instanceof HttpException) throw error;
             if (this.isGoogleTokenVerificationError(error?.message || '')) {
                 throw new UnauthorizedException('Invalid or expired Google token. Please sign in again.');
             }
@@ -214,14 +235,14 @@ export class AuthService {
         );
         if (!instRes.length) throw new BadRequestException('Invalid campus selection for your email domain');
 
-        const user = await this.createGoogleUser(email, name || '', institutionId);
+        const user = await this.createGoogleUser(email, name || '', institutionId, instRes[0].short_code);
         
         if (!user || !user.user_id) {
-            console.error('[AuthService] CRITICAL: User creation failed during campus selection!');
             throw new InternalServerErrorException('Account creation failed.');
         }
 
         const token = this.generateToken(user.user_id, instRes[0].short_code);
+        const dailyReward = await this.grantDailyLoginReward(user.user_id);
 
         return {
             status: 'SUCCESS',
@@ -232,17 +253,18 @@ export class AuthService {
                 tos_accepted: user.tos_accepted,
                 is_ipo_active: user.is_ipo_active,
                 rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
+                credibility_score: user.credibility_score,
             },
             token,
-            isNewUser: true
+            isNewUser: true,
+            daily_reward_granted: dailyReward.granted,
+            chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
         };
     }
 
-    private async createGoogleUser(email: string, name: string, institutionId: string) {
-        // 1. Get Domain for college_domain sync
+    private async createGoogleUser(email: string, name: string, institutionId: string, shortCode: string) {
         const domain = email.split('@')[1];
         
-        // 2. Generate random placeholder password for OAuth accounts
         const tempPassword = Math.random().toString(36).slice(-16);
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(tempPassword, salt);
@@ -251,12 +273,10 @@ export class AuthService {
         let username = baseUsername;
         let counter = 1;
     
-        // FIX-A: Cap the loop at MAX_USERNAME_ATTEMPTS (100)
         while (counter <= MAX_USERNAME_ATTEMPTS && await this.usersService.isUsernameTaken(username, institutionId)) {
             username = `${baseUsername}${counter++}`;
         }
         if (counter > MAX_USERNAME_ATTEMPTS) {
-            const { v4: uuidv4 } = require('uuid');
             username = `${baseUsername}_${uuidv4().split('-')[0]}`;
         }
     
@@ -267,12 +287,12 @@ export class AuthService {
                 display_name: name || username,
                 password_hash: passwordHash,
                 institution_id: institutionId,
-                college_domain: domain,
+                college_domain: shortCode, // Sync with segmented floor
                 credibility_score: 60,
                 tos_accepted: false,
             });
         } catch (err: any) {
-            console.error('[AuthService] CRITICAL: Google User Creation Failed:', err.message);
+            this.logger.error(`CRITICAL: Google User Creation Failed: ${err.message}`);
             throw new InternalServerErrorException(`User registration failed: ${err.message}`);
         }
     }

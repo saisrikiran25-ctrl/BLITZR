@@ -338,19 +338,25 @@ export const AuthScreen: React.FC = () => {
                             )}
 
                             {campusPending ? (
-                                <ScrollView style={styles.campusList} showsVerticalScrollIndicator={false}>
-                                    {campusPending.campuses.map((campus) => (
-                                        <TouchableOpacity
-                                            key={campus.id}
-                                            style={styles.campusItem}
-                                            onPress={() => handleCampusSelect(campus.id)}
-                                            disabled={googleLoading}
-                                        >
-                                            <Text style={styles.campusName}>{campus.name}</Text>
-                                            <Text style={styles.campusCode}>{campus.short_code}</Text>
-                                        </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
+                                <View style={styles.campusContainer}>
+                                    <Text style={styles.campusSubTitle}>We found multiple campuses for your domain. Please select yours to enter the correct trading floor.</Text>
+                                    <ScrollView style={styles.campusList} showsVerticalScrollIndicator={false}>
+                                        {campusPending.campuses.map((campus) => (
+                                            <TouchableOpacity
+                                                key={campus.id}
+                                                style={styles.campusItem}
+                                                onPress={() => handleCampusSelect(campus.id)}
+                                                disabled={googleLoading}
+                                            >
+                                                <View style={styles.campusInfo}>
+                                                    <Text style={styles.campusName}>{campus.name}</Text>
+                                                    <Text style={styles.campusLocation}>{campus.short_code}</Text>
+                                                </View>
+                                                <BIcon name="chevron-right" size={16} color={Colors.kineticGreen} />
+                                            </TouchableOpacity>
+                                        ))}
+                                    </ScrollView>
+                                </View>
                             ) : (
                                 <Button
                                     title="CONTINUE WITH GOOGLE"
@@ -565,32 +571,45 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 10,
     },
+    campusContainer: {
+        width: '100%',
+    },
+    campusSubTitle: {
+        ...Typography.caption,
+        color: Colors.textSecondary,
+        textAlign: 'center',
+        marginBottom: Spacing.xl,
+        lineHeight: 16,
+    },
     campusList: {
-        maxHeight: 220,
+        maxHeight: 280,
         marginBottom: Spacing.xl,
     },
     campusItem: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: Spacing.md,
-        paddingHorizontal: Spacing.lg,
-        marginBottom: Spacing.sm,
-        borderRadius: BorderRadius.card,
+        paddingVertical: Spacing.lg,
+        paddingHorizontal: Spacing.xl,
+        marginBottom: Spacing.md,
+        borderRadius: 12,
         borderWidth: 1,
-        borderColor: 'rgba(0, 250, 154, 0.25)',
-        backgroundColor: 'rgba(0, 250, 154, 0.05)',
+        borderColor: 'rgba(0, 250, 154, 0.2)',
+        backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    },
+    campusInfo: {
+        flex: 1,
     },
     campusName: {
         ...Typography.bodyMedium,
         color: Colors.textPrimary,
-        flex: 1,
+        fontWeight: 'bold',
     },
-    campusCode: {
-        ...Typography.dataLabel,
+    campusLocation: {
+        ...Typography.caption,
         color: Colors.kineticGreen,
-        fontSize: 11,
+        fontSize: 10,
+        marginTop: 4,
         letterSpacing: 1,
-        marginLeft: Spacing.sm,
     },
 });
