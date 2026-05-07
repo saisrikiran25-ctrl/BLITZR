@@ -232,13 +232,32 @@ export const AuthScreen: React.FC = () => {
             }
 
             if (result.isNewUser) {
-                // If it's a new user, they might need to set a custom username
-                // For now, we'll auto-login them with the generated one, 
-                // but we could redirect to a profile-setup screen.
+                Alert.alert('Welcome!', `Your account is ready. Your ticker name is currently $${result.user.username}. You can change this in Profile later.`);
+            }
 
+            login(
+                result.user.user_id,
+                result.user.username,
+                result.user.email,
+                result.token,
+                result.user.tos_accepted || false,
+                result.user.is_ipo_active || false,
+                result.user.rumor_disclosure_accepted || false
+            );
+        } catch (error: any) {
+            setAuthError(String(error?.message || 'Sign in failed. Please try again.'));
+        } finally {
+            setGoogleLoading(false);
+        }
+    };
+
+    const handleCampusSelect = async (institutionId: string) => {
+        if (!campusPending) return;
+        setGoogleLoading(true);
+        setAuthError(null);
         try {
             const result = await api.selectCampus(campusPending.tempToken, institutionId);
-            
+
             if (!result || result.status !== 'SUCCESS' || !result?.user) {
                 const debugInfo = JSON.stringify(result || 'null');
                 throw new Error(`MALFORMED_RESPONSE: ${debugInfo}`);
