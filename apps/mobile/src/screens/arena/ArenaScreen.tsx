@@ -17,7 +17,6 @@ import { GlassCard } from '../../components/common/GlassCard';
 import { Button } from '../../components/common/Button';
 
 import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
-import { useMarketStore } from '../../store/useMarketStore';
 import { usePropStore } from '../../store/usePropStore';
 import { usePortfolioStore } from '../../store/usePortfolioStore';
 import { formatCreds, formatChips } from '../../utils/formatters';
@@ -31,7 +30,6 @@ import { useAuthStore } from '../../store/useAuthStore';
  */
 export const ArenaScreen: React.FC = () => {
     const { email } = useAuthStore();
-    const { tickerTapeItems } = useMarketStore();
     const { events, isLoading, fetchInitialData } = usePropStore();
     const { chipBalance } = usePortfolioStore();
 

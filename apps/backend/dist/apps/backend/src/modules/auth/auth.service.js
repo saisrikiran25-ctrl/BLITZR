@@ -41,6 +41,7 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var AuthService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.AuthService = void 0;
 const common_1 = require("@nestjs/common");
@@ -50,14 +51,16 @@ const bcrypt = __importStar(require("bcrypt"));
 const google_auth_library_1 = require("google-auth-library");
 const users_service_1 = require("../users/users.service");
 const typeorm_1 = require("typeorm");
+const uuid_1 = require("uuid");
 /** Max iterations before bailing out of the username collision loop. */
 const MAX_USERNAME_ATTEMPTS = 100;
-let AuthService = class AuthService {
+let AuthService = AuthService_1 = class AuthService {
     constructor(usersService, jwtService, configService, dataSource) {
         this.usersService = usersService;
         this.jwtService = jwtService;
         this.configService = configService;
         this.dataSource = dataSource;
+        this.logger = new common_1.Logger(AuthService_1.name);
         const audiences = this.getGoogleClientAudiences();
         this.googleClient = new google_auth_library_1.OAuth2Client(audiences[0]);
     }
@@ -109,43 +112,59 @@ let AuthService = class AuthService {
             if (!payload || !payload.email) {
                 throw new common_1.UnauthorizedException('Invalid Google token payload');
             }
-            const { email, name, hd } = payload; // hd is the hosted domain (institution)
+            const { email, name, hd } = payload;
             const domain = hd || email.split('@')[1];
-            // 1. Find all institutions for this domain
+            // 1. Check for Existing User
+            const foundUser = await this.usersService.findByEmail(email);
+            // 2. Find all institutions for this domain
             const institutions = await this.dataSource.query('SELECT institution_id, name, short_code, email_domain FROM institutions WHERE email_domain = $1 AND verified = true', [domain]);
-            if (institutions.length === 0) {
-                // Add to waitlist just like manual registration
-                await this.dataSource.query('INSERT INTO waitlist (email, email_domain) VALUES ($1, $2) ON CONFLICT DO NOTHING', [email, domain]);
-                throw new common_1.BadRequestException('Your college is not yet on BLITZR. You have been added to the waitlist.');
-            }
-            // 2. Find or Create User
-            let user = await this.usersService.findByEmail(email);
-            // If user exists, we already know their campus
-            if (user) {
-                const userInst = institutions.find((i) => i.institution_id === user.institution_id);
-                // JWT uses short_code for campus-based Floor (e.g. 'IIFT-D')
-                const token = this.generateToken(user.user_id, userInst ? userInst.short_code : institutions[0].short_code);
-                // Grant daily login reward (100 chips) if eligible
-                const dailyReward = await this.grantDailyLoginReward(user.user_id);
-                return {
+            // 3. Flow A: Existing User
+            if (foundUser) {
+                this.logger.log(`Existing user sign-in: ${email}`);
+                // Find their associated institution
+                let institution = institutions.find((i) => i.institution_id === foundUser.institution_id);
+                // Legacy Fix: If user has no institution_id, try to find a match or prompt
+                if (!institution) {
+                    if (institutions.length === 0) {
+                        this.logger.warn(`Existing user ${email} has no valid institution found for domain ${domain}`);
+                    }
+                    else if (institutions.length === 1) {
+                        // Auto-assign the only one
+                        institution = institutions[0];
+                        await this.usersService.update(foundUser.user_id, { institution_id: institution.institution_id, college_domain: institution.short_code });
+                    }
+                }
+                const shortCode = institution ? institution.short_code : (institutions.length > 0 ? institutions[0].short_code : 'GLOBAL');
+                const token = this.generateToken(foundUser.user_id, shortCode);
+                const dailyReward = await this.grantDailyLoginReward(foundUser.user_id);
+                const response = {
                     status: 'SUCCESS',
                     user: {
-                        user_id: user.user_id,
-                        username: user.username,
-                        email: user.email,
-                        tos_accepted: user.tos_accepted,
-                        is_ipo_active: user.is_ipo_active,
-                        rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
-                        credibility_score: user.credibility_score,
+                        user_id: foundUser.user_id,
+                        username: foundUser.username,
+                        email: foundUser.email,
+                        tos_accepted: foundUser.tos_accepted,
+                        is_ipo_active: foundUser.is_ipo_active,
+                        rumor_disclosure_accepted: foundUser.rumor_disclosure_accepted ?? false,
+                        credibility_score: foundUser.credibility_score,
                     },
                     token,
                     isNewUser: false,
                     daily_reward_granted: dailyReward.granted,
                     chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
                 };
+                this.logger.log(`Existing user sign-in success: ${email}`);
+                return response;
             }
-            // 3. New User Flow - CHECK FOR MULTIPLE CAMPUSES
+            // 4. Flow B: New User
+            this.logger.log(`New user sign-up attempt: ${email} (domain: ${domain})`);
+            if (institutions.length === 0) {
+                this.logger.warn(`Domain ${domain} not found in institutions. Waitlisting ${email}`);
+                await this.dataSource.query('INSERT INTO waitlist (email, email_domain) VALUES ($1, $2) ON CONFLICT DO NOTHING', [email, domain]);
+                throw new common_1.BadRequestException('Your college is not yet on BLITZR. You have been added to the waitlist.');
+            }
             if (institutions.length > 1) {
+                this.logger.log(`Domain ${domain} has multiple campuses. Requesting selection.`);
                 return {
                     status: 'REQUIRES_CAMPUS_SELECTION',
                     campuses: institutions.map((i) => ({
@@ -153,36 +172,43 @@ let AuthService = class AuthService {
                         name: i.name,
                         short_code: i.short_code
                     })),
-                    tempToken: idToken // Frontend sends this back to selectCampus
+                    tempToken: idToken
                 };
             }
-            // 4. Single Campus Flow - AUTO-SELECT
+            // Single campus auto-select
             const institution = institutions[0];
-            console.log(`[AuthService] New User detected. Auto-selecting campus: ${institution.short_code}`);
-            user = await this.createGoogleUser(email, name || '', institution.institution_id);
-            if (!user || !user.user_id) {
-                console.error('[AuthService] CRITICAL: User object returned from creation is undefined or missing user_id!');
-                throw new common_1.InternalServerErrorException('Account creation failed — please try again in a moment.');
+            this.logger.log(`Auto-selecting campus ${institution.short_code} for new user ${email}`);
+            const createdUser = await this.createGoogleUser(email, name || '', institution.institution_id, institution.short_code);
+            if (!createdUser || !createdUser.user_id) {
+                throw new common_1.InternalServerErrorException('Account creation failed.');
             }
-            const token = this.generateToken(user.user_id, institution.short_code);
-            return {
+            const token = this.generateToken(createdUser.user_id, institution.short_code);
+            const dailyReward = await this.grantDailyLoginReward(createdUser.user_id);
+            const response = {
                 status: 'SUCCESS',
                 user: {
-                    user_id: user.user_id,
-                    username: user.username,
-                    email: user.email,
-                    tos_accepted: user.tos_accepted,
-                    is_ipo_active: user.is_ipo_active,
-                    rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
-                    credibility_score: user.credibility_score,
+                    user_id: createdUser.user_id,
+                    username: createdUser.username,
+                    email: createdUser.email,
+                    tos_accepted: createdUser.tos_accepted,
+                    is_ipo_active: createdUser.is_ipo_active,
+                    rumor_disclosure_accepted: createdUser.rumor_disclosure_accepted ?? false,
+                    credibility_score: createdUser.credibility_score,
                 },
                 token,
                 isNewUser: true,
+                daily_reward_granted: dailyReward.granted,
+                chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
             };
+            this.logger.log(`Google Registration Success for ${email}`);
+            return response;
         }
         catch (error) {
-            console.error('Google Login Error:', error);
-            throw new common_1.UnauthorizedException('Authentication failed');
+            this.logger.error(`CRITICAL AUTH ERROR: ${error.message}`, error.stack);
+            if (error instanceof common_1.HttpException)
+                throw error;
+            const detailedMessage = `BACKEND_CRASH: ${error.message} | STACK: ${error.stack?.split('\n')[1]?.trim() || 'No stack'}`;
+            throw new common_1.InternalServerErrorException(detailedMessage);
         }
     }
     /**
@@ -202,13 +228,13 @@ let AuthService = class AuthService {
         const instRes = await this.dataSource.query('SELECT short_code FROM institutions WHERE institution_id = $1 AND email_domain = $2', [institutionId, domain]);
         if (!instRes.length)
             throw new common_1.BadRequestException('Invalid campus selection for your email domain');
-        const user = await this.createGoogleUser(email, name || '', institutionId);
+        const user = await this.createGoogleUser(email, name || '', institutionId, instRes[0].short_code);
         if (!user || !user.user_id) {
-            console.error('[AuthService] CRITICAL: User creation failed during campus selection!');
             throw new common_1.InternalServerErrorException('Account creation failed.');
         }
         const token = this.generateToken(user.user_id, instRes[0].short_code);
-        return {
+        const dailyReward = await this.grantDailyLoginReward(user.user_id);
+        const response = {
             status: 'SUCCESS',
             user: {
                 user_id: user.user_id,
@@ -216,28 +242,30 @@ let AuthService = class AuthService {
                 email: user.email,
                 tos_accepted: user.tos_accepted,
                 is_ipo_active: user.is_ipo_active,
+                rumor_disclosure_accepted: user.rumor_disclosure_accepted ?? false,
+                credibility_score: user.credibility_score,
             },
             token,
-            isNewUser: true
+            isNewUser: true,
+            daily_reward_granted: dailyReward.granted,
+            chips_awarded: dailyReward.granted ? dailyReward.amount : 0,
         };
+        this.logger.log(`Campus selection finalized for ${email}. Response structure: ${Object.keys(response).join(', ')}`);
+        return response;
     }
-    async createGoogleUser(email, name, institutionId) {
-        // 1. Get Domain for college_domain sync
+    async createGoogleUser(email, name, institutionId, shortCode) {
         const domain = email.split('@')[1];
-        // 2. Generate random placeholder password for OAuth accounts
         const tempPassword = Math.random().toString(36).slice(-16);
         const salt = await bcrypt.genSalt(12);
         const passwordHash = await bcrypt.hash(tempPassword, salt);
         const baseUsername = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         let username = baseUsername;
         let counter = 1;
-        // FIX-A: Cap the loop at MAX_USERNAME_ATTEMPTS (100)
         while (counter <= MAX_USERNAME_ATTEMPTS && await this.usersService.isUsernameTaken(username, institutionId)) {
             username = `${baseUsername}${counter++}`;
         }
         if (counter > MAX_USERNAME_ATTEMPTS) {
-            const { v4: uuidv4 } = require('uuid');
-            username = `${baseUsername}_${uuidv4().split('-')[0]}`;
+            username = `${baseUsername}_${(0, uuid_1.v4)().split('-')[0]}`;
         }
         try {
             return await this.usersService.create({
@@ -246,13 +274,13 @@ let AuthService = class AuthService {
                 display_name: name || username,
                 password_hash: passwordHash,
                 institution_id: institutionId,
-                college_domain: domain,
+                college_domain: shortCode, // Sync with segmented floor
                 credibility_score: 60,
                 tos_accepted: false,
             });
         }
         catch (err) {
-            console.error('[AuthService] CRITICAL: Google User Creation Failed:', err.message);
+            this.logger.error(`CRITICAL: Google User Creation Failed: ${err.message}`);
             throw new common_1.InternalServerErrorException(`User registration failed: ${err.message}`);
         }
     }
@@ -300,7 +328,7 @@ let AuthService = class AuthService {
     }
 };
 exports.AuthService = AuthService;
-exports.AuthService = AuthService = __decorate([
+exports.AuthService = AuthService = AuthService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [users_service_1.UsersService,
         jwt_1.JwtService,

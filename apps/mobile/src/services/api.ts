@@ -88,7 +88,7 @@ class ApiClient {
             'Content-Type': 'application/json',
         };
         if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
+            headers.Authorization = `Bearer ${token}`;
         }
         return headers;
     }
@@ -101,7 +101,7 @@ class ApiClient {
         const urls = getBaseUrls();
         const attemptErrors: string[] = [];
 
-        for (const [urlIndex, baseUrl] of urls.entries()) {
+        for (const baseUrl of urls) {
             try {
                 const response = await fetch(`${baseUrl}${path}`, {
                     method,

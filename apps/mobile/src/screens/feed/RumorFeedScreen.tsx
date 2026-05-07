@@ -26,7 +26,6 @@ import { useFeedStore } from '../../store/useFeedStore';
 import { GlassCard } from '../../components/common/GlassCard';
 
 import { Colors, Typography, Spacing, Gradients, Fonts } from '../../theme';
-import { useMarketStore } from '../../store/useMarketStore';
 import { formatTimeAgo } from '../../utils/formatters';
 import { api } from '../../services/api';
 import { Button } from '../../components/common/Button';
@@ -40,7 +39,6 @@ import { BIcon } from '../../components/common/BIcon';
  */
 export const RumorFeedScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { rumors, userVotes, updateRumorVotes, fetchInitialData } = useFeedStore();
-    const { tickerTapeItems } = useMarketStore();
     const { credibilityScore } = usePortfolioStore();
 
     // Safe area insets for dynamic bottom padding (accounts for tab bar + gesture nav bar)

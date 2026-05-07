@@ -25,7 +25,7 @@ import { formatPrice, formatPctChange, formatCompact } from '../../utils/formatt
  * TradingFloorScreen — High-Fidelity HUD
  */
 export const TradingFloorScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-    const { tickers, tickerTapeItems, globalMarketCap, isLoading } = useMarketStore();
+    const { tickers, globalMarketCap, isLoading } = useMarketStore();
 
     // Pulse Animation for Hero
     const pulse = useSharedValue(0);
