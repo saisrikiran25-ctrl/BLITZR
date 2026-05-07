@@ -7,6 +7,7 @@ export declare class AuthService {
     private readonly jwtService;
     private readonly configService;
     private readonly dataSource;
+    private readonly logger;
     private googleClient;
     constructor(usersService: UsersService, jwtService: JwtService, configService: ConfigService, dataSource: DataSource);
     private getGoogleClientAudiences;
@@ -25,41 +26,17 @@ export declare class AuthService {
             email: string;
             tos_accepted: boolean;
             is_ipo_active: boolean;
-            rumor_disclosure_accepted: any;
+            rumor_disclosure_accepted: boolean;
             credibility_score: number;
         };
         token: string;
         isNewUser: boolean;
         daily_reward_granted: boolean;
         chips_awarded: number;
-        campuses?: undefined;
-        tempToken?: undefined;
     } | {
         status: string;
         campuses: any;
         tempToken: string;
-        user?: undefined;
-        token?: undefined;
-        isNewUser?: undefined;
-        daily_reward_granted?: undefined;
-        chips_awarded?: undefined;
-    } | {
-        status: string;
-        user: {
-            user_id: string;
-            username: string;
-            email: string;
-            tos_accepted: boolean;
-            is_ipo_active: boolean;
-            rumor_disclosure_accepted: any;
-            credibility_score: number;
-        };
-        token: string;
-        isNewUser: boolean;
-        daily_reward_granted?: undefined;
-        chips_awarded?: undefined;
-        campuses?: undefined;
-        tempToken?: undefined;
     }>;
     /**
      * Step 2 of Google Login: Finalize with campus selection
@@ -72,9 +49,13 @@ export declare class AuthService {
             email: string;
             tos_accepted: boolean;
             is_ipo_active: boolean;
+            rumor_disclosure_accepted: boolean;
+            credibility_score: number;
         };
         token: string;
         isNewUser: boolean;
+        daily_reward_granted: boolean;
+        chips_awarded: number;
     }>;
     private createGoogleUser;
     private generateToken;
