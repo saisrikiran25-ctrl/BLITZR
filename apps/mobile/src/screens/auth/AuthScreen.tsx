@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 
 import {
     View,
@@ -87,7 +87,10 @@ export const AuthScreen: React.FC = () => {
     const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_WEB_CLIENT_ID || '').trim();
     const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_ANDROID_CLIENT_ID || '').trim();
     const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || '').trim();
-    const effectiveGoogleWebClientId = googleWebClientId || runtimeGoogleConfig?.webClientId || '';
+    const effectiveGoogleWebClientId = useMemo(
+        () => googleWebClientId || runtimeGoogleConfig?.webClientId || '',
+        [googleWebClientId, runtimeGoogleConfig],
+    );
     const googleWebRequestClientId = effectiveGoogleWebClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
     const googleAndroidRequestClientId = googleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
     const googleIosRequestClientId = googleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
@@ -105,7 +108,7 @@ export const AuthScreen: React.FC = () => {
         selectAccount: true,
     });
 
-    const googleConfigError = (() => {
+    const googleConfigError = useMemo(() => {
         const missingEnvVars: string[] = [];
 
         if (!effectiveGoogleWebClientId) {
@@ -131,7 +134,7 @@ export const AuthScreen: React.FC = () => {
 
         const webOrigin = (globalThis as any)?.location?.origin || GOOGLE_WEB_ORIGIN_FALLBACK;
         return `${baseMessage} Add ${webOrigin} as an Authorized JavaScript Origin and ${redirectUri} as an Authorized Redirect URI in Google Cloud Console, then restart the app.`;
-    })();
+    }, [effectiveGoogleWebClientId, googleAndroidClientId, googleIosClientId, isWeb, redirectUri]);
 
     useEffect(() => {
         let isMounted = true;
@@ -178,7 +181,7 @@ export const AuthScreen: React.FC = () => {
             offlineAccess: true,
             forceCodeForRefreshToken: true,
         });
-    }, [effectiveGoogleWebClientId, googleConfigError, googleIosClientId, isWeb]);
+    }, [effectiveGoogleWebClientId, googleConfigError, googleIosClientId, isWeb, runtimeGoogleConfig]);
 
 
 
