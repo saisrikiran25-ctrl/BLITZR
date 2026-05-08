@@ -181,7 +181,7 @@ export const AuthScreen: React.FC = () => {
             offlineAccess: true,
             forceCodeForRefreshToken: true,
         });
-    }, [effectiveGoogleWebClientId, googleConfigError, googleIosClientId, isWeb, runtimeGoogleConfig]);
+    }, [effectiveGoogleWebClientId, googleAndroidClientId, googleConfigError, googleIosClientId, isWeb]);
 
 
 
