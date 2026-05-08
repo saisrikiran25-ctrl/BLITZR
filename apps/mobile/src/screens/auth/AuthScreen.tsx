@@ -34,6 +34,7 @@ WebBrowser.maybeCompleteAuthSession();
 const GOOGLE_REDIRECT_SCHEME = 'blitzrmobile';
 const GOOGLE_REDIRECT_PATH = 'auth';
 const GOOGLE_WEB_ORIGIN_FALLBACK = 'http://localhost:8081';
+const GOOGLE_CLIENT_ID_PLACEHOLDER = 'missing-google-client-id';
 type GooglePromptResultLike = {
     authentication?: {
         idToken?: string | null;
@@ -77,9 +78,12 @@ export const AuthScreen: React.FC = () => {
     } | null>(null);
     const login = useAuthStore((s) => s.login);
     const isWeb = Platform.OS === 'web';
-    const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '').trim();
-    const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '').trim();
-    const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '').trim();
+    const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_WEB_CLIENT_ID || '').trim();
+    const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_ANDROID_CLIENT_ID || '').trim();
+    const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || '').trim();
+    const googleWebRequestClientId = googleWebClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
+    const googleAndroidRequestClientId = googleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
+    const googleIosRequestClientId = googleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
     const redirectUri = Platform.OS === 'web'
         ? (typeof window !== 'undefined'
             ? `${window.location.origin}/auth`
@@ -87,9 +91,9 @@ export const AuthScreen: React.FC = () => {
         : AuthSession.makeRedirectUri({ scheme: GOOGLE_REDIRECT_SCHEME, path: GOOGLE_REDIRECT_PATH });
 
     const [webRequest, webResponse, promptWebGoogleAuth] = GoogleAuth.useIdTokenAuthRequest({
-        webClientId: googleWebClientId || undefined,
-        androidClientId: googleAndroidClientId || undefined,
-        iosClientId: googleIosClientId || undefined,
+        webClientId: googleWebRequestClientId,
+        androidClientId: googleAndroidRequestClientId,
+        iosClientId: googleIosRequestClientId,
         redirectUri,
         selectAccount: true,
     });

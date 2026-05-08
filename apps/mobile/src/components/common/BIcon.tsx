@@ -1,6 +1,5 @@
 import React from 'react';
 import { Image, Platform, ViewStyle } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { Colors } from '../../theme';
 
 interface BIconProps {
@@ -74,6 +73,8 @@ export const BIcon: React.FC<BIconProps> = ({ name, size = 24, color = Colors.te
             />
         );
     }
+
+    const Feather = (require('@expo/vector-icons') as typeof import('@expo/vector-icons')).Feather;
 
     return (
         <Feather
