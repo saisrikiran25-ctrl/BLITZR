@@ -88,6 +88,11 @@ let AuthService = AuthService_1 = class AuthService {
             normalized.includes('jwt malformed') ||
             normalized.includes('audience'));
     }
+    getPublicGoogleConfig() {
+        return {
+            webClientId: this.configService.get('GOOGLE_WEB_CLIENT_ID')?.trim() || '',
+        };
+    }
     async getCampuses(domain) {
         console.log(`[DEBUG] getCampuses called for domain: "${domain}"`);
         const res = await this.dataSource.query('SELECT name FROM institutions WHERE email_domain = $1 AND verified = true', [domain]);

@@ -12,6 +12,9 @@ export declare class AuthService {
     constructor(usersService: UsersService, jwtService: JwtService, configService: ConfigService, dataSource: DataSource);
     private getGoogleClientAudiences;
     private isGoogleTokenVerificationError;
+    getPublicGoogleConfig(): {
+        webClientId: string;
+    };
     getCampuses(domain: string): Promise<{
         campuses: any;
     }>;

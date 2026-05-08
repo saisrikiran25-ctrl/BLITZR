@@ -25,6 +25,9 @@ let AuthController = class AuthController {
     async getCampuses(domain) {
         return this.authService.getCampuses(domain);
     }
+    getGoogleConfig() {
+        return this.authService.getPublicGoogleConfig();
+    }
     async googleLogin(body) {
         return this.authService.googleLogin(body.idToken);
     }
@@ -44,6 +47,13 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getCampuses", null);
+__decorate([
+    (0, public_decorator_1.Public)(),
+    (0, common_1.Get)('google-config'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], AuthController.prototype, "getGoogleConfig", null);
 __decorate([
     (0, public_decorator_1.Public)(),
     (0, common_1.Post)('google'),

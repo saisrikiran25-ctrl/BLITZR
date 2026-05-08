@@ -6,6 +6,9 @@ export declare class AuthController {
     getCampuses(domain: string): Promise<{
         campuses: any;
     }>;
+    getGoogleConfig(): {
+        webClientId: string;
+    };
     googleLogin(body: GoogleAuthDto): Promise<{
         status: string;
         user: {
