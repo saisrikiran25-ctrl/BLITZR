@@ -5,7 +5,7 @@ region: blr
 services:
   - name: blitzr-backend
     source_dir: /
-    build_command: npm install && npx expo export --platform web --output-dir apps/mobile/dist && npm run backend:build
+    build_command: npm install && cd apps/mobile && EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID=836611609888-g2pld548p3f14ta3rvasgn6pa5hof2nv.apps.googleusercontent.com npx expo export --platform web --output-dir dist && cd ../.. && npm run backend:build
     run_command: npm start
     instance_count: 1
     instance_size_slug: basic-xxs

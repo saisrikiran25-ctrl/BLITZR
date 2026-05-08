@@ -126,11 +126,13 @@ export const AuthScreen: React.FC = () => {
         return `${baseMessage} Add ${webOrigin} as an Authorized JavaScript Origin and ${redirectUri} as an Authorized Redirect URI in Google Cloud Console, then restart the app.`;
     })();
 
+    // Only set the config error on page load for native platforms — on web,
+    // we show it only when the user presses the button to avoid a confusing blocked UI.
     useEffect(() => {
-        if (googleConfigError) {
+        if (googleConfigError && !isWeb) {
             setAuthError(googleConfigError);
         }
-    }, [googleConfigError]);
+    }, [googleConfigError, isWeb]);
 
     useEffect(() => {
         if (isWeb || googleConfigError) {
@@ -368,7 +370,7 @@ export const AuthScreen: React.FC = () => {
                                     size="xl"
                                     fullWidth
                                     loading={googleLoading}
-                                    disabled={googleLoading || !!googleConfigError}
+                                    disabled={googleLoading}
                                     onPress={handleGoogleSignIn}
                                     style={styles.googleButton}
                                 />
