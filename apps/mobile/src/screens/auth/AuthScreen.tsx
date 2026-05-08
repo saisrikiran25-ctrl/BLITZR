@@ -49,6 +49,12 @@ type GooglePromptResultLike = {
     type?: string;
 };
 
+type RuntimeGoogleConfig = {
+    webClientId: string;
+    androidClientId: string;
+    iosClientId: string;
+};
+
 const extractIdTokenFromWebResult = (
     promptResult: GooglePromptResultLike | null | undefined,
     responseResult: GooglePromptResultLike | null | undefined,
@@ -72,6 +78,7 @@ const extractIdTokenFromWebResult = (
 export const AuthScreen: React.FC = () => {
     const [authError, setAuthError] = useState<string | null>(null);
     const [googleLoading, setGoogleLoading] = useState(false);
+    const [runtimeGoogleConfig, setRuntimeGoogleConfig] = useState<RuntimeGoogleConfig | null>(null);
     const [campusPending, setCampusPending] = useState<{
         tempToken: string;
         campuses: Array<{ id: string; name: string; short_code: string }>;
@@ -81,9 +88,12 @@ export const AuthScreen: React.FC = () => {
     const googleWebClientId = (process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || process.env.GOOGLE_WEB_CLIENT_ID || '').trim();
     const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_ANDROID_CLIENT_ID || '').trim();
     const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || '').trim();
-    const googleWebRequestClientId = googleWebClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
-    const googleAndroidRequestClientId = googleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
-    const googleIosRequestClientId = googleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
+    const effectiveGoogleWebClientId = googleWebClientId || runtimeGoogleConfig?.webClientId || '';
+    const effectiveGoogleAndroidClientId = googleAndroidClientId || runtimeGoogleConfig?.androidClientId || '';
+    const effectiveGoogleIosClientId = googleIosClientId || runtimeGoogleConfig?.iosClientId || '';
+    const googleWebRequestClientId = effectiveGoogleWebClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
+    const googleAndroidRequestClientId = effectiveGoogleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
+    const googleIosRequestClientId = effectiveGoogleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
     const redirectUri = Platform.OS === 'web'
         ? (typeof window !== 'undefined'
             ? `${window.location.origin}/auth`
@@ -101,15 +111,15 @@ export const AuthScreen: React.FC = () => {
     const googleConfigError = (() => {
         const missingEnvVars: string[] = [];
 
-        if (!googleWebClientId) {
+        if (!effectiveGoogleWebClientId) {
             missingEnvVars.push('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
         }
 
-        if (Platform.OS === 'android' && !googleAndroidClientId) {
+        if (Platform.OS === 'android' && !effectiveGoogleAndroidClientId) {
             missingEnvVars.push('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID');
         }
 
-        if (Platform.OS === 'ios' && !googleIosClientId) {
+        if (Platform.OS === 'ios' && !effectiveGoogleIosClientId) {
             missingEnvVars.push('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
         }
 
@@ -127,9 +137,33 @@ export const AuthScreen: React.FC = () => {
     })();
 
     useEffect(() => {
+        let isMounted = true;
+        api.getGoogleConfig()
+            .then((config) => {
+                if (!isMounted) return;
+                setRuntimeGoogleConfig({
+                    webClientId: (config?.webClientId || '').trim(),
+                    androidClientId: (config?.androidClientId || '').trim(),
+                    iosClientId: (config?.iosClientId || '').trim(),
+                });
+            })
+            .catch(() => {
+                if (!isMounted) return;
+                setRuntimeGoogleConfig(null);
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
+
+    useEffect(() => {
         if (googleConfigError) {
             setAuthError(googleConfigError);
+            return;
         }
+
+        setAuthError((prev) => (prev && prev.startsWith('Google Sign-In is not configured') ? null : prev));
     }, [googleConfigError]);
 
     useEffect(() => {
@@ -140,12 +174,12 @@ export const AuthScreen: React.FC = () => {
         // The Web Client ID is required for identity verification on the backend.
         // It should be provided by the environment configuration.
         GoogleSignin.configure({
-            webClientId: googleWebClientId,
-            iosClientId: googleIosClientId || undefined,
+            webClientId: effectiveGoogleWebClientId,
+            iosClientId: effectiveGoogleIosClientId || undefined,
             offlineAccess: true,
             forceCodeForRefreshToken: true,
         });
-    }, [googleAndroidClientId, googleConfigError, googleIosClientId, googleWebClientId, isWeb]);
+    }, [effectiveGoogleAndroidClientId, effectiveGoogleIosClientId, effectiveGoogleWebClientId, googleConfigError, isWeb]);
 
 
 

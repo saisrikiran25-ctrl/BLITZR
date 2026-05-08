@@ -141,6 +141,10 @@ class ApiClient {
     }
 
     // === AUTH ===
+    async getGoogleConfig() {
+        return this.request<{ webClientId: string; androidClientId: string; iosClientId: string }>('GET', '/auth/google-config');
+    }
+
     async googleLogin(idToken: string) {
         return this.request<
             | { status: 'SUCCESS'; user: any; token: string; isNewUser: boolean }

@@ -54,6 +54,14 @@ export class AuthService {
         );
     }
 
+    getPublicGoogleConfig() {
+        return {
+            webClientId: this.configService.get<string>('GOOGLE_WEB_CLIENT_ID')?.trim() || '',
+            androidClientId: this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID')?.trim() || '',
+            iosClientId: this.configService.get<string>('GOOGLE_IOS_CLIENT_ID')?.trim() || '',
+        };
+    }
+
     async getCampuses(domain: string) {
         console.log(`[DEBUG] getCampuses called for domain: "${domain}"`);
         const res = await this.dataSource.query(

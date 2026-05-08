@@ -14,6 +14,12 @@ export class AuthController {
         return this.authService.getCampuses(domain);
     }
 
+    @Public()
+    @Get('google-config')
+    getGoogleConfig() {
+        return this.authService.getPublicGoogleConfig();
+    }
+
 
 
     @Public()
