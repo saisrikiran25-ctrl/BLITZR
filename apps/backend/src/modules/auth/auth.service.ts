@@ -57,8 +57,6 @@ export class AuthService {
     getPublicGoogleConfig() {
         return {
             webClientId: this.configService.get<string>('GOOGLE_WEB_CLIENT_ID')?.trim() || '',
-            androidClientId: this.configService.get<string>('GOOGLE_ANDROID_CLIENT_ID')?.trim() || '',
-            iosClientId: this.configService.get<string>('GOOGLE_IOS_CLIENT_ID')?.trim() || '',
         };
     }
 

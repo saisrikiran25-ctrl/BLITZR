@@ -51,8 +51,6 @@ type GooglePromptResultLike = {
 
 type RuntimeGoogleConfig = {
     webClientId: string;
-    androidClientId: string;
-    iosClientId: string;
 };
 
 const extractIdTokenFromWebResult = (
@@ -77,6 +75,7 @@ const extractIdTokenFromWebResult = (
  */
 export const AuthScreen: React.FC = () => {
     const [authError, setAuthError] = useState<string | null>(null);
+    const [showingGoogleConfigError, setShowingGoogleConfigError] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [runtimeGoogleConfig, setRuntimeGoogleConfig] = useState<RuntimeGoogleConfig | null>(null);
     const [campusPending, setCampusPending] = useState<{
@@ -89,8 +88,8 @@ export const AuthScreen: React.FC = () => {
     const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_ANDROID_CLIENT_ID || '').trim();
     const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || '').trim();
     const effectiveGoogleWebClientId = googleWebClientId || runtimeGoogleConfig?.webClientId || '';
-    const effectiveGoogleAndroidClientId = googleAndroidClientId || runtimeGoogleConfig?.androidClientId || '';
-    const effectiveGoogleIosClientId = googleIosClientId || runtimeGoogleConfig?.iosClientId || '';
+    const effectiveGoogleAndroidClientId = googleAndroidClientId;
+    const effectiveGoogleIosClientId = googleIosClientId;
     const googleWebRequestClientId = effectiveGoogleWebClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
     const googleAndroidRequestClientId = effectiveGoogleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
     const googleIosRequestClientId = effectiveGoogleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
@@ -143,12 +142,11 @@ export const AuthScreen: React.FC = () => {
                 if (!isMounted) return;
                 setRuntimeGoogleConfig({
                     webClientId: (config?.webClientId || '').trim(),
-                    androidClientId: (config?.androidClientId || '').trim(),
-                    iosClientId: (config?.iosClientId || '').trim(),
                 });
             })
-            .catch(() => {
+            .catch((error) => {
                 if (!isMounted) return;
+                console.warn('[Auth] Failed to fetch runtime Google config:', error);
                 setRuntimeGoogleConfig(null);
             });
 
@@ -159,12 +157,16 @@ export const AuthScreen: React.FC = () => {
 
     useEffect(() => {
         if (googleConfigError) {
+            setShowingGoogleConfigError(true);
             setAuthError(googleConfigError);
             return;
         }
 
-        setAuthError((prev) => (prev && prev.startsWith('Google Sign-In is not configured') ? null : prev));
-    }, [googleConfigError]);
+        if (showingGoogleConfigError) {
+            setAuthError(null);
+            setShowingGoogleConfigError(false);
+        }
+    }, [googleConfigError, showingGoogleConfigError]);
 
     useEffect(() => {
         if (isWeb || googleConfigError) {
