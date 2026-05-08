@@ -88,11 +88,9 @@ export const AuthScreen: React.FC = () => {
     const googleAndroidClientId = (process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || process.env.GOOGLE_ANDROID_CLIENT_ID || '').trim();
     const googleIosClientId = (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || process.env.GOOGLE_IOS_CLIENT_ID || '').trim();
     const effectiveGoogleWebClientId = googleWebClientId || runtimeGoogleConfig?.webClientId || '';
-    const effectiveGoogleAndroidClientId = googleAndroidClientId;
-    const effectiveGoogleIosClientId = googleIosClientId;
     const googleWebRequestClientId = effectiveGoogleWebClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
-    const googleAndroidRequestClientId = effectiveGoogleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
-    const googleIosRequestClientId = effectiveGoogleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
+    const googleAndroidRequestClientId = googleAndroidClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
+    const googleIosRequestClientId = googleIosClientId || GOOGLE_CLIENT_ID_PLACEHOLDER;
     const redirectUri = Platform.OS === 'web'
         ? (typeof window !== 'undefined'
             ? `${window.location.origin}/auth`
@@ -114,11 +112,11 @@ export const AuthScreen: React.FC = () => {
             missingEnvVars.push('EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID');
         }
 
-        if (Platform.OS === 'android' && !effectiveGoogleAndroidClientId) {
+        if (Platform.OS === 'android' && !googleAndroidClientId) {
             missingEnvVars.push('EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID');
         }
 
-        if (Platform.OS === 'ios' && !effectiveGoogleIosClientId) {
+        if (Platform.OS === 'ios' && !googleIosClientId) {
             missingEnvVars.push('EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID');
         }
 
@@ -147,7 +145,6 @@ export const AuthScreen: React.FC = () => {
             .catch((error) => {
                 if (!isMounted) return;
                 console.warn('[Auth] Failed to fetch runtime Google config:', error);
-                setRuntimeGoogleConfig(null);
             });
 
         return () => {
@@ -177,11 +174,11 @@ export const AuthScreen: React.FC = () => {
         // It should be provided by the environment configuration.
         GoogleSignin.configure({
             webClientId: effectiveGoogleWebClientId,
-            iosClientId: effectiveGoogleIosClientId || undefined,
+            iosClientId: googleIosClientId || undefined,
             offlineAccess: true,
             forceCodeForRefreshToken: true,
         });
-    }, [effectiveGoogleAndroidClientId, effectiveGoogleIosClientId, effectiveGoogleWebClientId, googleConfigError, isWeb]);
+    }, [effectiveGoogleWebClientId, googleConfigError, googleIosClientId, isWeb]);
 
 
 
