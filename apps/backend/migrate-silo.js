@@ -53,7 +53,7 @@ async function runMigration() {
         // 3. Move Rumors
         console.log('3. Migrating Rumors (Feed)...');
         const rumorRes = await client.query(
-            `UPDATE rumors SET college_domain = $1, updated_at = NOW() WHERE college_domain = $2 RETURNING rumor_id`,
+            `UPDATE rumor_posts SET college_domain = $1, updated_at = NOW() WHERE college_domain = $2 RETURNING post_id`,
             [TARGET_DOMAIN, SOURCE_DOMAIN]
         );
         console.log(`   -> Moved ${rumorRes.rowCount} rumors.\n`);
