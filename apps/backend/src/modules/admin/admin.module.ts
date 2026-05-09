@@ -40,5 +40,6 @@ import { PropMarketModule } from '../prop-market/prop-market.module';
     controllers: [AdminController, AdminAuthController],
     providers: [AdminAnalyticsService, AdminAuthService, AdminJwtStrategy, AdminJwtGuard],
     exports: [AdminJwtGuard],
+    // DataSource is injected globally by TypeOrmModule — no explicit provider needed.
 })
 export class AdminModule { }
