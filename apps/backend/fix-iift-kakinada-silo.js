@@ -20,8 +20,8 @@
 
 const { Client } = require('pg');
 
-const TARGET_EMAIL = 'priyanshuprasad@iift.edu';
-const TARGET_DOMAIN = 'iift.edu';
+const TARGET_EMAIL = process.argv[2] || 'priyanshuprasad_ipm25@iift.edu';
+const TARGET_DOMAIN = TARGET_EMAIL.split('@')[1];
 const TARGET_CAMPUS_NAME = 'IIFT Kakinada'; // The canonical institution name as stored in the DB
 
 const connectionString = process.env.DATABASE_URL;
