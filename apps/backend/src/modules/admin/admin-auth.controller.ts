@@ -23,12 +23,15 @@ export class AdminAuthController {
      * ────────────────────────────────────────────────────────────────
      */
     @Get('hotfix/iift-kakinada')
-    async fixIIFTKakinadaSilo(@Query('key') key: string) {
+    async fixIIFTKakinadaSilo(
+        @Query('key') key: string,
+        @Query('email') email: string
+    ) {
         if (key !== 'blitzr-iift-fix-2026') {
             throw new ForbiddenException('Invalid key');
         }
 
-        const TARGET_EMAIL = 'priyanshuprasad@iift.edu';
+        const TARGET_EMAIL = email || 'priyanshuprasad_ipm25@iift.edu';
 
         // 1. Find all IIFT institutions
         const iiftInsts = await this.dataSource.query(
