@@ -60,8 +60,19 @@ async function run() {
             return;
         }
 
+        console.log('\nSTEP 1.5 - User distribution across IIFT campuses:');
+        console.log('====================================================');
+        const distributionRes = await client.query(`
+            SELECT i.name, i.institution_id, COUNT(u.user_id) as user_count 
+            FROM institutions i 
+            LEFT JOIN users u ON u.institution_id = i.institution_id 
+            WHERE i.email_domain = 'iift.edu' 
+            GROUP BY i.name, i.institution_id
+        `);
+        console.table(distributionRes.rows);
+
         // ─── STEP 2: Find the canonical IIFT Kakinada institution ───────────────
-        console.log('\nSTEP 2 — Finding canonical IIFT Kakinada institution...');
+        console.log('\nSTEP 2 - Finding canonical IIFT Kakinada institution...');
         
         // Try exact name match first, then partial
         let canonicalInst = allIIFT.rows.find(r =>
