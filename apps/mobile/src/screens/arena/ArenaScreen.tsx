@@ -58,7 +58,7 @@ export const ArenaScreen: React.FC = () => {
     const [newEventTitle, setNewEventTitle] = useState('');
     const [newEventCategory, setNewEventCategory] = useState('CAMPUS');
     const [customCategory, setCustomCategory] = useState('');
-    const [newEventExpiryHours, setNewEventExpiryHours] = useState('24');
+    const [newEventExpiryHours, setNewEventExpiryHours] = useState('168');
     const [newEventLiquidity, setNewEventLiquidity] = useState('25');
     const [isCreating, setIsCreating] = useState(false);
 
